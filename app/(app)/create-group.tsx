@@ -27,7 +27,7 @@ export default function CreateGroupScreen() {
 
     setIsLoading(true);
     try {
-      const { error } = await createGroup(name, description, user.id);
+      const { error } = await createGroup(name.trim(), description.trim(), user.id);
       if (error) throw error;
       router.replace('/(app)/(tabs)/groups');
     } catch (err: any) {
@@ -41,7 +41,7 @@ export default function CreateGroupScreen() {
     <View style={styles.container} variant="screen">
       <Text variant="heading1" style={styles.title}>Create New Group</Text>
       <Text style={styles.subtitle}>
-        Create a group to start tracking shared expenses with friends and family
+        Create a group to start tracking shared expenses
       </Text>
 
       <View style={styles.form}>

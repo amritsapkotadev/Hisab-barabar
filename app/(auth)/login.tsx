@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { View } from '@/components/View';
 import { Text } from '@/components/Text';
@@ -22,33 +22,24 @@ export default function LoginScreen() {
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
-    
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    
+
+    if (!email) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Email is invalid';
+
+    if (!password) newErrors.password = 'Password is required';
+    else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
     if (!validateForm()) return;
-    
+
     setIsLoading(true);
-    
     try {
       const { error } = await signIn(email, password);
-      
       if (error) throw error;
-      
       router.replace('/(app)/(tabs)');
     } catch (error: any) {
       alert(error.message || 'Failed to sign in');
@@ -62,18 +53,13 @@ export default function LoginScreen() {
       setErrors({ email: 'Email is required' });
       return;
     }
-    
+
     setIsLoading(true);
-    
     try {
       const { error } = await sendOTP(email);
-      
       if (error) throw error;
-      
-      router.push({
-        pathname: '/verify-otp',
-        params: { email }
-      });
+
+      router.push({ pathname: '/verify-otp', params: { email } });
     } catch (error: any) {
       alert(error.message || 'Failed to send OTP');
     } finally {
@@ -82,96 +68,118 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container} variant="screen">
-      <View style={styles.header}>
-        <Image
-          source={{ uri: 'https://i.imgur.com/REr2PJo.png' }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text variant="heading1">Welcome back</Text>
-        <Text style={{ color: textSecondaryColor, marginTop: 8 }}>
-          Sign in to continue tracking your expenses
-        </Text>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        <View style={styles.container} variant="screen">
 
-      <View style={styles.form}>
-        <TextInput
-          label="Email"
-          placeholder="Enter your email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          leftIcon={<Mail size={20} color={textSecondaryColor} />}
-          error={errors.email}
-        />
+          {/* Header */}
+          <View style={styles.header}>
+            <Image
+              source={{ uri: 'https://i.imgur.com/REr2PJo.png' }}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text variant="heading1">Welcome back</Text>
+            <Text style={styles.subtitle}>
+              Sign in to continue tracking your expenses
+            </Text>
+          </View>
 
-        <TextInput
-          label="Password"
-          placeholder="Enter your password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          leftIcon={<Lock size={20} color={textSecondaryColor} />}
-          error={errors.password}
-        />
+          {/* Form */}
+          <View style={styles.form}>
+            <TextInput
+              label="Email"
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leftIcon={<Mail size={20} color={textSecondaryColor} />}
+              error={errors.email}
+            />
 
-        <TouchableOpacity 
-          onPress={() => router.push('/forgot-password')}
-          style={styles.forgotPassword}
-        >
-          <Text style={{ color: primaryColor }}>Forgot password?</Text>
-        </TouchableOpacity>
+            <TextInput
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              leftIcon={<Lock size={20} color={textSecondaryColor} />}
+              error={errors.password}
+            />
 
-        <Button
-          title="Login"
-          onPress={handleLogin}
-          isLoading={isLoading}
-          style={styles.button}
-          rightIcon={<ArrowRight size={20} color="#FFFFFF" />}
-        />
+            <TouchableOpacity 
+              onPress={() => router.push('/forgot-password')}
+              style={styles.forgotPassword}
+            >
+              <Text style={{ color: primaryColor }}>Forgot password?</Text>
+            </TouchableOpacity>
 
-        <Button
-          title="Login with OTP"
-          variant="outline"
-          onPress={handleOTP}
-          style={styles.button}
-          isLoading={isLoading}
-        />
-      </View>
+            <Button
+              title="Login"
+              onPress={handleLogin}
+              isLoading={isLoading}
+              style={styles.button}
+              rightIcon={<ArrowRight size={20} color="#fff" />}
+            />
 
-      <View style={styles.footer}>
-        <Text style={{ color: textSecondaryColor }}>Don't have an account?</Text>
-        <TouchableOpacity onPress={() => router.push('/register')}>
-          <Text style={{ color: primaryColor, marginLeft: 4 }}>Sign up</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            <Button
+              title="Login with OTP"
+              variant="outline"
+              onPress={handleOTP}
+              isLoading={isLoading}
+              style={[styles.button, { marginTop: 8 }]}
+            />
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={{ color: textSecondaryColor }}>
+              Don't have an account?
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/register')}>
+              <Text style={[styles.signup, { color: primaryColor }]}> Sign up</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: Layout.spacing.l,
     justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
     marginTop: Layout.spacing.xl,
+    marginBottom: Layout.spacing.l,
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 120,
     marginBottom: Layout.spacing.m,
   },
+  subtitle: {
+    textAlign: 'center',
+    marginTop: 8,
+    fontSize: 15,
+    lineHeight: 22,
+  },
   form: {
-    width: '100%',
+    marginVertical: Layout.spacing.m,
+    gap: Layout.spacing.m,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: Layout.spacing.l,
+    marginTop: -8,
+    marginBottom: Layout.spacing.m,
   },
   button: {
     marginVertical: Layout.spacing.s,
@@ -179,6 +187,12 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: Layout.spacing.l,
+    alignItems: 'center',
+    marginTop: Layout.spacing.xl,
+    paddingBottom: Layout.spacing.l,
+  },
+  signup: {
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });

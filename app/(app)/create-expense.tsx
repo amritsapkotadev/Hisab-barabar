@@ -1,47 +1,58 @@
 import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { View } from '@/components/View';
 import { Text } from '@/components/Text';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { useAuth } from '@/hooks/useAuth';
-import { createExpense } from '@/services/expenses';
+import { createExpense, ExpenseSplit } from '@/services/expenses';
 import { Receipt, DollarSign } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
 export default function CreateExpenseScreen() {
+  const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
+  const [splits, setSplits] = useState<ExpenseSplit[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const { user } = useAuth();
 
   const handleCreateExpense = async () => {
-    if (!user) return;
+    if (!user || !groupId) return;
     if (!title.trim() || !amount) {
       setError('Title and amount are required');
       return;
     }
 
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // For now, we'll use a dummy group ID. In a real app, this would be passed as a parameter
-      const dummyGroupId = 'your-group-id';
+      // For simplicity, creating a basic split where the creator pays everything
+      const basicSplit: ExpenseSplit[] = [{
+        userId: user.id,
+        paidAmount: numAmount,
+        owedAmount: numAmount
+      }];
+
       const { error } = await createExpense(
-        dummyGroupId,
-        title,
-        parseFloat(amount),
+        groupId,
+        title.trim(),
+        numAmount,
         user.id,
-        new Date().toISOString(),
-        null,
-        description,
-        [{ userId: user.id, amount: parseFloat(amount), splitMode: 'equal' }]
+        new Date(),
+        basicSplit
       );
+
       if (error) throw error;
-      router.replace('/(app)/(tabs)/expenses');
+      router.back();
     } catch (err: any) {
       setError(err.message || 'Failed to create expense');
     } finally {
@@ -53,7 +64,7 @@ export default function CreateExpenseScreen() {
     <View style={styles.container} variant="screen">
       <Text variant="heading1" style={styles.title}>Add New Expense</Text>
       <Text style={styles.subtitle}>
-        Add a new expense to track and split with your group
+        Add a new expense to your group
       </Text>
 
       <View style={styles.form}>
@@ -73,15 +84,6 @@ export default function CreateExpenseScreen() {
           onChangeText={setAmount}
           keyboardType="numeric"
           leftIcon={<DollarSign size={20} color="#6B7280" />}
-        />
-
-        <TextInput
-          label="Description (Optional)"
-          placeholder="Enter expense description"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={3}
         />
 
         <Button
