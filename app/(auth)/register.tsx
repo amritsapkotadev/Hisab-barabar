@@ -57,7 +57,7 @@ export default function RegisterScreen() {
         if (profileError) throw profileError;
         
         // Navigate to tabs
-        router.replace('/(app)/(tabs)');
+        router.replace('/(app)/(tabs)/index');
       }
     } catch (error: any) {
       setError(error.message || 'An error occurred during registration');
