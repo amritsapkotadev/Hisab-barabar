@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
-import * as SecureStore from 'expo-secure-store';
 import { User } from '@/types';
 
 export function useAuth() {
@@ -9,86 +8,55 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get session on load
     const loadSession = async () => {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      // Listen for auth changes
+
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       });
-      
+
       return () => {
         authListener.subscription.unsubscribe();
       };
     };
-    
+
     loadSession();
   }, []);
-  
-  const signIn = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-    return { data, error };
-  }, []);
-  
-  const signUp = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    setLoading(false);
-    return { data, error };
-  }, []);
-  
-  const signOut = useCallback(async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signOut();
-    setLoading(false);
-    return { error };
-  }, []);
-  
-  const sendOTP = useCallback(async (email: string) => {
+
+  // Phone OTP send
+  const sendOTP = useCallback(async (phone: string) => {
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: 'your-app://auth/callback',
-      },
+      phone,  // phone must be in E.164 format like '+1234567890'
     });
     setLoading(false);
     return { data, error };
   }, []);
-  
-  const verifyOTP = useCallback(async (email: string, otp: string) => {
+
+  // Phone OTP verify
+  const verifyOTP = useCallback(async (phone: string, token: string) => {
     setLoading(true);
     const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'email',
+      phone,
+      token,
+      type: 'sms',  // Important: use 'sms' for phone OTP verification
     });
     setLoading(false);
     return { data, error };
   }, []);
-  
+
+  // Optional: keep your email signIn and signUp if needed
+
   return {
     user,
     session,
     loading,
-    signIn,
-    signUp,
-    signOut,
     sendOTP,
     verifyOTP,
   };
