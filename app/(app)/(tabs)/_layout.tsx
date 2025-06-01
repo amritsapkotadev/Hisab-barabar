@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Home, Users, Receipt, Settings } from 'lucide-react-native';
+import { Chrome as Home, Users, CirclePlus as PlusCircle, Receipt, Settings } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function TabLayout() {
@@ -32,9 +32,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="expenses"
+        name="add-expense"
         options={{
-          title: 'Expenses',
+          title: 'Add',
+          tabBarIcon: ({ color, size }) => <PlusCircle size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          title: 'Activity',
           tabBarIcon: ({ color, size }) => <Receipt size={size} color={color} />,
         }}
       />

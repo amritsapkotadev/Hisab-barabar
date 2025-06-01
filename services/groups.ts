@@ -44,17 +44,20 @@ export async function getGroups(userId: string) {
   if (error) return { error };
   
   // Transform the data to a more convenient format
-  const groups = data.map(item => ({
-    id: item.groups.id,
-    name: item.groups.name,
-    description: item.groups.description,
-    createdAt: item.groups.created_at,
-    createdBy: {
-      id: item.groups.created_by,
-      displayName: item.groups.profiles.display_name,
-      avatarUrl: item.groups.profiles.avatar_url,
-    },
-  }));
+  const groups = data.map(item => {
+    const group = Array.isArray(item.groups) ? item.groups[0] : item.groups;
+    return {
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      createdAt: group.created_at,
+      createdBy: {
+        id: group.created_by,
+        displayName: Array.isArray(group.profiles) ? group.profiles[0]?.display_name : group.profiles?.display_name,
+        avatarUrl: Array.isArray(group.profiles) ? group.profiles[0]?.avatar_url : group.profiles?.avatar_url,
+      },
+    };
+  });
   
   return { data: groups };
 }
