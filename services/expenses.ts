@@ -10,7 +10,7 @@ export async function createExpense(
   groupId: string,
   title: string,
   amount: number,
-  createdBy: string,
+  paidBy: string,
   date: Date,
   splits: ExpenseSplit[]
 ) {
@@ -22,7 +22,7 @@ export async function createExpense(
         group_id: groupId,
         title,
         amount,
-        created_by: createdBy,
+        paid_by: paidBy,
         date: date.toISOString(),
       }
     ])
@@ -37,8 +37,8 @@ export async function createExpense(
   const splitsToInsert = splits.map(split => ({
     expense_id: expense.id,
     user_id: split.userId,
-    paid_amount: split.paidAmount,
-    owed_amount: split.owedAmount,
+    amount: split.owedAmount,
+    split_mode: 'equal', // or based on your split type
   }));
 
   const { error: splitsError } = await supabase
@@ -57,7 +57,19 @@ export async function getExpenses(groupId: string) {
     .from('expenses')
     .select(`
       *,
-      expense_splits (*)
+      profiles!paid_by (
+        id,
+        display_name,
+        avatar_url
+      ),
+      expense_splits (
+        *,
+        profiles (
+          id,
+          display_name,
+          avatar_url
+        )
+      )
     `)
     .eq('group_id', groupId)
     .order('date', { ascending: false });
@@ -70,7 +82,19 @@ export async function getExpenseDetails(expenseId: string) {
     .from('expenses')
     .select(`
       *,
-      expense_splits (*)
+      profiles!paid_by (
+        id,
+        display_name,
+        avatar_url
+      ),
+      expense_splits (
+        *,
+        profiles (
+          id,
+          display_name,
+          avatar_url
+        )
+      )
     `)
     .eq('id', expenseId)
     .single();
@@ -86,10 +110,14 @@ export async function calculateBalances(groupId: string) {
   const balances = new Map<string, number>();
   
   expenses?.forEach(expense => {
+    // Add the paid amount to the payer's balance
+    const currentPayerBalance = balances.get(expense.paid_by) || 0;
+    balances.set(expense.paid_by, currentPayerBalance + expense.amount);
+    
+    // Subtract owed amounts from each participant
     expense.expense_splits.forEach(split => {
       const currentBalance = balances.get(split.user_id) || 0;
-      const netAmount = split.paid_amount - split.owed_amount;
-      balances.set(split.user_id, currentBalance + netAmount);
+      balances.set(split.user_id, currentBalance - split.amount);
     });
   });
   

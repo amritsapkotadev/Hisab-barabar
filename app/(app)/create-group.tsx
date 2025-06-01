@@ -19,7 +19,11 @@ export default function CreateGroupScreen() {
   const { user } = useAuth();
 
   const handleCreateGroup = async () => {
-    if (!user) return;
+    if (!user) {
+      setError('You must be logged in to create a group');
+      return;
+    }
+    
     if (!name.trim()) {
       setError('Group name is required');
       return;
@@ -27,9 +31,15 @@ export default function CreateGroupScreen() {
 
     setIsLoading(true);
     try {
-      const { error } = await createGroup(name.trim(), description.trim(), user.id);
-      if (error) throw error;
-      router.replace('/(app)/(tabs)/groups');
+      const { data, error } = await createGroup(name.trim(), description.trim(), user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        router.replace('/(app)/(tabs)/groups');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to create group');
     } finally {
@@ -49,7 +59,10 @@ export default function CreateGroupScreen() {
           label="Group Name"
           placeholder="Enter group name"
           value={name}
-          onChangeText={setName}
+          onChangeText={(text) => {
+            setName(text);
+            setError(''); // Clear error when user types
+          }}
           error={error}
           leftIcon={<Users size={20} color="#6B7280" />}
         />
