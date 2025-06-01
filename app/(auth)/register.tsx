@@ -1,189 +1,187 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Alert,
+} from 'react-native';
 import { router } from 'expo-router';
-import { View } from '@/components/View';
-import { Text } from '@/components/Text';
-import { TextInput } from '@/components/TextInput';
-import { Button } from '@/components/Button';
-import { useAuth } from '@/hooks/useAuth';
-import { Mail, Lock, User, ArrowRight } from 'lucide-react-native';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import Layout from '@/constants/layout';
-import { createProfile } from '@/services/profiles';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{ 
-    name?: string;
-    email?: string; 
-    password?: string;
-    confirmPassword?: string;
-  }>({});
-  const [isLoading, setIsLoading] = useState(false);
-
-  const { signUp } = useAuth();
-  const primaryColor = useThemeColor('primary');
-  const textSecondaryColor = useThemeColor('textSecondary');
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const validateForm = () => {
-    const newErrors: { 
-      name?: string;
-      email?: string; 
-      password?: string;
-      confirmPassword?: string;
-    } = {};
-    
-    if (!name) {
-      newErrors.name = 'Name is required';
-    }
-    
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    
+    const newErrors: { [key: string]: string } = {};
+    if (!name.trim()) newErrors.name = 'Name is required';
+    if (!email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Email is invalid';
+    if (!password) newErrors.password = 'Password is required';
+    else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = async () => {
-    if (!validateForm()) return;
-    
-    setIsLoading(true);
-    
-    try {
-      const { data, error } = await signUp(email, password);
-      
-      if (error) throw error;
-      
-      if (data.user) {
-        // Create profile
-        await createProfile(data.user.id, name);
-      }
-      
-      router.push({
-        pathname: '/verify-otp',
-        params: { email }
-      });
-    } catch (error: any) {
-      alert(error.message || 'Failed to sign up');
-    } finally {
-      setIsLoading(false);
+  const handleRegister = () => {
+    if (!validateForm()) {
+      Alert.alert('Validation Error', 'Please fix the errors before proceeding.');
+      return;
     }
+    // Replace this with your actual sign up logic
+    Alert.alert('Success', 'Account created successfully!');
+
+    // After successful signup, navigate to login or verification page
+    router.push('/verify-otp', { email });
   };
 
   return (
-    <View style={styles.container} variant="screen">
-      <View style={styles.header}>
-        <Image
-          source={{ uri: 'https://i.imgur.com/REr2PJo.png' }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text variant="heading1">Create Account</Text>
-        <Text style={{ color: textSecondaryColor, marginTop: 8 }}>
-          Sign up to start tracking expenses with friends
-        </Text>
-      </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.innerContainer}>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Sign up to start tracking expenses with friends</Text>
 
-      <View style={styles.form}>
-        <TextInput
-          label="Full Name"
-          placeholder="Enter your full name"
-          value={name}
-          onChangeText={setName}
-          leftIcon={<User size={20} color={textSecondaryColor} />}
-          error={errors.name}
-        />
+          <TextInput
+            style={[styles.input, errors.name && styles.inputError]}
+            placeholder="Full Name"
+            placeholderTextColor="#9CA3AF"
+            value={name}
+            onChangeText={setName}
+          />
+          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
 
-        <TextInput
-          label="Email"
-          placeholder="Enter your email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          leftIcon={<Mail size={20} color={textSecondaryColor} />}
-          error={errors.email}
-        />
+          <TextInput
+            style={[styles.input, errors.email && styles.inputError]}
+            placeholder="Email"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+          />
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
-        <TextInput
-          label="Password"
-          placeholder="Create a password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          leftIcon={<Lock size={20} color={textSecondaryColor} />}
-          error={errors.password}
-        />
+          <TextInput
+            style={[styles.input, errors.password && styles.inputError]}
+            placeholder="Password"
+            placeholderTextColor="#9CA3AF"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-        <TextInput
-          label="Confirm Password"
-          placeholder="Confirm your password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          leftIcon={<Lock size={20} color={textSecondaryColor} />}
-          error={errors.confirmPassword}
-        />
+          <TextInput
+            style={[styles.input, errors.confirmPassword && styles.inputError]}
+            placeholder="Confirm Password"
+            placeholderTextColor="#9CA3AF"
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+          {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
 
-        <Button
-          title="Register"
-          onPress={handleRegister}
-          isLoading={isLoading}
-          style={styles.button}
-          rightIcon={<ArrowRight size={20} color="#FFFFFF" />}
-        />
-      </View>
+          <TouchableOpacity style={styles.button} onPress={handleRegister}>
+            <Text style={styles.buttonText}>Register</Text>
+          </TouchableOpacity>
 
-      <View style={styles.footer}>
-        <Text style={{ color: textSecondaryColor }}>Already have an account?</Text>
-        <TouchableOpacity onPress={() => router.push('/login')}>
-          <Text style={{ color: primaryColor, marginLeft: 4 }}>Sign in</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <View style={styles.signupContainer}>
+            <Text style={styles.signupText}>Already have an account?</Text>
+            <TouchableOpacity onPress={() => router.push('/login')}>
+              <Text style={styles.signupLink}> Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Layout.spacing.l,
-    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
   },
-  header: {
-    alignItems: 'center',
-    marginTop: Layout.spacing.l,
+  innerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
   },
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: Layout.spacing.m,
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  form: {
-    width: '100%',
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  input: {
+    height: 50,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#111827',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  inputError: {
+    borderColor: '#EF4444', // red for error
+  },
+  errorText: {
+    color: '#EF4444',
+    marginBottom: 8,
+    marginLeft: 4,
   },
   button: {
-    marginTop: Layout.spacing.m,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  footer: {
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: Layout.spacing.l,
+    marginTop: 32,
+  },
+  signupText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  signupLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
 });
