@@ -1,72 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
   TouchableWithoutFeedback,
-  Alert,
+  Keyboard,
+  Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { supabase, getRedirectUri } from '@/services/supabase';
-import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
+import { Text } from '@/components/Text';
+import { supabase } from '@/services/supabase';
+import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 
-WebBrowser.maybeCompleteAuthSession(); // For Expo Google OAuth flow
-
-const LoginScreen = () => {
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const navigation = useNavigation();
-
-  // 👉 Detect OAuth login and navigate
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        router.replace('../(app)/(tabs)/index.tsx');
-      }
-    });
-
-    return () => {
-      authListener.subscription?.unsubscribe();
-    };
-  }, []);
-
-  // 👉 Email/Password login
   const handleLogin = async () => {
-    if (email === '' || password === '') {
-      Alert.alert('Validation', 'Please enter both email and password');
+    if (!email || !password) {
+      setError('Please fill in all fields');
       return;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      Alert.alert('Login error', error.message);
-    } else {
-      router.replace('../(app)/(tabs)/index.tsx');
-    }
-  };
+      if (error) throw error;
 
-  // 👉 Google login with redirect
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: getRedirectUri(),
-      },
-    });
-
-    if (error) {
-      Alert.alert('Google Login Error', error.message);
+      if (data.user) {
+        router.replace('/(app)/(tabs)');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Failed to sign in');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,74 +50,86 @@ const LoginScreen = () => {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.innerContainer}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Login to continue</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#9CA3AF"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-         <TouchableOpacity 
-  style={styles.forgotPassword} 
-  onPress={() => router.push('./forgot-password')}
->
-  <Text style={styles.forgotText}>Forgot Password?</Text>
-</TouchableOpacity>
-
-
-          <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Sign In</Text>
-          </TouchableOpacity>
-
-          <View style={styles.orContainer}>
-            <View style={styles.line} />
-            <Text style={styles.orText}>OR</Text>
-            <View style={styles.line} />
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to continue managing expenses</Text>
           </View>
 
-          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
-            <Text style={styles.googleButtonText}>Sign In with Google</Text>
-          </TouchableOpacity>
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Mail size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
 
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account?</Text>
-            <TouchableOpacity onPress={() => router.push('./register')}>
-              <Text style={styles.signupLink}> Sign Up</Text>
+            <View style={styles.inputContainer}>
+              <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#9CA3AF"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={() => router.push('/forgot-password')}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Signing In...' : 'Sign In'}
+              </Text>
+              {!loading && <ArrowRight size={20} color="#FFFFFF" style={styles.buttonIcon} />}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account?</Text>
+            <TouchableOpacity onPress={() => router.push('/register')}>
+              <Text style={styles.footerLink}> Sign Up</Text>
             </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  innerContainer: {
+  content: {
     flex: 1,
+    padding: 24,
     justifyContent: 'center',
-    paddingHorizontal: 32,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
   },
   title: {
     fontSize: 32,
@@ -152,90 +140,74 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#6B7280',
-    marginBottom: 32,
+    textAlign: 'center',
+  },
+  form: {
+    marginBottom: 24,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   input: {
-    height: 50,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 16,
+    flex: 1,
     fontSize: 16,
-    color: '#111827',
-    marginBottom: 20,
+    color: '#1F2937',
   },
   forgotPassword: {
     alignItems: 'flex-end',
     marginBottom: 24,
   },
-  forgotText: {
-    color: '#3B82F6',
-    fontWeight: '500',
+  forgotPasswordText: {
+    color: '#2563EB',
     fontSize: 14,
+    fontWeight: '500',
+  },
+  errorText: {
+    color: '#EF4444',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   button: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    height: 56,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
+    marginRight: 8,
   },
-  orContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+  buttonIcon: {
+    marginLeft: 8,
   },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#D1D5DB',
-  },
-  orText: {
-    marginHorizontal: 8,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  googleButton: {
-    backgroundColor: '#DB4437',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 30,
-    shadowColor: '#DB4437',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  googleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  signupContainer: {
+  footer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  signupText: {
-    fontSize: 14,
+  footerText: {
     color: '#6B7280',
+    fontSize: 16,
   },
-  signupLink: {
-    fontSize: 14,
+  footerLink: {
+    color: '#2563EB',
+    fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
   },
 });
-
-export default LoginScreen;
