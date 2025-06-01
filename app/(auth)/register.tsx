@@ -8,11 +8,10 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
-  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/Text';
-import { supabase } from '@/services/supabase';
+import { signUp } from '@/services/auth';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react-native';
 
 export default function RegisterScreen() {
@@ -45,39 +44,15 @@ export default function RegisterScreen() {
     setError('');
 
     try {
-      // 1. Sign up the user
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (signUpError) throw signUpError;
-      if (!authData.user) throw new Error('No user data returned');
-
-      // 2. Create the user profile
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: authData.user.id,
-        display_name: name.trim(),
-        avatar_url: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-      if (profileError) {
-        // If profile creation fails, we should delete the auth user
-        await supabase.auth.signOut();
-        throw new Error('Failed to create user profile');
-      }
-
-      // 3. Navigate to the main app
-      router.replace('/(app)/(tabs)/index');
+      const { error } = await signUp(email.trim(), password, name.trim());
       
+      if (error) throw error;
+
+      // Registration successful, navigate to the main app
+      router.replace('/(app)/(tabs)/index');
     } catch (error: any) {
       console.error('Registration error:', error);
       setError(error.message || 'Failed to create account. Please try again.');
-      
-      // If we caught an error, sign out to clean up any partial registration
-      await supabase.auth.signOut();
     } finally {
       setLoading(false);
     }

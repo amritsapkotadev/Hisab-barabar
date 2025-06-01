@@ -3,13 +3,41 @@ import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
-export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
+export async function signUp(email: string, password: string, name: string) {
+  // Start a Supabase transaction
+  const { data: { user }, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        display_name: name, // Store name in user metadata
+      },
+    },
   });
-  
-  return { data, error };
+
+  if (signUpError) throw signUpError;
+  if (!user) throw new Error('No user data returned');
+
+  try {
+    // Create user profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        display_name: name,
+        avatar_url: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileError) throw profileError;
+
+    return { user, error: null };
+  } catch (error) {
+    // If profile creation fails, clean up by deleting the auth user
+    await supabase.auth.signOut();
+    throw error;
+  }
 }
 
 export async function signIn(email: string, password: string) {
