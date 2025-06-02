@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   View as RNView,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -13,19 +12,26 @@ import { Text } from '@/components/Text';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
-import { signIn } from '@/services/auth';
-import { Mail, Lock, ArrowRight } from 'lucide-react-native';
+import { signUp } from '@/services/auth';
+import { Mail, Lock, User, ArrowLeft, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
-export default function LoginScreen() {
+export default function SignUpScreen() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
+  const handleSignUp = async () => {
+    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
       setError('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -33,15 +39,15 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const { data, error: signInError } = await signIn(email.trim(), password);
+      const { user, error: signUpError } = await signUp(email.trim(), password, name.trim());
       
-      if (signInError) throw signInError;
+      if (signUpError) throw signUpError;
       
-      if (data?.user) {
+      if (user) {
         router.replace('/(app)/(tabs)');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in');
+      setError(err.message || 'Failed to sign up');
     } finally {
       setIsLoading(false);
     }
@@ -59,16 +65,32 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            activeOpacity={0.8}
+          >
+            <ArrowLeft size={24} color="#1F2937" />
+          </TouchableOpacity>
+
           <View style={styles.header}>
-            <Image
-              source={{ uri: 'https://images.pexels.com/photos/4386442/pexels-photo-4386442.jpeg' }}
-              style={styles.logo}
-            />
-            <Text variant="heading1" style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
+            <Text variant="heading1" style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Sign up to get started</Text>
           </View>
 
           <View style={styles.card}>
+            <TextInput
+              label="Full Name"
+              placeholder="Enter your full name"
+              value={name}
+              onChangeText={(text) => {
+                setName(text);
+                setError('');
+              }}
+              leftIcon={<User size={20} color="#6B7280" />}
+              error={error}
+            />
+
             <TextInput
               label="Email"
               placeholder="your.email@example.com"
@@ -86,7 +108,7 @@ export default function LoginScreen() {
 
             <TextInput
               label="Password"
-              placeholder="Enter your password"
+              placeholder="Create a password"
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
@@ -97,25 +119,31 @@ export default function LoginScreen() {
               error={error}
             />
 
-            <TouchableOpacity
-              onPress={() => router.push('/forgot-password')}
-              style={styles.forgotPassword}
-            >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            <TextInput
+              label="Confirm Password"
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                setError('');
+              }}
+              secureTextEntry
+              leftIcon={<Lock size={20} color="#6B7280" />}
+              error={error}
+            />
 
             <Button
-              title="Sign In"
-              onPress={handleLogin}
+              title="Sign Up"
+              onPress={handleSignUp}
               isLoading={isLoading}
               style={styles.button}
               rightIcon={<ArrowRight size={20} color="#FFFFFF" />}
             />
 
-            <RNView style={styles.signupContainer}>
-              <Text>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/signup')}>
-                <Text style={styles.signupText}>Sign Up</Text>
+            <RNView style={styles.loginContainer}>
+              <Text>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/login')}>
+                <Text style={styles.loginText}>Sign In</Text>
               </TouchableOpacity>
             </RNView>
           </View>
@@ -138,25 +166,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.spacing.l,
     paddingVertical: Layout.spacing.xl,
   },
-  header: {
-    alignItems: 'center',
-    marginTop: Layout.spacing.xl,
-    marginBottom: Layout.spacing.xl,
+  backButton: {
+    position: 'absolute',
+    top: Layout.spacing.xl,
+    left: Layout.spacing.l,
+    padding: Layout.spacing.s,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 1,
   },
-  logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: Layout.spacing.l,
+  header: {
+    marginTop: Layout.spacing.xxl * 2,
+    marginBottom: Layout.spacing.xl,
   },
   title: {
     marginBottom: Layout.spacing.xs,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: '#6B7280',
-    textAlign: 'center',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -168,24 +201,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginTop: Layout.spacing.s,
-    marginBottom: Layout.spacing.l,
-  },
-  forgotPasswordText: {
-    color: '#2563EB',
-    fontSize: 14,
-  },
   button: {
-    marginTop: Layout.spacing.m,
+    marginTop: Layout.spacing.l,
   },
-  signupContainer: {
+  loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: Layout.spacing.l,
   },
-  signupText: {
+  loginText: {
     color: '#2563EB',
     fontWeight: '600',
   },
