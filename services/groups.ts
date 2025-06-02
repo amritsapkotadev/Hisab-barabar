@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 export async function createGroup(name: string, description: string | null, userId: string) {
-  // First create the group
+  // Start a Supabase transaction
   const { data: group, error: groupError } = await supabase
     .from('groups')
     .insert([
@@ -18,7 +18,7 @@ export async function createGroup(name: string, description: string | null, user
     return { error: groupError };
   }
 
-  // Then add the creator as a member
+  // Add the creator as a member
   const { error: memberError } = await supabase
     .from('group_members')
     .insert([
@@ -29,7 +29,7 @@ export async function createGroup(name: string, description: string | null, user
     ]);
 
   if (memberError) {
-    // If adding member fails, clean up the group
+    // Clean up the group if member addition fails
     await supabase.from('groups').delete().eq('id', group.id);
     return { error: memberError };
   }
@@ -42,7 +42,7 @@ export async function getGroups(userId: string) {
     .from('groups')
     .select(`
       *,
-      group_members (
+      group_members!inner (
         user_id,
         users (
           id,
@@ -68,7 +68,7 @@ export async function getGroupDetails(groupId: string) {
     .from('groups')
     .select(`
       *,
-      group_members (
+      group_members!inner (
         user_id,
         users (
           id,
