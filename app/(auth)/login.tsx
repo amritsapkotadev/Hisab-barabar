@@ -1,213 +1,205 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
-  TextInput,
-  TouchableOpacity,
+  Text,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
+  FlatList,
+  Dimensions,
   Image,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
-import { Text } from '@/components/Text';
-import { supabase } from '@/services/supabase';
-import { Mail, Lock, ArrowRight } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { useRouter } from 'expo-router';
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+WebBrowser.maybeCompleteAuthSession();
+
+const { width } = Dimensions.get('window');
+
+const slides = [
+  {
+    key: '1',
+    title: 'Welcome to MyApp',
+    subtitle: 'Discover amazing features and enjoy the journey!',
+    // image: require('./assets/slide1.png'), // Add your own images here
+  },
+  {
+    key: '2',
+    title: 'Connect with friends',
+    subtitle: 'Share your moments and stay updated with what matters.',
+    // image: require('./assets/slide2.png'),
+  },
+  {
+    key: '3',
+    title: 'Get Started',
+    subtitle: 'Login with Google to continue.',
+    // image: require('./assets/slide3.png'),
+  },
+];
+
+export default function OnboardingScreen() {
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const flatListRef = useRef(null);
+  const router = useRouter();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
+  // Google OAuth request setup
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: '1080592315622-8dcon4ij4b8ioj5rmja8sgpd3qb9hh74.apps.googleusercontent.com',
+    androidClientId: '1080592315622-u01m7hbjspn1vhqqna35qrna8vo8q9qj.apps.googleusercontent.com',
+    webClientId: '1080592315622-59udlvepkltt7h80b5vh38q2a9mdom9f.apps.googleusercontent.com',
+    scopes: ['profile', 'email'],
 
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  });
 
-      if (error) throw error;
+  // Effect to handle the OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.accessToken) {
+        setLoading(true);
 
-      if (data.user) {
-        router.replace('/');
+        // Simulate async token validation, fetching user profile, etc.
+        setTimeout(() => {
+          setLoading(false);
+          router.replace('/home'); // Navigate to your home screen after login
+        }, 1500);
       }
-    } catch (error: any) {
-      setError(error.message || 'Failed to sign in');
-    } finally {
-      setLoading(false);
+    } else if (response?.type === 'error') {
+      alert('Authentication failed. Please try again.');
     }
-  };
+  }, [response]);
+
+  // Handle pagination dots when user scrolls slides
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      setCurrentIndex(viewableItems[0].index);
+    }
+  }).current;
+
+  const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
+
+  const renderItem = ({ item, index }) => (
+    <View style={[styles.slide, { width }]}>
+      <Image source={item.image} style={styles.image} resizeMode="contain" />
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={styles.subtitle}>{item.subtitle}</Text>
+
+      {index === slides.length - 1 && (
+        <TouchableOpacity
+          style={[styles.googleButton, (!request || loading) && styles.disabledButton]}
+          disabled={!request || loading}
+          onPress={() => promptAsync()}
+          accessibilityRole="button"
+          accessibilityLabel="Sign in with Google"
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.googleButtonText}>Sign in with Google</Text>
+          )}
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue managing expenses</Text>
-          </View>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={() => router.push('/forgot-password')}
-            >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              <Text style={styles.buttonText}>
-                {loading ? 'Signing In...' : 'Sign In'}
-              </Text>
-              {!loading && <ArrowRight size={20} color="#FFFFFF" style={styles.buttonIcon} />}
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account?</Text>
-            <TouchableOpacity onPress={() => router.push('/register')}>
-              <Text style={styles.footerLink}> Sign Up</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={styles.container}>
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#4285F4" />
         </View>
-      </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
+      )}
+
+      <FlatList
+        ref={flatListRef}
+        data={slides}
+        keyExtractor={(item) => item.key}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        renderItem={renderItem}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewConfigRef.current}
+      />
+
+      <View style={styles.pagination}>
+        {slides.map((_, i) => (
+          <View
+            key={i.toString()}
+            style={[styles.dot, currentIndex === i ? styles.activeDot : styles.inactiveDot]}
+          />
+        ))}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  content: {
-    flex: 1,
-    padding: 24,
+  container: { flex: 1, backgroundColor: '#fff' },
+  slide: {
     justifyContent: 'center',
-  },
-  header: {
     alignItems: 'center',
-    marginBottom: 40,
+    paddingHorizontal: 30,
+    flex: 1,
+  },
+  image: {
+    width: width * 0.7,
+    height: width * 0.7,
+    marginBottom: 30,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
+    color: '#222',
+    textAlign: 'center',
+    marginBottom: 15,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#555',
     textAlign: 'center',
+    lineHeight: 22,
   },
-  form: {
-    marginBottom: 24,
-  },
-  inputContainer: {
-    flexDirection: 'row',
+  googleButton: {
+    marginTop: 30,
+    backgroundColor: '#4285F4',
+    paddingVertical: 15,
+    borderRadius: 30,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    height: 56,
+    width: 220,
   },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
+  googleButtonText: {
+    color: '#fff',
+    fontWeight: '700',
     fontSize: 16,
-    color: '#1F2937',
   },
-  forgotPassword: {
-    alignItems: 'flex-end',
-    marginBottom: 24,
+  disabledButton: {
+    opacity: 0.6,
   },
-  forgotPasswordText: {
-    color: '#2563EB',
-    fontSize: 14,
-    fontWeight: '500',
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 30,
   },
-  errorText: {
-    color: '#EF4444',
-    marginBottom: 16,
-    textAlign: 'center',
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginHorizontal: 6,
   },
-  button: {
+  activeDot: {
     backgroundColor: '#2563EB',
-    borderRadius: 12,
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  inactiveDot: {
+    backgroundColor: '#bbb',
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  buttonIcon: {
-    marginLeft: 8,
-  },
-  footer: {
-    flexDirection: 'row',
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  footerText: {
-    color: '#6B7280',
-    fontSize: 16,
-  },
-  footerLink: {
-    color: '#2563EB',
-    fontSize: 16,
-    fontWeight: '600',
+    zIndex: 999,
   },
 });

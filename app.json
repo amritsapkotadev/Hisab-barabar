@@ -8,15 +8,17 @@
     "scheme": "com.amrit.expensetracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+   
     "ios": {
       "supportsTablet": true
-    },"android": {
-  "package": "com.amrit.expensetracker",
-  "adaptiveIcon": {
-    "foregroundImage": "./assets/images/icon.png",
-    "backgroundColor": "#FFFFFF"
-  }
-},
+    },
+    "android": {
+      "package": "com.amrit.expensetracker",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
     "web": {
       "bundler": "metro",
       "output": "single",
@@ -34,7 +36,8 @@
             "targetSdkVersion": 34
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
