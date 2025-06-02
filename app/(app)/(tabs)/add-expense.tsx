@@ -1,82 +1,236 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { View } from '@/components/View';
 import { Text } from '@/components/Text';
-import { ExpenseForm } from '@/components/ExpenseForm';
+import { TextInput } from '@/components/TextInput';
+import { Button } from '@/components/Button';
+import { Card } from '@/components/Card';
+import { Avatar } from '@/components/Avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { createExpense } from '@/services/expenses';
 import { getGroups } from '@/services/groups';
-import Layout from '@/constants/layout';
+import { Receipt, DollarSign, Users, Percent } from 'lucide-react-native';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function AddExpenseScreen() {
   const { user } = useAuth();
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [splitMethod, setSplitMethod] = useState('equal');
+  const [splits, setSplits] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const primaryColor = useThemeColor('primary');
+  const textSecondaryColor = useThemeColor('textSecondary');
 
   useEffect(() => {
-    loadGroups();
+    if (user) {
+      loadGroups();
+    }
   }, [user]);
 
   const loadGroups = async () => {
-    if (!user) return;
-
     try {
-      const { data, error } = await getGroups(user.id);
-      if (error) throw error;
+      const { data } = await getGroups(user.id);
       setGroups(data || []);
     } catch (error) {
       console.error('Error loading groups:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleSubmit = async (data: any) => {
-    if (!user) return;
+  const handleCreateExpense = async () => {
+    if (!user || !selectedGroup) {
+      setError('Please select a group');
+      return;
+    }
+    if (!title.trim() || !amount) {
+      setError('Title and amount are required');
+      return;
+    }
 
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+
+    setIsLoading(true);
     try {
+      // Create basic split for demo
+      const basicSplit = [{
+        userId: user.id,
+        paidAmount: numAmount,
+        owedAmount: numAmount / (selectedGroup.members?.length || 1)
+      }];
+
       const { error } = await createExpense(
-        data.groupId,
-        data.title,
-        data.amount,
+        selectedGroup.id,
+        title.trim(),
+        numAmount,
         user.id,
         new Date(),
-        data.splits
+        basicSplit
       );
 
       if (error) throw error;
       router.back();
-    } catch (error) {
-      console.error('Error creating expense:', error);
+    } catch (err) {
+      setError(err.message || 'Failed to create expense');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text>Loading groups...</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container} variant="screen">
-      <ExpenseForm
-        groups={groups}
-        onSubmit={handleSubmit}
+    <ScrollView style={styles.container}>
+      <Text variant="heading1" style={styles.title}>Add New Expense</Text>
+
+      <Card style={styles.section}>
+        <TextInput
+          label="Title"
+          placeholder="Enter expense title"
+          value={title}
+          onChangeText={(text) => {
+            setTitle(text);
+            setError('');
+          }}
+          leftIcon={<Receipt size={20} color={textSecondaryColor} />}
+        />
+
+        <TextInput
+          label="Amount"
+          placeholder="Enter amount"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="numeric"
+          leftIcon={<DollarSign size={20} color={textSecondaryColor} />}
+        />
+
+        <Text variant="heading3" style={styles.sectionTitle}>Select Group</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.groupList}>
+          {groups.map((group) => (
+            <TouchableOpacity
+              key={group.id}
+              onPress={() => setSelectedGroup(group)}
+              style={[
+                styles.groupCard,
+                selectedGroup?.id === group.id && { borderColor: primaryColor }
+              ]}
+            >
+              <Users size={24} color={primaryColor} />
+              <Text style={styles.groupName}>{group.name}</Text>
+              <Text style={styles.memberCount}>
+                {group.memberCount} members
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </Card>
+
+      <Card style={styles.section}>
+        <Text variant="heading3" style={styles.sectionTitle}>Split Method</Text>
+        <View style={styles.splitMethods}>
+          {['equal', 'percentage', 'custom'].map((method) => (
+            <TouchableOpacity
+              key={method}
+              onPress={() => setSplitMethod(method)}
+              style={[
+                styles.splitMethodButton,
+                splitMethod === method && { backgroundColor: primaryColor }
+              ]}
+            >
+              <Text
+                style={[
+                  styles.splitMethodText,
+                  splitMethod === method && { color: '#FFFFFF' }
+                ]}
+              >
+                {method.charAt(0).toUpperCase() + method.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Card>
+
+      {error && (
+        <Text style={styles.error}>{error}</Text>
+      )}
+
+      <Button
+        title="Add Expense"
+        onPress={handleCreateExpense}
+        isLoading={isLoading}
+        style={styles.submitButton}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Layout.spacing.l,
+    padding: 16,
   },
-  centered: {
-    justifyContent: 'center',
+  title: {
+    marginTop: 48,
+    marginBottom: 24,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  groupList: {
+    flexGrow: 0,
+    marginTop: 8,
+  },
+  groupCard: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginRight: 12,
     alignItems: 'center',
+    minWidth: 120,
+  },
+  groupName: {
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  memberCount: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  splitMethods: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  splitMethodButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  splitMethodText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  error: {
+    color: '#EF4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  submitButton: {
+    marginBottom: 32,
   },
 });
