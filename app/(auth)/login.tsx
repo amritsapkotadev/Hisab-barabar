@@ -14,6 +14,7 @@ import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
 import { signIn } from '@/services/auth';
+import { useOAuth } from '@clerk/clerk-expo';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
@@ -22,6 +23,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -44,6 +48,23 @@ export default function LoginScreen() {
       setError(err.message || 'Failed to sign in');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleLoading(true);
+      const { createdSessionId, setActive } = await startOAuthFlow();
+ 
+      if (createdSessionId) {
+        setActive({ session: createdSessionId });
+        router.replace('/(app)/(tabs)');
+      }
+    } catch (err) {
+      setError('Failed to sign in with Google');
+      console.error("OAuth error:", err);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -110,6 +131,26 @@ export default function LoginScreen() {
               isLoading={isLoading}
               style={styles.button}
               rightIcon={<ArrowRight size={20} color="#FFFFFF" />}
+            />
+
+            <View style={styles.dividerContainer}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.divider} />
+            </View>
+
+            <Button
+              title="Continue with Google"
+              onPress={handleGoogleSignIn}
+              isLoading={isGoogleLoading}
+              variant="outline"
+              style={styles.googleButton}
+              leftIcon={
+                <Image
+                  source={{ uri: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg' }}
+                  style={styles.googleIcon}
+                />
+              }
             />
 
             <RNView style={styles.signupContainer}>
@@ -179,6 +220,30 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: Layout.spacing.m,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Layout.spacing.l,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    marginHorizontal: Layout.spacing.m,
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: Layout.spacing.s,
   },
   signupContainer: {
     flexDirection: 'row',

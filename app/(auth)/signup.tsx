@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
   View as RNView,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -13,6 +14,7 @@ import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
 import { signUp } from '@/services/auth';
+import { useOAuth } from '@clerk/clerk-expo';
 import { Mail, Lock, User, ArrowLeft, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
@@ -23,6 +25,9 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
   const handleSignUp = async () => {
     if (!name.trim() || !email.trim() || !password || !confirmPassword) {
@@ -50,6 +55,23 @@ export default function SignUpScreen() {
       setError(err.message || 'Failed to sign up');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    try {
+      setIsGoogleLoading(true);
+      const { createdSessionId, setActive } = await startOAuthFlow();
+ 
+      if (createdSessionId) {
+        setActive({ session: createdSessionId });
+        router.replace('/(app)/(tabs)');
+      }
+    } catch (err) {
+      setError('Failed to sign up with Google');
+      console.error("OAuth error:", err);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -140,6 +162,26 @@ export default function SignUpScreen() {
               rightIcon={<ArrowRight size={20} color="#FFFFFF" />}
             />
 
+            <View style={styles.dividerContainer}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.divider} />
+            </View>
+
+            <Button
+              title="Continue with Google"
+              onPress={handleGoogleSignUp}
+              isLoading={isGoogleLoading}
+              variant="outline"
+              style={styles.googleButton}
+              leftIcon={
+                <Image
+                  source={{ uri: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg' }}
+                  style={styles.googleIcon}
+                />
+              }
+            />
+
             <RNView style={styles.loginContainer}>
               <Text>Already have an account? </Text>
               <TouchableOpacity onPress={() => router.push('/login')}>
@@ -203,6 +245,30 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: Layout.spacing.l,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Layout.spacing.l,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    marginHorizontal: Layout.spacing.m,
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: Layout.spacing.s,
   },
   loginContainer: {
     flexDirection: 'row',

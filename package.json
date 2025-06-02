@@ -9,6 +9,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@clerk/clerk-expo": "^1.0.0",
     "@expo-google-fonts/poppins": "^0.4.0",
     "@expo/vector-icons": "^14.1.0",
     "@lucide/lab": "^0.1.2",
@@ -40,10 +41,8 @@
     "expo-system-ui": "~5.0.5",
     "expo-web-browser": "~14.1.6",
     "express": "^5.1.0",
-    "firebase": "^10.14.1",
     "lucide-react-native": "^0.475.0",
     "node-libs-react-native": "^1.2.1",
-    "nodemailer": "^7.0.3",
     "process": "^0.11.10",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -55,16 +54,13 @@
     "react-native-level-fs": "^3.0.1",
     "react-native-modal": "^14.0.0-rc.1",
     "react-native-paper": "^5.14.5",
-    "react-native-randombytes": "^3.6.1",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.3.0",
     "react-native-screens": "~4.10.0",
-    "react-native-snap-carousel": "^3.9.1",
     "react-native-svg": "15.11.2",
     "react-native-tcp-socket": "^6.0.6",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.20.0",
-    "react-native-webview": "13.13.5",
     "readable-stream": "^4.7.0",
     "stream-http": "^3.2.0",
     "url": "^0.11.3",
@@ -75,8 +71,6 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
-    "@types/react-native-snap-carousel": "^3.8.11",
-    "path-browserify": "^1.0.1",
     "typescript": "~5.8.3"
   }
 }
