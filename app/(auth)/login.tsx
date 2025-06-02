@@ -37,11 +37,7 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data.user) {
-<<<<<<< HEAD
         router.replace('/');
-=======
-        router.replace('/(app)/(tabs)/index');
->>>>>>> 749f98e7e7a514f96fc7f9bc930fe2b1b04f5214
       }
     } catch (error: any) {
       setError(error.message || 'Failed to sign in');

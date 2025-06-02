@@ -22,9 +22,8 @@ const ExpoSecureStoreAdapter = {
 // Supabase project URL and anon public API key
 const SUPABASE_URL = 'https://fhrkdeejcqqfofgsiluf.supabase.co';
 const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocmtkZWVqY3FxZm9mZ3NpbHVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1NDA1NTEsImV4cCI6MjA2NDExNjU1MX0.5_z4ilJ4z-KwvZm21bMOdZW2XWxDHgK0jKzmCWO-ORU'; // Replace with your anon key
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocmtkZWVqY3FxZm9mZ3NpbHVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1NDA1NTEsImV4cCI6MjA2NDExNjU1MX0.5_z4ilJ4z-KwvZm21bMOdZW2XWxDHgK0jKzmCWO-ORU'; 
 
-// Create Supabase client instance with secure session storage & auto refresh
 export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: ExpoSecureStoreAdapter,
@@ -33,17 +32,11 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
     detectSessionInUrl: false,   // Disable session detection via URL (not needed in React Native)
   },
 });
-
-/**
- * Generate redirect URI for OAuth login using Expo AuthSession proxy.
- * Useful if you add social login providers in the future.
- */
+ 
 import { makeRedirectUri } from 'expo-auth-session';
 
 export const getRedirectUri = (): string => {
-  return makeRedirectUri({
-    useProxy: true,  // Enable Expo proxy for development & testing convenience
-  });
+  return makeRedirectUri();
 };
 
 export default supabase;

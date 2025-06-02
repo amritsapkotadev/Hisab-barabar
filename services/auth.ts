@@ -10,7 +10,7 @@ export async function signUp(email: string, password: string, name: string) {
     password,
     options: {
       data: {
-        display_name: name, // Store name in user metadata
+        display_name: name, 
       },
     },
   });
