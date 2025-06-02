@@ -1,205 +1,120 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Dimensions,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import React, { useState } from 'react';
+import { View, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Text } from '@/components/Text';
+import { useAuth } from '@clerk/clerk-expo';
+import { useOAuth } from '@clerk/clerk-expo';
+import { useSupabase } from '@/hooks/useSupabase';
 
-WebBrowser.maybeCompleteAuthSession();
-
-const { width } = Dimensions.get('window');
-
-const slides = [
-  {
-    key: '1',
-    title: 'Welcome to MyApp',
-    subtitle: 'Discover amazing features and enjoy the journey!',
-    // image: require('./assets/slide1.png'), // Add your own images here
-  },
-  {
-    key: '2',
-    title: 'Connect with friends',
-    subtitle: 'Share your moments and stay updated with what matters.',
-    // image: require('./assets/slide2.png'),
-  },
-  {
-    key: '3',
-    title: 'Get Started',
-    subtitle: 'Login with Google to continue.',
-    // image: require('./assets/slide3.png'),
-  },
-];
-
-export default function OnboardingScreen() {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
-  const flatListRef = useRef(null);
   const router = useRouter();
+  const { signIn } = useAuth();
+  const { createSupabaseUser } = useSupabase();
+  
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
-  // Google OAuth request setup
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: '1080592315622-8dcon4ij4b8ioj5rmja8sgpd3qb9hh74.apps.googleusercontent.com',
-    androidClientId: '1080592315622-u01m7hbjspn1vhqqna35qrna8vo8q9qj.apps.googleusercontent.com',
-    webClientId: '1080592315622-59udlvepkltt7h80b5vh38q2a9mdom9f.apps.googleusercontent.com',
-    scopes: ['profile', 'email'],
-
-  });
-
-  // Effect to handle the OAuth response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.accessToken) {
-        setLoading(true);
-
-        // Simulate async token validation, fetching user profile, etc.
-        setTimeout(() => {
-          setLoading(false);
-          router.replace('/home'); // Navigate to your home screen after login
-        }, 1500);
+  const onGooglePress = async () => {
+    try {
+      setLoading(true);
+      const { createdSessionId, signIn, signUp, setActive } = await startOAuthFlow();
+ 
+      if (createdSessionId) {
+        setActive({ session: createdSessionId });
+        // Create or sync user with Supabase
+        await createSupabaseUser();
+        router.replace('/(app)/(tabs)');
+      } else {
+        // Use signIn or signUp for next steps
+        console.log("No session created", { signIn, signUp });
       }
-    } else if (response?.type === 'error') {
-      alert('Authentication failed. Please try again.');
+    } catch (err) {
+      console.error("OAuth error:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [response]);
-
-  // Handle pagination dots when user scrolls slides
-  const onViewableItemsChanged = useRef(({ viewableItems }) => {
-    if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index);
-    }
-  }).current;
-
-  const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
-
-  const renderItem = ({ item, index }) => (
-    <View style={[styles.slide, { width }]}>
-      <Image source={item.image} style={styles.image} resizeMode="contain" />
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.subtitle}>{item.subtitle}</Text>
-
-      {index === slides.length - 1 && (
-        <TouchableOpacity
-          style={[styles.googleButton, (!request || loading) && styles.disabledButton]}
-          disabled={!request || loading}
-          onPress={() => promptAsync()}
-          accessibilityRole="button"
-          accessibilityLabel="Sign in with Google"
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.googleButtonText}>Sign in with Google</Text>
-          )}
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  };
 
   return (
     <View style={styles.container}>
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#4285F4" />
-        </View>
-      )}
-
-      <FlatList
-        ref={flatListRef}
-        data={slides}
-        keyExtractor={(item) => item.key}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        renderItem={renderItem}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewConfigRef.current}
-      />
-
-      <View style={styles.pagination}>
-        {slides.map((_, i) => (
-          <View
-            key={i.toString()}
-            style={[styles.dot, currentIndex === i ? styles.activeDot : styles.inactiveDot]}
-          />
-        ))}
+      <View style={styles.header}>
+        <Image
+          source={{ uri: 'https://images.pexels.com/photos/4386442/pexels-photo-4386442.jpeg' }}
+          style={styles.logo}
+        />
+        <Text variant="heading1" style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>Sign in to continue</Text>
       </View>
+
+      <TouchableOpacity
+        style={[styles.googleButton, loading && styles.disabledButton]}
+        onPress={onGooglePress}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Image
+              source={{ uri: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg' }}
+              style={styles.googleIcon}
+            />
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  slide: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 30,
+  container: {
     flex: 1,
+    backgroundColor: '#fff',
+    padding: 20,
   },
-  image: {
-    width: width * 0.7,
-    height: width * 0.7,
-    marginBottom: 30,
+  header: {
+    alignItems: 'center',
+    marginTop: 100,
+    marginBottom: 50,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#222',
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 10,
     textAlign: 'center',
-    marginBottom: 15,
   },
   subtitle: {
     fontSize: 16,
-    color: '#555',
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 22,
   },
   googleButton: {
-    marginTop: 30,
-    backgroundColor: '#4285F4',
-    paddingVertical: 15,
-    borderRadius: 30,
+    flexDirection: 'row',
     alignItems: 'center',
-    width: 220,
+    justifyContent: 'center',
+    backgroundColor: '#4285F4',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  googleIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
   },
   googleButtonText: {
     color: '#fff',
-    fontWeight: '700',
     fontSize: 16,
+    fontWeight: '600',
   },
   disabledButton: {
-    opacity: 0.6,
-  },
-  pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 30,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginHorizontal: 6,
-  },
-  activeDot: {
-    backgroundColor: '#2563EB',
-  },
-  inactiveDot: {
-    backgroundColor: '#bbb',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
+    opacity: 0.7,
   },
 });
