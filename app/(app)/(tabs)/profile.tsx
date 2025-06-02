@@ -8,7 +8,7 @@ import { Button } from '@/components/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { getProfile, updateProfile } from '@/services/profiles';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { Camera, LogOut, Moon, Sun, Settings, ChevronRight, Bell, Shield, HelpCircle } from 'lucide-react-native';
+import { Camera, LogOut, Moon, Sun, Settings, ChevronRight, Bell, Shield, CircleHelp as HelpCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen() {
