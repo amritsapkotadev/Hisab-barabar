@@ -46,6 +46,8 @@ export async function createExpense(
     .insert(splitsToInsert);
 
   if (splitsError) {
+    // If splits fail, clean up the expense
+    await supabase.from('expenses').delete().eq('id', expense.id);
     return { error: splitsError };
   }
 
@@ -61,13 +63,13 @@ export async function getExpenses(userId: string) {
         id,
         group_name
       ),
-      expense_splits (
+      expense_splits!inner (
         user_id,
         paid_amount,
         owed_amount
       )
     `)
-    .eq('created_by', userId)
+    .eq('expense_splits.user_id', userId)
     .order('date', { ascending: false });
 
   return { data, error };
@@ -100,7 +102,17 @@ export async function getExpenseDetails(expenseId: string) {
 }
 
 export async function calculateBalances(groupId: string) {
-  const { data: expenses, error: expensesError } = await getExpenses(groupId);
+  const { data: expenses, error: expensesError } = await supabase
+    .from('expenses')
+    .select(`
+      *,
+      expense_splits (
+        user_id,
+        paid_amount,
+        owed_amount
+      )
+    `)
+    .eq('group_id', groupId);
   
   if (expensesError) return { error: expensesError };
   
@@ -114,4 +126,34 @@ export async function calculateBalances(groupId: string) {
   });
   
   return { data: Object.fromEntries(balances) };
+}
+
+export async function updateExpenseSplits(
+  expenseId: string,
+  splits: ExpenseSplit[]
+) {
+  // First delete existing splits
+  const { error: deleteError } = await supabase
+    .from('expense_splits')
+    .delete()
+    .eq('expense_id', expenseId);
+
+  if (deleteError) {
+    return { error: deleteError };
+  }
+
+  // Then insert new splits
+  const splitsToInsert = splits.map(split => ({
+    expense_id: expenseId,
+    user_id: split.userId,
+    paid_amount: split.paidAmount,
+    owed_amount: split.owedAmount
+  }));
+
+  const { data, error } = await supabase
+    .from('expense_splits')
+    .insert(splitsToInsert)
+    .select();
+
+  return { data, error };
 }
