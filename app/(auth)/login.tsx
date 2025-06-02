@@ -37,7 +37,7 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data.user) {
-        router.replace('/(app)/(tabs)');
+        router.replace('/');
       }
     } catch (error: any) {
       setError(error.message || 'Failed to sign in');

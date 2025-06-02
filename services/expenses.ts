@@ -57,17 +57,17 @@ export async function getExpenses(userId: string) {
     .from('expenses')
     .select(`
       *,
-      groups!inner (
+      groups (
         id,
         group_name
       ),
-      expense_splits!inner (
+      expense_splits (
         user_id,
         paid_amount,
         owed_amount
       )
     `)
-    .eq('expense_splits.user_id', userId)
+    .eq('created_by', userId)
     .order('date', { ascending: false });
 
   return { data, error };
@@ -86,10 +86,10 @@ export async function getExpenseDetails(expenseId: string) {
         user_id,
         paid_amount,
         owed_amount,
-        profiles (
+        users (
           id,
-          display_name,
-          avatar_url
+          name,
+          email
         )
       )
     `)

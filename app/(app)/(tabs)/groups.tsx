@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { View } from '@/components/View';
 import { Text } from '@/components/Text';
 import { GroupCard } from '@/components/GroupCard';
 import { Button } from '@/components/Button';
-import { useAuth } from '@/hooks/useAuth';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { getGroups } from '@/services/groups';
 import { GroupSummary } from '@/types';
@@ -14,20 +13,62 @@ import { TextInput } from '@/components/TextInput';
 import Layout from '@/constants/layout';
 
 export default function GroupsScreen() {
-  // ... existing state and logic remains unchanged ...
+  // State for search query
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // State for groups and loading
+  const [groups, setGroups] = useState<GroupSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Theme colors
+  const primaryColor = useThemeColor({}, 'primary');
+  const textSecondaryColor = useThemeColor({}, 'textSecondary');
+
+  // Fetch groups on mount
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    getGroups()
+      .then((data) => {
+        if (isMounted) {
+          // Ensure data is always an array to prevent errors
+          setGroups(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setGroups([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Filter groups based on search query safely
+  const filteredGroups = Array.isArray(groups)
+    ? groups.filter((group) =>
+        group.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
 
   return (
     <View style={styles.container} variant="screen">
       <View style={styles.header}>
         <Text variant="heading1" style={styles.title}>Your Groups</Text>
-        <Text variant="body" style={[styles.subtitle, { color: textSecondaryColor }]}>
+        <Text variant="body" style={[styles.subtitle]}>
           Manage your expense groups
         </Text>
       </View>
 
       <View style={styles.searchContainer}>
         <View style={styles.searchWrapper}>
-          <Search size={20} color={textSecondaryColor} style={styles.searchIcon} />
+          <Search size={20} style={styles.searchIcon} />
           <TextInput
             placeholder="Search groups..."
             value={searchQuery}
@@ -45,8 +86,8 @@ export default function GroupsScreen() {
             data={filteredGroups}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <GroupCard 
-                group={item} 
+              <GroupCard
+                group={item}
                 onPress={() => router.push({
                   pathname: '/(app)/group/[id]',
                   params: { id: item.id }
@@ -84,7 +125,7 @@ export default function GroupsScreen() {
         )}
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.fab, { backgroundColor: primaryColor }]}
         onPress={() => router.push('/create-group')}
         activeOpacity={0.9}
@@ -101,10 +142,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.spacing.l,
     paddingTop: Layout.spacing.xl,
     backgroundColor: '#F8FAFC',
-  },
-  loading: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   header: {
     marginBottom: Layout.spacing.m,

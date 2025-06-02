@@ -8,11 +8,10 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
-  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/Text';
-import { supabase } from '@/services/supabase';
+import { signUp } from '@/services/auth';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react-native';
 
 export default function RegisterScreen() {
@@ -22,45 +21,38 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleRegister = async () => {
-    if (!name || !email || !password) {
+  const validateInputs = () => {
+    if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Please fill in all fields');
-      return;
+      return false;
     }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    return true;
+  };
+
+  const handleRegister = async () => {
+    if (!validateInputs()) return;
 
     setLoading(true);
+    setError('');
+
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: name,
-          },
-        },
-      });
+      const { error } = await signUp(email.trim(), password, name.trim());
+      
+      if (error) throw error;
 
-      if (signUpError) throw signUpError;
-
-      if (data.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              display_name: name,
-              avatar_url: null,
-            },
-          ]);
-
-        if (profileError) throw profileError;
-        
-        // Navigate to tabs
-        router.replace('/(app)/(tabs)');
-      }
+      // Registration successful, navigate to the main app
+      router.replace('/(app)/(tabs)/index');
     } catch (error: any) {
-      setError(error.message || 'An error occurred during registration');
+      console.error('Registration error:', error);
+      setError(error.message || 'Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -88,6 +80,7 @@ export default function RegisterScreen() {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                editable={!loading}
               />
             </View>
 
@@ -101,6 +94,7 @@ export default function RegisterScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!loading}
               />
             </View>
 
@@ -108,15 +102,20 @@ export default function RegisterScreen() {
               <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder="Password (min. 6 characters)"
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                editable={!loading}
               />
             </View>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
             <TouchableOpacity
               style={[styles.button, loading && styles.buttonDisabled]}
@@ -132,7 +131,7 @@ export default function RegisterScreen() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account?</Text>
-            <TouchableOpacity onPress={() => router.push('/login')}>
+            <TouchableOpacity onPress={() => router.push('/login')} disabled={loading}>
               <Text style={styles.footerLink}> Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -187,9 +186,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
-  errorText: {
-    color: '#EF4444',
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
     marginBottom: 16,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
     textAlign: 'center',
   },
   button: {

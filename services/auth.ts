@@ -3,13 +3,34 @@ import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
-export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-  
-  return { data, error };
+export async function signUp(email: string, password: string, name: string) {
+  try {
+    // First, create the auth user
+    const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (signUpError) throw signUpError;
+    if (!user) throw new Error('No user data returned');
+
+    // Then create the user profile in our users table
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert({
+        id: user.id,
+        name: name,
+        email: email,
+      });
+
+    if (profileError) throw profileError;
+
+    return { user, error: null };
+  } catch (error: any) {
+    // If anything fails, clean up by signing out
+    await supabase.auth.signOut();
+    return { user: null, error };
+  }
 }
 
 export async function signIn(email: string, password: string) {
@@ -44,53 +65,6 @@ export async function resetPassword(email: string) {
   return { data, error };
 }
 
-// Google OAuth sign in
-export async function signInWithGoogle() {
-  if (Platform.OS === 'web') {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-    return { data, error };
-  } else {
-    // For mobile, we need to use the browser to complete the OAuth flow
-    const redirectUrl = 'your-app://auth/callback';
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-      },
-    });
-    
-    if (error) return { error };
-    
-    // Open browser for OAuth flow
-    if (data?.url) {
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-      
-      if (result.type === 'success') {
-        const { url } = result;
-        // Extract the access token from URL
-        if (url) {
-          const params = new URLSearchParams(url.split('#')[1]);
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-          
-          if (accessToken && refreshToken) {
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            return { data, error };
-          }
-        }
-      }
-    }
-    
-    return { error: new Error('OAuth sign in failed') };
-  }
-}
-
-// OTP / Magic Link authentication
 export async function sendOTP(email: string) {
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
