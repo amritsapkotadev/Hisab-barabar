@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { View } from '@/components/View';
 import { Text } from '@/components/Text';
@@ -49,31 +49,39 @@ export default function CreateGroupScreen() {
 
   return (
     <View style={styles.container} variant="screen">
-      <Text variant="heading1" style={styles.title}>Create New Group</Text>
-      <Text style={styles.subtitle}>
-        Create a group to start tracking shared expenses
-      </Text>
+      <View style={styles.header}>
+        <Image
+          // source={require('@/assets/images/group-illustration.png')}
+          style={styles.illustration}
+        />
+        <Text variant="heading1" style={styles.title}>Create New Group</Text>
+        <Text style={styles.subtitle}>
+          Start tracking shared expenses with friends or family
+        </Text>
+      </View>
 
-      <View style={styles.form}>
+      <View style={styles.card}>
         <TextInput
           label="Group Name"
-          placeholder="Enter group name"
+          placeholder="e.g., Roommates, Family Trip"
           value={name}
           onChangeText={(text) => {
             setName(text);
-            setError(''); // Clear error when user types
+            setError('');
           }}
           error={error}
-          leftIcon={<Users size={20} color="#6B7280" />}
+          leftIcon={<Users size={22} color="#6B7280" />}
+          containerStyle={styles.input}
         />
 
         <TextInput
           label="Description (Optional)"
-          placeholder="Enter group description"
+          placeholder="What's this group for?"
           value={description}
           onChangeText={setDescription}
           multiline
           numberOfLines={3}
+          containerStyle={styles.input}
         />
 
         <Button
@@ -81,45 +89,78 @@ export default function CreateGroupScreen() {
           onPress={handleCreateGroup}
           isLoading={isLoading}
           style={styles.button}
+          textStyle={styles.buttonText}
         />
+        
+        {error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : null}
       </View>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: Layout.spacing.l,
-    backgroundColor: '#F9FAFB', // Light background for clean feel
+    padding: 24,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginBottom: 8,
+  },
+  illustration: {
+    width: 160,
+    height: 160,
+    marginBottom: 16,
   },
   title: {
-    marginTop: Layout.spacing.xxl,
-    marginBottom: Layout.spacing.s,
     fontSize: 28,
-    fontWeight: '700',
-    color: '#111827', // Darker text for better readability
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: Layout.spacing.xxl,
-    lineHeight: 22,
+    color: '#64748B',
+    textAlign: 'center',
+    maxWidth: '80%',
+    lineHeight: 24,
   },
-  form: {
-    flex: 1,
+  card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: Layout.spacing.l,
-    shadowColor: '#000',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
     elevation: 3,
   },
+  input: {
+    marginBottom: 20,
+  },
   button: {
-    marginTop: Layout.spacing.xl,
-    borderRadius: 12,
-    paddingVertical: 14,
-    backgroundColor: '#3B82F6', // Soft blue for primary action
+    backgroundColor: '#6366F1',
+    borderRadius: 16,
+    height: 56,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    marginTop: 16,
+  },
+  buttonText: {
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  errorText: {
+    color: '#EF4444',
+    marginTop: 16,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

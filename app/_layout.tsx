@@ -6,12 +6,12 @@ import { useLoadFonts } from '@/hooks/useLoadFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { SplashScreen } from 'expo-router';
 import { ClerkProvider } from '@clerk/clerk-expo';
-import { tokenCache } from '.././utils/tokencache';
-
-const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || '';
+import { tokenCache } from '@/utils/tokencache';
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
+
+const CLERK_PUBLISHABLE_KEY = "pk_test_cGVyZmVjdC1raXQtODguY2xlcmsuYWNjb3VudHMuZGV2JA";
 
 export default function RootLayout() {
   const { fontsLoaded, fontError } = useLoadFonts();

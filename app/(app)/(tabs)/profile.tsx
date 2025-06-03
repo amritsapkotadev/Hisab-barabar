@@ -10,6 +10,21 @@ import { getProfile, updateProfile } from '@/services/profiles';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Camera, LogOut, Moon, Sun, Settings, ChevronRight, Bell, Shield, CircleHelp as HelpCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+
+// Updated color scheme
+const COLORS = {
+  primary: '#6366F1',
+  secondary: '#818CF8',
+  background: '#F9FAFB',
+  card: '#FFFFFF',
+  textPrimary: '#1F2937',
+  textSecondary: '#6B7280',
+  border: '#E5E7EB',
+  accent: '#8B5CF6',
+  error: '#EF4444',
+  success: '#10B981',
+};
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
@@ -18,11 +33,14 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
-  const primaryColor = useThemeColor('primary');
-  const textSecondaryColor = useThemeColor('textSecondary');
-  const backgroundColor = useThemeColor('background');
-  const cardBackground = useThemeColor('cardBackground') || '#fff';
+  const primaryColor = darkMode ? '#A5B4FC' : COLORS.primary;
+  const textSecondaryColor = darkMode ? '#9CA3AF' : COLORS.textSecondary;
+  const backgroundColor = darkMode ? '#111827' : COLORS.background;
+  const cardBackground = darkMode ? '#1F2937' : COLORS.card;
+  const textColor = darkMode ? '#F3F4F6' : COLORS.textPrimary;
+  const borderColor = darkMode ? '#374151' : COLORS.border;
 
   useEffect(() => {
     if (user) {
@@ -80,6 +98,10 @@ export default function ProfileScreen() {
     }
   };
 
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
+
   const menuItems = [
     {
       icon: <Bell size={24} color={primaryColor} />,
@@ -101,6 +123,13 @@ export default function ProfileScreen() {
       title: 'Help & Support',
       onPress: () => console.log('Help'),
     },
+    {
+      icon: darkMode ? 
+        <Moon size={24} color={primaryColor} /> : 
+        <Sun size={24} color={primaryColor} />,
+      title: darkMode ? 'Light Mode' : 'Dark Mode',
+      onPress: toggleDarkMode,
+    },
   ];
 
   return (
@@ -109,114 +138,158 @@ export default function ProfileScreen() {
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={pickImage}
-          style={[styles.avatarContainer, { shadowColor: primaryColor }]}
-          activeOpacity={0.8}
-          accessibilityLabel="Change profile picture"
+      {/* Profile Header with Gradient Background */}
+      <Animated.View 
+        style={[styles.headerContainer, { backgroundColor: primaryColor }]}
+        entering={FadeIn.duration(600)}
+      >
+        <Animated.View 
+          style={styles.headerContent}
+          entering={FadeInDown.delay(200).duration(600)}
         >
-          <Image
-            source={{ uri: profile?.avatar_url || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
-            style={styles.avatar}
-          />
-          <View style={[styles.cameraButton, { backgroundColor: primaryColor }]}>
-            <Camera size={20} color="#fff" />
-          </View>
-        </TouchableOpacity>
-
-        <Text variant="heading2" style={[styles.name, { color: primaryColor }]}>
-          {profile?.display_name || 'Your Name'}
-        </Text>
-        <Text style={[styles.email, { color: textSecondaryColor }]}>{user?.email}</Text>
-      </View>
-
-      <Card style={[styles.section, { backgroundColor: cardBackground, shadowColor: primaryColor }]}>
-        <View style={styles.sectionHeader}>
-          <Text variant="heading3" style={[styles.sectionTitle, { color: primaryColor }]}>
-            Personal Information
-          </Text>
-          {!editing && (
-            <TouchableOpacity onPress={() => setEditing(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={[styles.editText, { color: primaryColor }]}>Edit</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        {editing ? (
-          <View>
-            <TextInput
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              style={styles.input}
-              placeholder="Enter your full name"
-            />
-            <TextInput
-              label="Phone"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              style={styles.input}
-              placeholder="Enter your phone number"
-            />
-            <View style={styles.buttonGroup}>
-              <Button
-                title="Cancel"
-                onPress={() => setEditing(false)}
-                variant="outline"
-                style={[styles.button, { marginRight: 12 }]}
-              />
-              <Button
-                title="Save"
-                onPress={handleUpdateProfile}
-                isLoading={loading}
-                style={styles.button}
-              />
-            </View>
-          </View>
-        ) : (
-          <View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Full Name</Text>
-              <Text bold style={styles.infoValue}>{name || 'Not set'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phone</Text>
-              <Text bold style={styles.infoValue}>{phone || 'Not set'}</Text>
-            </View>
-          </View>
-        )}
-      </Card>
-
-      <Card style={[styles.section, { backgroundColor: cardBackground, shadowColor: primaryColor }]}>
-        <Text variant="heading3" style={[styles.sectionTitle, { color: primaryColor, marginBottom: 8 }]}>
-          Settings
-        </Text>
-        {menuItems.map((item, index) => (
           <TouchableOpacity
-            key={index}
-            style={[
-              styles.menuItem,
-              index < menuItems.length - 1 && styles.menuItemBorder,
-            ]}
-            onPress={item.onPress}
-            activeOpacity={0.7}
-            accessibilityRole="button"
+            onPress={pickImage}
+            style={styles.avatarContainer}
+            activeOpacity={0.8}
+            accessibilityLabel="Change profile picture"
           >
-            {item.icon}
-            <Text style={[styles.menuItemText, { color: primaryColor }]}>{item.title}</Text>
-            <ChevronRight size={20} color={textSecondaryColor} />
+            <Image
+              source={{ uri: profile?.avatar_url || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
+              style={styles.avatar}
+            />
+            <View style={[styles.cameraButton, { backgroundColor: COLORS.card }]}>
+              <Camera size={18} color={primaryColor} />
+            </View>
           </TouchableOpacity>
-        ))}
-      </Card>
 
-      <Button
-        title="Log Out"
-        onPress={handleLogout}
-        variant="outline"
-        icon={<LogOut color={primaryColor} size={20} />}
-        style={styles.logoutButton}
-      />
+          <Text variant="heading2" style={[styles.name, { color: COLORS.card }]}>
+            {profile?.display_name || 'Your Name'}
+          </Text>
+          <Text style={[styles.email, { color: 'rgba(255,255,255,0.8)' }]}>{user?.email}</Text>
+        </Animated.View>
+      </Animated.View>
+
+      {/* Personal Information Card */}
+      <Animated.View 
+        entering={FadeInUp.delay(300).duration(600)}
+        style={{ paddingHorizontal: 16 }}
+      >
+        <Card style={[styles.section, { backgroundColor: cardBackground, borderColor }]}>
+          <View style={styles.sectionHeader}>
+            <Text variant="heading3" style={[styles.sectionTitle, { color: textColor }]}>
+              Personal Information
+            </Text>
+            {!editing ? (
+              <TouchableOpacity 
+                onPress={() => setEditing(true)} 
+                style={styles.editButton}
+              >
+                <Text style={[styles.editText, { color: primaryColor }]}>Edit</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          
+          {editing ? (
+            <Animated.View entering={FadeIn.duration(400)}>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: textColor }]}>Full Name</Text>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  style={[styles.input, { borderColor, color: textColor }]}
+                  placeholder="Enter your full name"
+                  placeholderTextColor={textSecondaryColor}
+                />
+              </View>
+              
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: textColor }]}>Phone</Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  style={[styles.input, { borderColor, color: textColor }]}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor={textSecondaryColor}
+                />
+              </View>
+              
+              <View style={styles.buttonGroup}>
+                <Button
+                  title="Cancel"
+                  onPress={() => setEditing(false)}
+                  variant="outline"
+                  style={[styles.button, { borderColor: primaryColor }]}
+                  textStyle={{ color: primaryColor }}
+                />
+                <Button
+                  title="Save"
+                  onPress={handleUpdateProfile}
+                  isLoading={loading}
+                  style={[styles.button, { backgroundColor: primaryColor }]}
+                />
+              </View>
+            </Animated.View>
+          ) : (
+            <View>
+              <View style={styles.infoRow}>
+                <Text style={[styles.infoLabel, { color: textSecondaryColor }]}>Full Name</Text>
+                <Text bold style={[styles.infoValue, { color: textColor }]}>{name || 'Not set'}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={[styles.infoLabel, { color: textSecondaryColor }]}>Phone</Text>
+                <Text bold style={[styles.infoValue, { color: textColor }]}>{phone || 'Not set'}</Text>
+              </View>
+            </View>
+          )}
+        </Card>
+      </Animated.View>
+
+      {/* Settings Card */}
+      <Animated.View 
+        entering={FadeInUp.delay(400).duration(600)}
+        style={{ paddingHorizontal: 16, marginTop: 16 }}
+      >
+        <Card style={[styles.section, { backgroundColor: cardBackground, borderColor }]}>
+          <Text variant="heading3" style={[styles.sectionTitle, { color: textColor, marginBottom: 8 }]}>
+            Settings
+          </Text>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.menuItem,
+                index < menuItems.length - 1 && styles.menuItemBorder,
+                { borderBottomColor: borderColor }
+              ]}
+              onPress={item.onPress}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <View style={styles.iconContainer}>
+                {item.icon}
+              </View>
+              <Text style={[styles.menuItemText, { color: textColor }]}>{item.title}</Text>
+              <ChevronRight size={20} color={textSecondaryColor} />
+            </TouchableOpacity>
+          ))}
+        </Card>
+      </Animated.View>
+
+      {/* Logout Button */}
+      <Animated.View 
+        entering={FadeInUp.delay(500).duration(600)}
+        style={{ paddingHorizontal: 16, marginTop: 24 }}
+      >
+        <Button
+          title="Log Out"
+          onPress={handleLogout}
+          variant="outline"
+          icon={<LogOut color={COLORS.error} size={20} />}
+          style={[styles.logoutButton, { borderColor: COLORS.error }]}
+          textStyle={{ color: COLORS.error }}
+        />
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -224,95 +297,116 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 0,
   },
-  header: {
+  headerContainer: {
+    paddingTop: 60,
+    paddingBottom: 40,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerContent: {
     alignItems: 'center',
-    marginBottom: 32,
+    paddingHorizontal: 24,
   },
   avatarContainer: {
     position: 'relative',
     marginBottom: 16,
-    borderRadius: 60,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   avatar: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#fff',
+    borderWidth: 4,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   cameraButton: {
     position: 'absolute',
     right: 6,
     bottom: 6,
-    backgroundColor: '#2563EB',
-    padding: 10,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: '#fff',
+    padding: 8,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   name: {
     fontWeight: '700',
     fontSize: 24,
     letterSpacing: 0.3,
+    marginTop: 16,
   },
   email: {
     marginTop: 6,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
   },
   section: {
-    marginBottom: 24,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
     // iOS shadow
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
     // Android shadow
-    elevation: 5,
+    elevation: 3,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontWeight: '700',
     fontSize: 18,
   },
+  editButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  },
   editText: {
     fontWeight: '600',
     fontSize: 14,
-    textDecorationLine: 'underline',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
   },
   input: {
-    marginBottom: 16,
-    backgroundColor: '#F9FAFB',
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 16 : 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   buttonGroup: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginTop: 8,
   },
   button: {
     minWidth: 100,
+    borderRadius: 12,
+    paddingVertical: 12,
   },
   infoRow: {
     flexDirection: 'row',
@@ -323,31 +417,47 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 16,
-    color: '#6B7280',
   },
   infoValue: {
     fontSize: 16,
-    color: '#111827',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 16,
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   menuItemText: {
     flex: 1,
-    marginLeft: 20,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   logoutButton: {
-    marginTop: 16,
-    marginHorizontal: 20,
     borderRadius: 12,
-    borderColor: '#EF4444',
+    paddingVertical: 14,
+    borderWidth: 1,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginTop: 16,
+    marginBottom: 24,
+    flexDirection: 'row',
   },
 });

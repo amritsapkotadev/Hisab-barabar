@@ -32,7 +32,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="add-expense"
+        name="create-expense"
         options={{
           title: 'Add',
           tabBarIcon: ({ color, size }) => <PlusCircle size={size} color={color} />,
