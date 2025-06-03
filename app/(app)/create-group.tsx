@@ -86,24 +86,40 @@ export default function CreateGroupScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Layout.spacing.l,
+    backgroundColor: '#F9FAFB', // Light background for clean feel
   },
   title: {
-    marginTop: Layout.spacing.xl,
+    marginTop: Layout.spacing.xxl,
     marginBottom: Layout.spacing.s,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827', // Darker text for better readability
   },
   subtitle: {
+    fontSize: 16,
     color: '#6B7280',
-    marginBottom: Layout.spacing.xl,
+    marginBottom: Layout.spacing.xxl,
+    lineHeight: 22,
   },
   form: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: Layout.spacing.l,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   button: {
-    marginTop: Layout.spacing.l,
+    marginTop: Layout.spacing.xl,
+    borderRadius: 12,
+    paddingVertical: 14,
+    backgroundColor: '#3B82F6', // Soft blue for primary action
   },
 });

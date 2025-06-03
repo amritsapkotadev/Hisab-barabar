@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/Text';
 import { Card } from '@/components/Card';
@@ -22,6 +22,7 @@ export default function ProfileScreen() {
   const primaryColor = useThemeColor('primary');
   const textSecondaryColor = useThemeColor('textSecondary');
   const backgroundColor = useThemeColor('background');
+  const cardBackground = useThemeColor('cardBackground') || '#fff';
 
   useEffect(() => {
     if (user) {
@@ -103,24 +104,44 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={[styles.container, { backgroundColor }]}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
-        <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+        <TouchableOpacity
+          onPress={pickImage}
+          style={[styles.avatarContainer, { shadowColor: primaryColor }]}
+          activeOpacity={0.8}
+          accessibilityLabel="Change profile picture"
+        >
           <Image
             source={{ uri: profile?.avatar_url || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
             style={styles.avatar}
           />
-          <View style={styles.cameraButton}>
-            <Camera size={20} color="#FFFFFF" />
+          <View style={[styles.cameraButton, { backgroundColor: primaryColor }]}>
+            <Camera size={20} color="#fff" />
           </View>
         </TouchableOpacity>
-        
-        <Text variant="heading2" style={styles.name}>{profile?.display_name}</Text>
+
+        <Text variant="heading2" style={[styles.name, { color: primaryColor }]}>
+          {profile?.display_name || 'Your Name'}
+        </Text>
         <Text style={[styles.email, { color: textSecondaryColor }]}>{user?.email}</Text>
       </View>
 
-      <Card style={styles.section}>
-        <Text variant="heading3" style={styles.sectionTitle}>Personal Information</Text>
+      <Card style={[styles.section, { backgroundColor: cardBackground, shadowColor: primaryColor }]}>
+        <View style={styles.sectionHeader}>
+          <Text variant="heading3" style={[styles.sectionTitle, { color: primaryColor }]}>
+            Personal Information
+          </Text>
+          {!editing && (
+            <TouchableOpacity onPress={() => setEditing(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={[styles.editText, { color: primaryColor }]}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {editing ? (
           <View>
             <TextInput
@@ -128,6 +149,7 @@ export default function ProfileScreen() {
               value={name}
               onChangeText={setName}
               style={styles.input}
+              placeholder="Enter your full name"
             />
             <TextInput
               label="Phone"
@@ -135,13 +157,14 @@ export default function ProfileScreen() {
               onChangeText={setPhone}
               keyboardType="phone-pad"
               style={styles.input}
+              placeholder="Enter your phone number"
             />
             <View style={styles.buttonGroup}>
               <Button
                 title="Cancel"
                 onPress={() => setEditing(false)}
                 variant="outline"
-                style={styles.button}
+                style={[styles.button, { marginRight: 12 }]}
               />
               <Button
                 title="Save"
@@ -152,32 +175,36 @@ export default function ProfileScreen() {
             </View>
           </View>
         ) : (
-          <TouchableOpacity onPress={() => setEditing(true)}>
+          <View>
             <View style={styles.infoRow}>
-              <Text>Full Name</Text>
-              <Text bold>{name}</Text>
+              <Text style={styles.infoLabel}>Full Name</Text>
+              <Text bold style={styles.infoValue}>{name || 'Not set'}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text>Phone</Text>
-              <Text bold>{phone || 'Not set'}</Text>
+              <Text style={styles.infoLabel}>Phone</Text>
+              <Text bold style={styles.infoValue}>{phone || 'Not set'}</Text>
             </View>
-          </TouchableOpacity>
+          </View>
         )}
       </Card>
 
-      <Card style={styles.section}>
-        <Text variant="heading3" style={styles.sectionTitle}>Settings</Text>
+      <Card style={[styles.section, { backgroundColor: cardBackground, shadowColor: primaryColor }]}>
+        <Text variant="heading3" style={[styles.sectionTitle, { color: primaryColor, marginBottom: 8 }]}>
+          Settings
+        </Text>
         {menuItems.map((item, index) => (
           <TouchableOpacity
             key={index}
             style={[
               styles.menuItem,
-              index < menuItems.length - 1 && styles.menuItemBorder
+              index < menuItems.length - 1 && styles.menuItemBorder,
             ]}
             onPress={item.onPress}
+            activeOpacity={0.7}
+            accessibilityRole="button"
           >
             {item.icon}
-            <Text style={styles.menuItemText}>{item.title}</Text>
+            <Text style={[styles.menuItemText, { color: primaryColor }]}>{item.title}</Text>
             <ChevronRight size={20} color={textSecondaryColor} />
           </TouchableOpacity>
         ))}
@@ -187,6 +214,7 @@ export default function ProfileScreen() {
         title="Log Out"
         onPress={handleLogout}
         variant="outline"
+        icon={<LogOut color={primaryColor} size={20} />}
         style={styles.logoutButton}
       />
     </ScrollView>
@@ -196,67 +224,115 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 24,
   },
   header: {
     alignItems: 'center',
-    marginVertical: 24,
+    marginBottom: 32,
   },
   avatarContainer: {
     position: 'relative',
     marginBottom: 16,
+    borderRadius: 60,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   cameraButton: {
     position: 'absolute',
-    right: 0,
-    bottom: 0,
+    right: 6,
+    bottom: 6,
     backgroundColor: '#2563EB',
-    padding: 8,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    padding: 10,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
   },
   name: {
-    marginTop: 8,
+    fontWeight: '700',
+    fontSize: 24,
+    letterSpacing: 0.3,
   },
   email: {
-    marginTop: 4,
+    marginTop: 6,
+    fontSize: 14,
+    fontWeight: '500',
   },
   section: {
+    marginBottom: 24,
+    borderRadius: 16,
+    padding: 20,
+    // iOS shadow
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    // Android shadow
+    elevation: 5,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
   sectionTitle: {
-    marginBottom: 16,
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  editText: {
+    fontWeight: '600',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   input: {
-    marginBottom: 12,
+    marginBottom: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   buttonGroup: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
+    justifyContent: 'flex-end',
   },
   button: {
-    flex: 1,
-    marginHorizontal: 8,
+    minWidth: 100,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+  },
+  infoLabel: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  infoValue: {
+    fontSize: 16,
+    color: '#111827',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
   menuItemBorder: {
     borderBottomWidth: 1,
@@ -264,9 +340,14 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 20,
+    fontSize: 16,
+    fontWeight: '600',
   },
   logoutButton: {
-    marginVertical: 24,
+    marginTop: 16,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    borderColor: '#EF4444',
   },
 });
