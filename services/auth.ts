@@ -1,32 +1,8 @@
 import { supabase, checkNetworkConnection } from './supabase';
 import { retryOperation } from '@/utils/retryOperation';
 import * as SecureStore from 'expo-secure-store';
-import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
+import { useClerk, useSignIn, useSignUp } from '@clerk/clerk-expo';
 import { Platform } from 'react-native';
-
-WebBrowser.maybeCompleteAuthSession();
-
-const redirectUri = makeRedirectUri({
-  scheme: 'expense-tracker',
-  path: 'auth/google'
-});
-
-export function useGoogleAuth() {
-  const [request, response, promptAsync] = useAuthRequest(
-    {
-      clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-      androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-      redirectUri,
-      responseType: "id_token",
-      scopes: ['profile', 'email'],
-    },
-    { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
-  );
-
-  return { request, response, promptAsync };
-}
 
 export async function signUp(email: string, password: string, name: string) {
   try {
@@ -35,6 +11,20 @@ export async function signUp(email: string, password: string, name: string) {
       throw new Error('No internet connection available');
     }
 
+    // First create the user in Clerk
+    const { signUp } = useSignUp();
+    const { data: clerkUser, error: clerkError } = await signUp.create({
+      emailAddress: email,
+      password,
+      firstName: name
+    });
+
+    if (clerkError) throw clerkError;
+
+    // Verify the email
+    await signUp.prepareEmailAddressVerification();
+
+    // Create the user in Supabase
     const { data: { user }, error: signUpError } = await retryOperation(() => 
       supabase.auth.signUp({
         email,
@@ -55,22 +45,6 @@ export async function signUp(email: string, password: string, name: string) {
     if (signUpError) throw signUpError;
     if (!user) throw new Error('No user data returned');
 
-    // Wait for profile creation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    const { data: profile, error: profileError } = await retryOperation(() =>
-      supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-    );
-
-    if (profileError || !profile) {
-      await supabase.auth.signOut();
-      throw new Error('Failed to create user profile');
-    }
-
     return { user, error: null };
   } catch (error: any) {
     console.error('SignUp error:', error);
@@ -88,6 +62,16 @@ export async function signIn(email: string, password: string) {
       throw new Error('No internet connection available');
     }
 
+    // Sign in with Clerk
+    const { signIn } = useSignIn();
+    const { data: clerkSession, error: clerkError } = await signIn.create({
+      identifier: email,
+      password,
+    });
+
+    if (clerkError) throw clerkError;
+
+    // Sign in with Supabase
     const { data, error } = await retryOperation(() =>
       supabase.auth.signInWithPassword({
         email,
@@ -105,6 +89,26 @@ export async function signIn(email: string, password: string) {
   }
 }
 
+export async function signInWithGoogle() {
+  try {
+    const { signIn } = useSignIn();
+    const { data, error } = await signIn.authenticateWithRedirect({
+      strategy: "oauth_google",
+      redirectUrl: "/auth/callback",
+    });
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Google SignIn error:', error);
+    return {
+      data: null,
+      error: error.message || 'Failed to sign in with Google'
+    };
+  }
+}
+
 export async function signOut() {
   try {
     const isConnected = await checkNetworkConnection();
@@ -112,6 +116,8 @@ export async function signOut() {
       throw new Error('No internet connection available');
     }
 
+    const { signOut } = useClerk();
+    await signOut();
     return await retryOperation(() => supabase.auth.signOut());
   } catch (error: any) {
     console.error('SignOut error:', error);
@@ -126,11 +132,11 @@ export async function resetPassword(email: string) {
       throw new Error('No internet connection available');
     }
 
-    const { data, error } = await retryOperation(() =>
-      supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'expense-tracker://reset-password',
-      })
-    );
+    const { signIn } = useSignIn();
+    const { data, error } = await signIn.create({
+      strategy: "reset_password_email_code",
+      identifier: email,
+    });
     
     return { data, error };
   } catch (error: any) {

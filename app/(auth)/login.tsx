@@ -7,30 +7,60 @@ import {
   ScrollView,
   Image,
   View as RNView,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/Text';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
-import { useSignIn, useOAuth } from '@clerk/clerk-expo';
+import { signIn, signInWithGoogle } from '@/services/auth';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
 export default function LoginScreen() {
-  // State declarations remain unchanged
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  
-  const { signIn, setActive } = useSignIn();
-  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
-  // Handler functions remain unchanged
-  const handleLogin = async () => { /* unchanged */ };
-  const handleGoogleSignIn = async () => { /* unchanged */ };
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const { data, error: signInError } = await signIn(email.trim(), password);
+      
+      if (signInError) throw signInError;
+      
+      if (data?.user) {
+        router.replace('/(app)/(tabs)');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleLoading(true);
+      const { error } = await signInWithGoogle();
+      
+      if (error) throw error;
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to sign in with Google');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   return (
     <RNView style={styles.container}>
@@ -54,7 +84,6 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.card}>
-            {/* Email Input */}
             <TextInput
               label="Email"
               placeholder="your.email@example.com"
@@ -70,7 +99,6 @@ export default function LoginScreen() {
               error={error}
             />
 
-            {/* Password Input */}
             <TextInput
               label="Password"
               placeholder="Enter your password"
@@ -122,7 +150,7 @@ export default function LoginScreen() {
 
             <RNView style={styles.signupContainer}>
               <Text style={styles.signupPrompt}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('./signup.tsx')}> 
+              <TouchableOpacity onPress={() => router.push('/signup')}>
                 <Text style={styles.signupText}>Sign Up</Text>
               </TouchableOpacity>
             </RNView>
