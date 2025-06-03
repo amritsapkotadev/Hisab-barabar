@@ -3,16 +3,50 @@ import { retryOperation } from '@/utils/retryOperation';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
+import * as Google from 'expo-auth-session/providers/google';
+
+
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=1080592315622-59udlvepkltt7h80b5vh38q2a9mdom9f.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=1080592315622-u01m7hbjspn1vhqqna35qrna8vo8q9qj.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=1080592315622-8dcon4ij4b8ioj5rmja8sgpd3qb9hh74.apps.googleusercontent.com
+
+export async function signInWithGoogle() {
+  try {
+    const [request, response, promptAsync] = Google.useAuthRequest({
+      androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+      iosClientId: GOOGLE_IOS_CLIENT_ID,
+      webClientId: GOOGLE_CLIENT_ID,
+      scopes: ['profile', 'email'],
+    });
+
+    if (response?.type === 'success') {
+      const { id_token } = response.authentication;
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: id_token,
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    }
+
+    return { data: null, error: new Error('Google sign in was cancelled or failed') };
+  } catch (error: any) {
+    console.error('Google SignIn error:', error);
+    return { 
+      data: null, 
+      error: error.message || 'Failed to sign in with Google' 
+    };
+  }
+}
 
 export async function signUp(email: string, password: string, name: string) {
   try {
-    // Check network connection first
     const isConnected = await checkNetworkConnection();
     if (!isConnected) {
       throw new Error('No internet connection available');
     }
 
-    // Use retry operation for signup
     const { data: { user }, error: signUpError } = await retryOperation(() => 
       supabase.auth.signUp({
         email,
@@ -33,20 +67,17 @@ export async function signUp(email: string, password: string, name: string) {
     if (signUpError) throw signUpError;
     if (!user) throw new Error('No user data returned');
 
-    // Wait for the database trigger to complete
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Verify the profile was created
     const { data: profile, error: profileError } = await retryOperation(() =>
       supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
     );
 
     if (profileError || !profile) {
-      // If profile creation failed, clean up
       await supabase.auth.signOut();
       throw new Error('Failed to create user profile');
     }
@@ -135,51 +166,6 @@ export async function resetPassword(email: string) {
     return { data, error };
   } catch (error: any) {
     console.error('ResetPassword error:', error);
-    return { data: null, error: error.message };
-  }
-}
-
-export async function sendOTP(email: string) {
-  try {
-    const isConnected = await checkNetworkConnection();
-    if (!isConnected) {
-      throw new Error('No internet connection available');
-    }
-
-    const { data, error } = await retryOperation(() =>
-      supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: 'your-app://auth/callback',
-        },
-      })
-    );
-    
-    return { data, error };
-  } catch (error: any) {
-    console.error('SendOTP error:', error);
-    return { data: null, error: error.message };
-  }
-}
-
-export async function verifyOTP(email: string, otp: string) {
-  try {
-    const isConnected = await checkNetworkConnection();
-    if (!isConnected) {
-      throw new Error('No internet connection available');
-    }
-
-    const { data, error } = await retryOperation(() =>
-      supabase.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'email',
-      })
-    );
-    
-    return { data, error };
-  } catch (error: any) {
-    console.error('VerifyOTP error:', error);
     return { data: null, error: error.message };
   }
 }

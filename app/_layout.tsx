@@ -6,7 +6,7 @@ import { useLoadFonts } from '@/hooks/useLoadFonts';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { SplashScreen } from 'expo-router';
 import { ClerkProvider } from '@clerk/clerk-expo';
-import { tokenCache } from '@/utils/tokenCache';
+import { tokenCache } from '.././utils/tokencache';
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || '';
 
