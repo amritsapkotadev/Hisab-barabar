@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   View as RNView,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/Text';
@@ -14,8 +15,8 @@ import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
 import { signUp } from '@/services/auth';
-import { useOAuth } from '@clerk/clerk-expo';
-import { Mail, Lock, User, ArrowLeft, ArrowRight } from 'lucide-react-native';
+import { useAuth, useOAuth } from '@clerk/clerk-expo';
+import { Mail, Lock, User, ArrowLeft, ArrowRight, Check } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
 export default function SignUpScreen() {
@@ -26,8 +27,16 @@ export default function SignUpScreen() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
+  const { isSignedIn, signOut } = useAuth();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
+
+  useEffect(() => {
+    if (isSignedIn) {
+      router.replace('/(app)/(tabs)');
+    }
+  }, [isSignedIn]);
 
   const handleSignUp = async () => {
     if (!name.trim() || !email.trim() || !password || !confirmPassword) {
@@ -37,6 +46,11 @@ export default function SignUpScreen() {
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('Please accept the Terms & Conditions');
       return;
     }
 
@@ -61,15 +75,28 @@ export default function SignUpScreen() {
   const handleGoogleSignUp = async () => {
     try {
       setIsGoogleLoading(true);
+      
+      if (isSignedIn) {
+        await signOut();
+      }
+
       const { createdSessionId, setActive } = await startOAuthFlow();
  
       if (createdSessionId) {
         setActive({ session: createdSessionId });
         router.replace('/(app)/(tabs)');
       }
-    } catch (err) {
-      setError('Failed to sign up with Google');
-      console.error("OAuth error:", err);
+    } catch (err: any) {
+      if (err.message === "You're already signed in.") {
+        Alert.alert(
+          'Already Signed In',
+          'You are already signed in. Please sign out first to switch accounts.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        setError('Failed to sign up with Google');
+        console.error("OAuth error:", err);
+      }
     } finally {
       setIsGoogleLoading(false);
     }
@@ -97,7 +124,7 @@ export default function SignUpScreen() {
 
           <View style={styles.header}>
             <Text variant="heading1" style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Sign up to get started</Text>
+            <Text style={styles.subtitle}>Join us today</Text>
           </View>
 
           <View style={styles.card}>
@@ -153,6 +180,18 @@ export default function SignUpScreen() {
               leftIcon={<Lock size={20} color="#6B7280" />}
               error={error}
             />
+
+            <TouchableOpacity
+              style={styles.termsContainer}
+              onPress={() => setAcceptedTerms(!acceptedTerms)}
+            >
+              <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                {acceptedTerms && <Check size={16} color="#FFFFFF" />}
+              </View>
+              <Text style={styles.termsText}>
+                I accept the Terms & Conditions and Privacy Policy
+              </Text>
+            </TouchableOpacity>
 
             <Button
               title="Sign Up"
@@ -242,6 +281,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Layout.spacing.m,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    marginRight: Layout.spacing.s,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6B7280',
   },
   button: {
     marginTop: Layout.spacing.l,

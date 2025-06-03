@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   TouchableOpacity,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   View as RNView,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/Text';
@@ -14,7 +15,7 @@ import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
 import { signIn } from '@/services/auth';
-import { useOAuth } from '@clerk/clerk-expo';
+import { useAuth, useOAuth } from '@clerk/clerk-expo';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
@@ -25,7 +26,14 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const { isSignedIn, signOut } = useAuth();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
+
+  useEffect(() => {
+    if (isSignedIn) {
+      router.replace('/(app)/(tabs)');
+    }
+  }, [isSignedIn]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -54,15 +62,29 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
+      
+      // If already signed in, sign out first
+      if (isSignedIn) {
+        await signOut();
+      }
+
       const { createdSessionId, setActive } = await startOAuthFlow();
  
       if (createdSessionId) {
         setActive({ session: createdSessionId });
         router.replace('/(app)/(tabs)');
       }
-    } catch (err) {
-      setError('Failed to sign in with Google');
-      console.error("OAuth error:", err);
+    } catch (err: any) {
+      if (err.message === "You're already signed in.") {
+        Alert.alert(
+          'Already Signed In',
+          'You are already signed in. Please sign out first to switch accounts.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        setError('Failed to sign in with Google');
+        console.error("OAuth error:", err);
+      }
     } finally {
       setIsGoogleLoading(false);
     }
