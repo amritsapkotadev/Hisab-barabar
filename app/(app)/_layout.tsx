@@ -1,21 +1,21 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Redirect, Stack } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@clerk/clerk-expo';
 
 export default function AppLayout() {
-  const { user, loading } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
 
-  // If the user is not logged in, redirect to the login screen
-  if (!loading && !user) {
-    return <Redirect href="/login" />;
-  }
-
-  // While loading, return nothing
-  if (loading) {
+  if (!isLoaded) {
     return null;
   }
 
+  if (!isSignedIn) {
+    return <Redirect href="/login" />;
+  }
+
   return (
-    <Stack screenOptions={{ headerShown: false }} />
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    </Stack>
   );
 }
