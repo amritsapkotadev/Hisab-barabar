@@ -2,42 +2,30 @@ import { supabase, checkNetworkConnection } from './supabase';
 import { retryOperation } from '@/utils/retryOperation';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import { Platform } from 'react-native';
-import * as Google from 'expo-auth-session/providers/google';
 
+WebBrowser.maybeCompleteAuthSession();
 
-EXPO_PUBLIC_GOOGLE_CLIENT_ID=1080592315622-59udlvepkltt7h80b5vh38q2a9mdom9f.apps.googleusercontent.com
-EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=1080592315622-u01m7hbjspn1vhqqna35qrna8vo8q9qj.apps.googleusercontent.com
-EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=1080592315622-8dcon4ij4b8ioj5rmja8sgpd3qb9hh74.apps.googleusercontent.com
+const redirectUri = makeRedirectUri({
+  scheme: 'expense-tracker',
+  path: 'auth/google'
+});
 
-export async function signInWithGoogle() {
-  try {
-    const [request, response, promptAsync] = Google.useAuthRequest({
-      androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-      iosClientId: GOOGLE_IOS_CLIENT_ID,
-      webClientId: GOOGLE_CLIENT_ID,
+export function useGoogleAuth() {
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      redirectUri,
+      responseType: "id_token",
       scopes: ['profile', 'email'],
-    });
+    },
+    { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
+  );
 
-    if (response?.type === 'success') {
-      const { id_token } = response.authentication;
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: id_token,
-      });
-
-      if (error) throw error;
-      return { data, error: null };
-    }
-
-    return { data: null, error: new Error('Google sign in was cancelled or failed') };
-  } catch (error: any) {
-    console.error('Google SignIn error:', error);
-    return { 
-      data: null, 
-      error: error.message || 'Failed to sign in with Google' 
-    };
-  }
+  return { request, response, promptAsync };
 }
 
 export async function signUp(email: string, password: string, name: string) {
@@ -58,7 +46,7 @@ export async function signUp(email: string, password: string, name: string) {
           },
           emailRedirectTo: Platform.select({
             web: window.location.origin,
-            default: 'your-app://auth/callback',
+            default: 'expense-tracker://auth/callback',
           }),
         },
       })
@@ -67,6 +55,7 @@ export async function signUp(email: string, password: string, name: string) {
     if (signUpError) throw signUpError;
     if (!user) throw new Error('No user data returned');
 
+    // Wait for profile creation
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const { data: profile, error: profileError } = await retryOperation(() =>
@@ -130,26 +119,6 @@ export async function signOut() {
   }
 }
 
-export async function getCurrentUser() {
-  try {
-    const { data, error } = await retryOperation(() => supabase.auth.getUser());
-    return { user: data?.user, error };
-  } catch (error: any) {
-    console.error('GetCurrentUser error:', error);
-    return { user: null, error: error.message };
-  }
-}
-
-export async function getSession() {
-  try {
-    const { data, error } = await retryOperation(() => supabase.auth.getSession());
-    return { session: data.session, error };
-  } catch (error: any) {
-    console.error('GetSession error:', error);
-    return { session: null, error: error.message };
-  }
-}
-
 export async function resetPassword(email: string) {
   try {
     const isConnected = await checkNetworkConnection();
@@ -159,7 +128,7 @@ export async function resetPassword(email: string) {
 
     const { data, error } = await retryOperation(() =>
       supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'your-app://reset-password',
+        redirectTo: 'expense-tracker://reset-password',
       })
     );
     

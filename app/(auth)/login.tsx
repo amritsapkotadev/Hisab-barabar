@@ -14,7 +14,9 @@ import { Text } from '@/components/Text';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
-import { signIn, signInWithGoogle } from '@/services/auth';
+import { signIn } from '@/services/auth';
+import { useGoogleAuth } from '@/services/auth';
+import { supabase } from '@/services/supabase';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 
@@ -24,6 +26,7 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const { request, response, promptAsync } = useGoogleAuth();
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -52,12 +55,24 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      const { data, error } = await signInWithGoogle();
       
-      if (error) throw error;
+      if (!request) {
+        throw new Error('Google Auth request not initialized');
+      }
+
+      const result = await promptAsync();
       
-      if (data?.user) {
-        router.replace('/(app)/(tabs)');
+      if (result?.type === 'success') {
+        const { id_token } = result.authentication;
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: id_token,
+        });
+
+        if (error) throw error;
+        if (data?.user) {
+          router.replace('/(app)/(tabs)');
+        }
       }
     } catch (err: any) {
       setError('Failed to sign in with Google');

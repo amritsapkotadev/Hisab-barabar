@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView,TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { View } from '@/components/View';
 import { Text } from '@/components/Text';
@@ -35,10 +35,11 @@ export default function AddExpenseScreen() {
 
   const loadGroups = async () => {
     try {
-      const { data } = await getGroups(user.id);
+      const { data } = await getGroups(user?.id);
       setGroups(data || []);
     } catch (error) {
       console.error('Error loading groups:', error);
+      setError('Failed to load groups');
     }
   };
 
@@ -60,14 +61,13 @@ export default function AddExpenseScreen() {
 
     setIsLoading(true);
     try {
-      // Create basic split for demo
       const basicSplit = [{
         userId: user.id,
         paidAmount: numAmount,
         owedAmount: numAmount / (selectedGroup.members?.length || 1)
       }];
 
-      const { error } = await createExpense(
+      const { error: expenseError } = await createExpense(
         selectedGroup.id,
         title.trim(),
         numAmount,
@@ -76,9 +76,9 @@ export default function AddExpenseScreen() {
         basicSplit
       );
 
-      if (error) throw error;
+      if (expenseError) throw expenseError;
       router.back();
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Failed to create expense');
     } finally {
       setIsLoading(false);

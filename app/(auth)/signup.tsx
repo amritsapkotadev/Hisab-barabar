@@ -63,7 +63,9 @@ export default function SignUpScreen() {
       if (signUpError) throw signUpError;
       
       if (user) {
-        router.replace('/(app)/(tabs)');
+        // Wait for a moment to ensure profile is created
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        router.replace('/login');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign up');
