@@ -8,6 +8,7 @@ import {
   Image,
   View as RNView,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/Text';
@@ -17,6 +18,9 @@ import { View } from '@/components/View';
 import { signIn, signInWithGoogle } from '@/services/auth';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -74,16 +78,22 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
+          <Animated.View 
+            entering={FadeInDown.duration(1000).delay(200)}
+            style={styles.header}
+          >
             <Image
               source={{ uri: 'https://images.pexels.com/photos/4386442/pexels-photo-4386442.jpeg' }}
               style={styles.logo}
             />
             <Text variant="heading1" style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.card}>
+          <Animated.View 
+            entering={FadeInUp.duration(1000).delay(400)}
+            style={styles.card}
+          >
             <TextInput
               label="Email"
               placeholder="your.email@example.com"
@@ -154,7 +164,7 @@ export default function LoginScreen() {
                 <Text style={styles.signupText}>Sign Up</Text>
               </TouchableOpacity>
             </RNView>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </RNView>
@@ -180,20 +190,21 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: width * 0.3,
+    height: width * 0.3,
+    borderRadius: (width * 0.3) / 2,
     marginBottom: 20,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#E2E8F0',
   },
   title: {
     marginBottom: 8,
     textAlign: 'center',
     color: '#1E293B',
+    fontSize: 32,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#64748B',
     textAlign: 'center',
   },
@@ -202,30 +213,31 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 30,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 5,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 24,
   },
   forgotPasswordText: {
     color: '#3B82F6',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   button: {
     marginTop: 8,
     backgroundColor: '#4F46E5',
-    borderRadius: 12,
-    height: 50,
+    borderRadius: 16,
+    height: 56,
     shadowColor: '#4F46E5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   dividerContainer: {
     flexDirection: 'row',
@@ -238,21 +250,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
   },
   dividerText: {
-    marginHorizontal: 12,
+    marginHorizontal: 16,
     color: '#94A3B8',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   googleButton: {
     backgroundColor: '#FFFFFF',
     borderColor: '#E2E8F0',
-    borderWidth: 1.5,
-    borderRadius: 12,
-    height: 50,
+    borderWidth: 2,
+    borderRadius: 16,
+    height: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   googleIcon: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     marginRight: 12,
   },
   signupContainer: {
@@ -262,9 +279,11 @@ const styles = StyleSheet.create({
   },
   signupPrompt: {
     color: '#64748B',
+    fontSize: 16,
   },
   signupText: {
     color: '#4F46E5',
     fontWeight: '600',
+    fontSize: 16,
   },
 });

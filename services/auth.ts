@@ -3,6 +3,7 @@ import { retryOperation } from '@/utils/retryOperation';
 import * as SecureStore from 'expo-secure-store';
 import { useClerk, useSignIn, useSignUp } from '@clerk/clerk-expo';
 import { Platform } from 'react-native';
+import { router } from 'expo-router';
 
 export async function signUp(email: string, password: string, name: string) {
   try {
@@ -78,6 +79,10 @@ export async function signIn(email: string, password: string) {
         password,
       })
     );
+
+    if (!error) {
+      router.replace('/(app)/(tabs)');
+    }
     
     return { data, error };
   } catch (error: any) {
@@ -98,6 +103,11 @@ export async function signInWithGoogle() {
     });
 
     if (error) throw error;
+
+    // Redirect to home page after successful sign in
+    if (data) {
+      router.replace('/(app)/(tabs)');
+    }
 
     return { data, error: null };
   } catch (error: any) {
