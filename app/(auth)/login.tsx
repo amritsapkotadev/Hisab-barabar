@@ -20,7 +20,7 @@ import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as WebBrowser from 'expo-web-browser';
-import { useOAuth } from '@clerk/clerk-expo';
+import { useOAuth, useAuth } from '@clerk/clerk-expo';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -33,6 +33,7 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const { isSignedIn } = useAuth();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
   const handleLogin = async () => {
@@ -62,10 +63,14 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      const { createdSessionId, signIn, signUp } = await startOAuthFlow();
+      
+      const { createdSessionId, setActive } = await startOAuthFlow();
       
       if (createdSessionId) {
-        router.replace('/(app)/(tabs)');
+        await setActive({ session: createdSessionId });
+        if (isSignedIn) {
+          router.replace('/(app)/(tabs)');
+        }
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to sign in with Google');
