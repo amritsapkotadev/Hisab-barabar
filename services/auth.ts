@@ -98,8 +98,9 @@ export async function signInWithGoogle() {
   try {
     const { signIn } = useSignIn();
     const { data, error } = await signIn.authenticateWithRedirect({
-      strategy: "oauth_google",
-      redirectUrl: "/auth/callback",
+        strategy: "oauth_google",
+        redirectUrl: "/auth/callback",
+        redirectUrlComplete: ''
     });
 
     if (error) throw error;
