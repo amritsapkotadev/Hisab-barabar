@@ -15,10 +15,14 @@ import { Text } from '@/components/Text';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { View } from '@/components/View';
-import { signIn, signInWithGoogle } from '@/services/auth';
+import { signIn } from '@/services/auth';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import Layout from '@/constants/layout';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import * as WebBrowser from 'expo-web-browser';
+import { useOAuth } from '@clerk/clerk-expo';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +32,8 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -56,9 +62,11 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      const { error } = await signInWithGoogle();
+      const { createdSessionId, signIn, signUp } = await startOAuthFlow();
       
-      if (error) throw error;
+      if (createdSessionId) {
+        router.replace('/(app)/(tabs)');
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to sign in with Google');
     } finally {

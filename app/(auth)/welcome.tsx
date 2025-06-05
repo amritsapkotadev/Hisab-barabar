@@ -10,7 +10,6 @@ import {
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useOAuth } from '@clerk/clerk-expo';
 import { ArrowRight } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -45,24 +44,6 @@ const onboardingData = [
 export default function WelcomeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef(null);
-  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      const { createdSessionId, setActive } = await startOAuthFlow();
-      
-      if (createdSessionId) {
-        await setActive({ session: createdSessionId });
-        router.replace('/(app)/(tabs)');
-      }
-    } catch (err) {
-      console.error("OAuth error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const renderItem = ({ item, index }) => (
     <Animated.View 
@@ -109,6 +90,17 @@ export default function WelcomeScreen() {
     </View>
   );
 
+  const handleNext = () => {
+    if (currentIndex < onboardingData.length - 1) {
+      flatListRef.current?.scrollToIndex({
+        index: currentIndex + 1,
+        animated: true,
+      });
+    } else {
+      router.replace('/login');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -134,18 +126,13 @@ export default function WelcomeScreen() {
         <Pagination />
         
         <TouchableOpacity
-          style={styles.googleButton}
-          onPress={handleGoogleSignIn}
-          disabled={isLoading}
+          style={styles.nextButton}
+          onPress={handleNext}
         >
-          <Image
-            source={{ uri: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg' }}
-            style={styles.googleIcon}
-          />
-          <Text style={styles.googleButtonText}>
-            {isLoading ? 'Signing in...' : 'Continue with Google'}
+          <Text style={styles.nextButtonText}>
+            {currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Next'}
           </Text>
-          <ArrowRight size={20} color="#1F2937" />
+          <ArrowRight size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -227,32 +214,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#4F46E5',
     marginHorizontal: 4,
   },
-  googleButton: {
+  nextButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#4F46E5',
     padding: 16,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  googleIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 12,
-  },
-  googleButtonText: {
-    flex: 1,
+  nextButtonText: {
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
-    textAlign: 'center',
+    marginRight: 8,
     fontFamily: Platform.select({
       ios: 'System',
       android: 'Roboto',
