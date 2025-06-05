@@ -3,6 +3,9 @@ import { retryOperation } from '@/utils/retryOperation';
 import * as SecureStore from 'expo-secure-store';
 import { useClerk, useSignIn, useSignUp } from '@clerk/clerk-expo';
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export async function signUp(email: string, password: string, name: string) {
   try {
@@ -92,9 +95,18 @@ export async function signIn(email: string, password: string) {
 export async function signInWithGoogle() {
   try {
     const { signIn } = useSignIn();
+    if (!signIn) throw new Error('Sign in not initialized');
+
     const { data, error } = await signIn.authenticateWithRedirect({
       strategy: "oauth_google",
-      redirectUrl: "/auth/callback",
+      redirectUrl: Platform.select({
+        web: window.location.origin,
+        default: 'expense-tracker://oauth-callback'
+      }),
+      redirectUrlComplete: Platform.select({
+        web: `${window.location.origin}/auth/callback`,
+        default: 'expense-tracker://oauth-callback-complete'
+      }),
     });
 
     if (error) throw error;

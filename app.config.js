@@ -33,7 +33,16 @@ export default {
       clerkPublishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     },
     plugins: [
-      'expo-router'
-    ]
+      'expo-router',
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    scheme: 'expense-tracker'
   }
 };
