@@ -14,7 +14,6 @@ export async function signUp(email: string, password: string, name: string) {
       throw new Error('No internet connection available');
     }
 
-    // First create the user in Clerk
     const { signUp } = useSignUp();
     const { data: clerkUser, error: clerkError } = await signUp.create({
       emailAddress: email,
@@ -24,10 +23,8 @@ export async function signUp(email: string, password: string, name: string) {
 
     if (clerkError) throw clerkError;
 
-    // Verify the email
     await signUp.prepareEmailAddressVerification();
 
-    // Create the user in Supabase
     const { data: { user }, error: signUpError } = await retryOperation(() => 
       supabase.auth.signUp({
         email,
@@ -65,7 +62,6 @@ export async function signIn(email: string, password: string) {
       throw new Error('No internet connection available');
     }
 
-    // Sign in with Clerk
     const { signIn } = useSignIn();
     const { data: clerkSession, error: clerkError } = await signIn.create({
       identifier: email,
@@ -74,7 +70,6 @@ export async function signIn(email: string, password: string) {
 
     if (clerkError) throw clerkError;
 
-    // Sign in with Supabase
     const { data, error } = await retryOperation(() =>
       supabase.auth.signInWithPassword({
         email,
@@ -100,11 +95,11 @@ export async function signInWithGoogle() {
     const { data, error } = await signIn.authenticateWithRedirect({
       strategy: "oauth_google",
       redirectUrl: Platform.select({
-        web: window.location.origin,
+        web: `${window.location.origin}/auth/callback`,
         default: 'expense-tracker://oauth-callback'
       }),
       redirectUrlComplete: Platform.select({
-        web: `${window.location.origin}/auth/callback`,
+        web: `${window.location.origin}/auth/callback-complete`,
         default: 'expense-tracker://oauth-callback-complete'
       }),
     });
