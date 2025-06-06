@@ -14,7 +14,7 @@ import { Button } from '@/components/Button';
 import { useOAuth, useSignIn } from '@clerk/clerk-expo';
 import { Mail, Lock, ArrowRight } from 'lucide-react-native';
 import { makeRedirectUri } from 'expo-auth-session';
-
+import SignUpScreen from './signup';
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,6 +35,10 @@ export default function LoginScreen() {
     setError('');
 
     try {
+      if (!signIn) {
+        setError('Sign in service is not available');
+        return;
+      }
       const result = await signIn.create({
         identifier: email,
         password,
@@ -64,7 +68,7 @@ export default function LoginScreen() {
         redirectUrl,
       });
 
-      if (createdSessionId) {
+      if (createdSessionId && typeof setActive === 'function') {
         await setActive({ session: createdSessionId });
         router.replace('/(app)/(tabs)');
       }

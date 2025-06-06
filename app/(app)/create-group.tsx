@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, Image } from 'react-native';
+import {
+  StyleSheet,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from 'react-native';
 import { router } from 'expo-router';
 import { View } from '@/components/View';
 import { Text } from '@/components/Text';
@@ -8,7 +16,6 @@ import { Button } from '@/components/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { createGroup } from '@/services/groups';
 import { Users } from 'lucide-react-native';
-import Layout from '@/constants/layout';
 
 export default function CreateGroupScreen() {
   const [name, setName] = useState('');
@@ -23,7 +30,7 @@ export default function CreateGroupScreen() {
       setError('You must be logged in to create a group');
       return;
     }
-    
+
     if (!name.trim()) {
       setError('Group name is required');
       return;
@@ -31,12 +38,16 @@ export default function CreateGroupScreen() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await createGroup(name.trim(), description.trim(), user.id);
-      
+      const { data, error } = await createGroup(
+        name.trim(),
+        description.trim(),
+        user.id
+      );
+
       if (error) {
         throw error;
       }
-      
+
       if (data) {
         router.replace('/(app)/(tabs)/groups');
       }
@@ -48,55 +59,67 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <View style={styles.container} variant="screen">
-      <View style={styles.header}>
-        <Image
-          // source={require('@/assets/images/group-illustration.png')}
-          style={styles.illustration}
-        />
-        <Text variant="heading1" style={styles.title}>Create New Group</Text>
-        <Text style={styles.subtitle}>
-          Start tracking shared expenses with friends or family
-        </Text>
-      </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={100}
+      >
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+          <View style={styles.container} variant="screen">
+            <View style={styles.header}>
+              <Image
+                // source={require('@/assets/images/group-illustration.png')}
+                style={styles.illustration}
+              />
+              <Text variant="heading1" style={styles.title}>
+                Create New Group
+              </Text>
+              <Text style={styles.subtitle}>
+                Start tracking shared expenses with friends or family
+              </Text>
+            </View>
 
-      <View style={styles.card}>
-        <TextInput
-          label="Group Name"
-          placeholder="e.g., Roommates, Family Trip"
-          value={name}
-          onChangeText={(text) => {
-            setName(text);
-            setError('');
-          }}
-          error={error}
-          leftIcon={<Users size={22} color="#6B7280" />}
-          containerStyle={styles.input}
-        />
+            <View style={styles.card}>
+              <TextInput
+                label="Group Name"
+                placeholder="e.g., Roommates, Family Trip"
+                value={name}
+                onChangeText={(text) => {
+                  setName(text);
+                  setError('');
+                }}
+                error={error}
+                leftIcon={<Users size={22} color="#6B7280" />}
+                containerStyle={styles.input}
+              />
 
-        <TextInput
-          label="Description (Optional)"
-          placeholder="What's this group for?"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={3}
-          containerStyle={styles.input}
-        />
+              <TextInput
+                label="Description (Optional)"
+                placeholder="What's this group for?"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={3}
+                containerStyle={styles.input}
+              />
 
-        <Button
-          title="Create Group"
-          onPress={handleCreateGroup}
-          isLoading={isLoading}
-          style={styles.button}
-          textStyle={styles.buttonText}
-        />
-        
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
-      </View>
-    </View>
+              <Button
+                title="Create Group"
+                onPress={handleCreateGroup}
+                isLoading={isLoading}
+                style={styles.button}
+                textStyle={styles.buttonText}
+              />
+
+              {error ? (
+                <Text style={styles.errorText}>{error}</Text>
+              ) : null}
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
