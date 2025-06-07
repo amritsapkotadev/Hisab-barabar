@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin, setClerkUserContext } from './supabase';
+import { supabase, executeWithClerkContext } from './supabase';
 import { User } from '@/types';
 
 export async function syncClerkUserToSupabase(
@@ -15,93 +15,94 @@ export async function syncClerkUserToSupabase(
       name: clerkUser.fullName || clerkUser.firstName
     });
 
-    // Set up RLS context for this user
-    await setClerkUserContext(clerkUser.id);
-
-    // Use regular client for user operations (RLS will handle permissions)
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', clerkUser.id)
-      .single();
-
-    // If user doesn't exist, create them
-    if (fetchError && fetchError.code === 'PGRST116') {
-      const newUser = {
-        id: clerkUser.id, // This is now a TEXT field that accepts Clerk's user ID format
-        email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
-        name: clerkUser.fullName || 
-              clerkUser.firstName || 
-              clerkUser.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 
-              'User',
-        phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || null,
-        created_at: new Date().toISOString(),
-      };
-
-      console.log('Creating new user in Supabase:', newUser);
-
-      const { data: createdUser, error: createError } = await supabase
+    // Execute database operations with Clerk context
+    return await executeWithClerkContext(clerkUser.id, async () => {
+      // Check if user exists
+      const { data: existingUser, error: fetchError } = await supabase
         .from('users')
-        .insert([newUser])
-        .select()
+        .select('*')
+        .eq('id', clerkUser.id)
         .single();
 
-      if (createError) {
-        console.error('Error creating user in Supabase:', createError);
-        return { data: null, error: createError };
-      }
-
-      console.log('Successfully created user in Supabase:', createdUser);
-      return { data: createdUser, error: null };
-    }
-
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('Error fetching user from Supabase:', fetchError);
-      return { data: null, error: fetchError };
-    }
-
-    // If user exists, check if we need to update their information
-    if (existingUser) {
-      const currentEmail = clerkUser.emailAddresses?.[0]?.emailAddress || existingUser.email;
-      const currentName = clerkUser.fullName || clerkUser.firstName || existingUser.name;
-      const currentPhone = clerkUser.phoneNumbers?.[0]?.phoneNumber || existingUser.phone;
-
-      const needsUpdate = 
-        existingUser.email !== currentEmail ||
-        existingUser.name !== currentName ||
-        existingUser.phone !== currentPhone;
-
-      if (needsUpdate) {
-        console.log('Updating existing user in Supabase');
-
-        const updatedUser = {
-          email: currentEmail,
-          name: currentName,
-          phone: currentPhone,
+      // If user doesn't exist, create them
+      if (fetchError && fetchError.code === 'PGRST116') {
+        const newUser = {
+          id: clerkUser.id,
+          email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
+          name: clerkUser.fullName || 
+                clerkUser.firstName || 
+                clerkUser.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 
+                'User',
+          phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || null,
+          created_at: new Date().toISOString(),
         };
 
-        const { data: updatedData, error: updateError } = await supabase
+        console.log('Creating new user in Supabase:', newUser);
+
+        // Use a direct insert without RLS for user creation
+        const { data: createdUser, error: createError } = await supabase
           .from('users')
-          .update(updatedUser)
-          .eq('id', clerkUser.id)
+          .insert([newUser])
           .select()
           .single();
 
-        if (updateError) {
-          console.error('Error updating user in Supabase:', updateError);
-          return { data: existingUser, error: updateError };
+        if (createError) {
+          console.error('Error creating user in Supabase:', createError);
+          return { data: null, error: createError };
         }
 
-        console.log('Successfully updated user in Supabase');
-        return { data: updatedData, error: null };
+        console.log('Successfully created user in Supabase:', createdUser);
+        return { data: createdUser, error: null };
       }
 
-      // No update needed, return existing user
-      console.log('User already exists and is up to date');
-      return { data: existingUser, error: null };
-    }
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching user from Supabase:', fetchError);
+        return { data: null, error: fetchError };
+      }
 
-    return { data: null, error: new Error('Unexpected state in user sync') };
+      // If user exists, check if we need to update their information
+      if (existingUser) {
+        const currentEmail = clerkUser.emailAddresses?.[0]?.emailAddress || existingUser.email;
+        const currentName = clerkUser.fullName || clerkUser.firstName || existingUser.name;
+        const currentPhone = clerkUser.phoneNumbers?.[0]?.phoneNumber || existingUser.phone;
+
+        const needsUpdate = 
+          existingUser.email !== currentEmail ||
+          existingUser.name !== currentName ||
+          existingUser.phone !== currentPhone;
+
+        if (needsUpdate) {
+          console.log('Updating existing user in Supabase');
+
+          const updatedUser = {
+            email: currentEmail,
+            name: currentName,
+            phone: currentPhone,
+          };
+
+          const { data: updatedData, error: updateError } = await supabase
+            .from('users')
+            .update(updatedUser)
+            .eq('id', clerkUser.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Error updating user in Supabase:', updateError);
+            return { data: existingUser, error: updateError };
+          }
+
+          console.log('Successfully updated user in Supabase');
+          return { data: updatedData, error: null };
+        }
+
+        // No update needed, return existing user
+        console.log('User already exists and is up to date');
+        return { data: existingUser, error: null };
+      }
+
+      return { data: null, error: new Error('Unexpected state in user sync') };
+    });
   } catch (error: any) {
     console.error('Error syncing Clerk user to Supabase:', error);
     return { data: null, error };
@@ -124,7 +125,7 @@ export function validateUserData(user: Partial<User>): boolean {
   return !!(user.id && user.email && user.name);
 }
 
-// Function to create a Supabase auth session for Clerk users
+// Function to create a Supabase session context for Clerk users
 export async function createSupabaseSession(clerkUser: any, clerkToken?: string) {
   try {
     // First ensure the user exists in our users table
@@ -133,9 +134,6 @@ export async function createSupabaseSession(clerkUser: any, clerkToken?: string)
     if (syncResult.error) {
       throw syncResult.error;
     }
-
-    // Set up the user context for RLS policies
-    await setClerkUserContext(clerkUser.id);
 
     console.log('Supabase session context set for Clerk user:', clerkUser.id);
 

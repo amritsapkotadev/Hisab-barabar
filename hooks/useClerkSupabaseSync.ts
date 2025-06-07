@@ -22,26 +22,25 @@ export function useClerkSupabaseSync() {
     try {
       console.log('Starting Clerk-Supabase sync for user:', clerkUser.id);
 
-      // Get Clerk token for potential Supabase session
-      let clerkToken = null;
-      try {
-        clerkToken = await getToken({ template: 'supabase' });
-      } catch (tokenError) {
-        console.warn('Could not get Clerk token for Supabase:', tokenError);
-        // Continue without token - sync will still work for basic operations
-      }
-
       const { data, error: syncError } = await syncClerkUserToSupabase(clerkUser);
       
       if (syncError) {
-        setError(syncError.message);
+        // Handle specific error types
+        if (syncError.code === '22P02') {
+          setError('Authentication system error. Please try signing out and back in.');
+        } else if (syncError.message?.includes('network')) {
+          setError('Network connection error. Please check your internet connection.');
+        } else {
+          setError(syncError.message || 'Failed to sync user data');
+        }
+        
         console.error('Sync error:', syncError);
         
         // Auto-retry on network errors (up to 3 times)
         if (retryCount < 3 && (
-          syncError.message.includes('network') || 
-          syncError.message.includes('timeout') ||
-          syncError.message.includes('fetch')
+          syncError.message?.includes('network') || 
+          syncError.message?.includes('timeout') ||
+          syncError.message?.includes('fetch')
         )) {
           console.log(`Retrying sync (attempt ${retryCount + 1}/3)`);
           setTimeout(() => {
@@ -60,7 +59,7 @@ export function useClerkSupabaseSync() {
     } finally {
       setIsLoading(false);
     }
-  }, [clerkUser, isLoaded, retryCount, getToken]);
+  }, [clerkUser, isLoaded, retryCount]);
 
   useEffect(() => {
     syncUser();
