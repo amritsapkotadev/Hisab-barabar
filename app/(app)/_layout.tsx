@@ -5,7 +5,7 @@ import { useClerkSupabaseSync } from '@/hooks/useClerkSupabaseSync';
 import { View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
-import { RefreshCw, AlertCircle } from 'lucide-react-native';
+import { RefreshCw, CircleAlert as AlertCircle } from 'lucide-react-native';
 
 export default function AppLayout() {
   const { isSignedIn, isLoaded } = useAuth();
