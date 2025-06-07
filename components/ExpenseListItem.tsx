@@ -6,7 +6,7 @@ import { View } from './View';
 import { Text } from './Text';
 import { Avatar } from './Avatar';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { ShoppingCart, Coffee, Plane, Utensils, Car, Home, Film, Book, Gift, MoreHorizontal } from 'lucide-react-native';
+import { ShoppingCart, Coffee, Plane, Utensils, Car, Chrome as Home, Film, Book, Gift, MoveHorizontal as MoreHorizontal } from 'lucide-react-native';
 
 type ExpenseListItemProps = {
   expense: Expense & {
