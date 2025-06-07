@@ -13,7 +13,7 @@ const ExpoSecureStoreAdapter = {
   removeItem: (key: string) => SecureStore.deleteItemAsync(key),
 };
 
-// Configure Supabase client with retries and better error handling
+// Configure Supabase client with proper schema and auth settings
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: ExpoSecureStoreAdapter,
@@ -26,16 +26,31 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'X-Client-Info': 'expo-router',
     },
   },
-  db: {
-    schema: 'users',
-  },
-  // Add retrying for failed requests
+  // Remove custom schema setting - use default public schema
   realtime: {
     params: {
       eventsPerSecond: 1,
     },
   },
 });
+
+// Create a service role client for admin operations (like user sync)
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  // You'll need to add your service role key to environment variables
+  process.env.EXPO_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'expo-router-admin',
+      },
+    },
+  }
+);
 
 // Network state monitoring
 NetInfo.addEventListener(state => {
@@ -64,7 +79,28 @@ export const handleSupabaseError = (error: any) => {
   if (error?.message?.includes('network')) {
     return 'Network error. Please check your connection.';
   }
+  if (error?.message?.includes('schema')) {
+    return 'Database schema error. Please contact support.';
+  }
   return error?.message || 'An unexpected error occurred';
+};
+
+// Helper function to set up RLS context for Clerk users
+export const setClerkUserContext = async (clerkUserId: string) => {
+  try {
+    // Set the user context for RLS policies
+    const { error } = await supabase.rpc('set_claim', {
+      uid: clerkUserId,
+      claim: 'sub',
+      value: clerkUserId
+    });
+
+    if (error) {
+      console.warn('Could not set user context for RLS:', error);
+    }
+  } catch (error) {
+    console.warn('Error setting user context:', error);
+  }
 };
 
 export default supabase;
