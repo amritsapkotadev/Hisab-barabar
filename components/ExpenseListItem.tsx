@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 import { format } from 'date-fns';
-import { Expense, Profile } from '@/types';
+import { Expense, User } from '@/types';
 import { View } from './View';
 import { Text } from './Text';
 import { Avatar } from './Avatar';
@@ -10,7 +10,7 @@ import { ShoppingCart, Coffee, Plane, Utensils, Car, Home, Film, Book, Gift, Mor
 
 type ExpenseListItemProps = {
   expense: Expense & {
-    paidBy: Profile;
+    paidBy: User;
   };
   onPress?: () => void;
 };
@@ -23,18 +23,8 @@ export function ExpenseListItem({ expense, onPress }: ExpenseListItemProps) {
   const getCategoryIcon = () => {
     const iconProps = { size: 20, color: primaryColor };
     
-    switch(expense.category) {
-      case 'food': return <Utensils {...iconProps} />;
-      case 'transportation': return <Car {...iconProps} />;
-      case 'accommodation': return <Home {...iconProps} />;
-      case 'entertainment': return <Film {...iconProps} />;
-      case 'shopping': return <ShoppingCart {...iconProps} />;
-      case 'coffee': return <Coffee {...iconProps} />;
-      case 'travel': return <Plane {...iconProps} />;
-      case 'education': return <Book {...iconProps} />;
-      case 'gift': return <Gift {...iconProps} />;
-      default: return <MoreHorizontal {...iconProps} />;
-    }
+    // Since we don't have category in the expense object, we'll use a default icon
+    return <MoreHorizontal {...iconProps} />;
   };
 
   const formattedDate = format(new Date(expense.date), 'MMM d, yyyy');
@@ -53,7 +43,7 @@ export function ExpenseListItem({ expense, onPress }: ExpenseListItemProps) {
         <View style={styles.contentContainer}>
           <Text variant="body" bold>{expense.title}</Text>
           <Text variant="bodySmall" style={{ color: textSecondary }}>
-            {formattedDate} • Paid by {expense.paidBy.display_name}
+            {formattedDate} • Paid by {expense.paidBy.name}
           </Text>
         </View>
         

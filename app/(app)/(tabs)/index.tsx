@@ -137,7 +137,7 @@ export default function HomeScreen() {
           <View style={styles.userInfo}>
             <Text variant="heading1" style={styles.greeting}>Good morning</Text>
             <Text style={[styles.username, { color: textSecondaryColor }]}>
-              {profile?.display_name || 'Friend'}
+              {profile?.name || 'Friend'}
             </Text>
           </View>
           <View style={styles.headerActions}>
@@ -150,7 +150,7 @@ export default function HomeScreen() {
               onPress={() => router.push('/(app)/(tabs)/profile')}
             >
               <Image
-                source={{ uri: profile?.avatar_url || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
+                source={{ uri: 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
                 style={styles.avatar}
               />
             </TouchableOpacity>
@@ -161,7 +161,7 @@ export default function HomeScreen() {
         <View style={styles.quickActions}>
           <TouchableOpacity 
             style={[styles.actionButton, { backgroundColor: primaryColor }]}
-            onPress={() => router.push('/(app)/create-expense')}
+            onPress={() => router.push('/(app)/(tabs)/create-expense')}
           >
             <Plus size={20} color="white" />
             <Text style={styles.actionText}>Add Expense</Text>

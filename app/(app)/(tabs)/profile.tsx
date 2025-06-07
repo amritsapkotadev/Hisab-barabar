@@ -52,8 +52,8 @@ export default function ProfileScreen() {
     try {
       const { data } = await getProfile(user.id);
       setProfile(data);
-      setName(data.display_name);
-      setPhone(data.phone || '');
+      setName(data?.name || '');
+      setPhone(data?.phone || '');
     } catch (error) {
       console.error('Error loading profile:', error);
     }
@@ -63,7 +63,7 @@ export default function ProfileScreen() {
     setLoading(true);
     try {
       await updateProfile(user.id, {
-        display_name: name,
+        name,
         phone,
       });
       setEditing(false);
@@ -154,7 +154,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Change profile picture"
           >
             <Image
-              source={{ uri: profile?.avatar_url || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
+              source={{ uri: 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
               style={styles.avatar}
             />
             <View style={[styles.cameraButton, { backgroundColor: COLORS.card }]}>
@@ -163,7 +163,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <Text variant="heading2" style={[styles.name, { color: COLORS.card }]}>
-            {profile?.display_name || 'Your Name'}
+            {profile?.name || 'Your Name'}
           </Text>
           <Text style={[styles.email, { color: 'rgba(255,255,255,0.8)' }]}>{user?.email}</Text>
         </Animated.View>
@@ -285,7 +285,7 @@ export default function ProfileScreen() {
           title="Log Out"
           onPress={handleLogout}
           variant="outline"
-          icon={<LogOut color={COLORS.error} size={20} />}
+          leftIcon={<LogOut color={COLORS.error} size={20} />}
           style={[styles.logoutButton, { borderColor: COLORS.error }]}
           textStyle={{ color: COLORS.error }}
         />

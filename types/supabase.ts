@@ -55,6 +55,20 @@ export interface Database {
           created_at?: string
         }
       }
+      group_members: {
+        Row: {
+          group_id: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          user_id?: string
+        }
+      }
       expenses: {
         Row: {
           id: string

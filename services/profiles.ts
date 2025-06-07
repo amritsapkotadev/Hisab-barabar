@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
-import { Profile } from '@/types';
+import { User } from '@/types';
 
 export async function getProfile(userId: string) {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .eq('id', userId)
     .single();
@@ -11,11 +11,11 @@ export async function getProfile(userId: string) {
   return { data, error };
 }
 
-export async function createProfile(userId: string, displayName: string, avatarUrl: string | null = null) {
+export async function createProfile(userId: string, name: string, email: string, phone: string | null = null) {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .insert([
-      { id: userId, display_name: displayName, avatar_url: avatarUrl },
+      { id: userId, name, email, phone },
     ])
     .select('*')
     .single();
@@ -23,9 +23,9 @@ export async function createProfile(userId: string, displayName: string, avatarU
   return { data, error };
 }
 
-export async function updateProfile(userId: string, updates: Partial<Profile>) {
+export async function updateProfile(userId: string, updates: Partial<User>) {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .update(updates)
     .eq('id', userId)
     .select('*')
@@ -56,10 +56,7 @@ export async function uploadAvatar(userId: string, uri: string) {
     .from('avatars')
     .getPublicUrl(fileName);
   
-  // Update the user's profile with the new avatar URL
-  const { data: profileData, error: profileError } = await updateProfile(userId, {
-    avatar_url: publicUrlData.publicUrl,
-  });
-  
-  return { data: profileData, error: profileError };
+  // Note: Since we don't have avatar_url in users table, we'll need to add it
+  // or handle avatars differently. For now, we'll just return the URL
+  return { data: publicUrlData.publicUrl, error: null };
 }

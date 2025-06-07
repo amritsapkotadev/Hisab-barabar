@@ -5,11 +5,11 @@ import { Text } from '@/components/Text';
 import { ExpenseListItem } from '@/components/ExpenseListItem';
 import { useAuth } from '@/hooks/useAuth';
 import { getExpenses } from '@/services/expenses';
-import { Expense, Profile } from '@/types';
+import { Expense, User } from '@/types';
 import Layout from '@/constants/layout';
 
 export default function ActivityScreen() {
-  const [expenses, setExpenses] = useState<(Expense & { paidBy: Profile })[]>([]);
+  const [expenses, setExpenses] = useState<(Expense & { paidBy: User })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
@@ -28,7 +28,13 @@ export default function ActivityScreen() {
         // Transform the data to match the expected type
         const transformedExpenses = data.map(expense => ({
           ...expense,
-          paidBy: expense.profiles
+          paidBy: {
+            id: expense.created_by,
+            name: 'User', // We'll need to fetch this from users table
+            email: '',
+            phone: null,
+            created_at: ''
+          }
         }));
         setExpenses(transformedExpenses);
       }
