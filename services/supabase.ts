@@ -27,7 +27,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
   db: {
-    schema: 'public',
+    schema: 'users',
   },
   // Add retrying for failed requests
   realtime: {

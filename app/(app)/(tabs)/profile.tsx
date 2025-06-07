@@ -6,7 +6,7 @@ import { Card } from '@/components/Card';
 import { TextInput } from '@/components/TextInput';
 import { Button } from '@/components/Button';
 import { useAuth } from '@/hooks/useAuth';
-import { updateProfile } from '@/services/profiles';
+import { getProfile, updateProfile } from '@/services/profiles';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Camera, LogOut, Moon, Sun, Settings, ChevronRight, Bell, Shield, CircleHelp as HelpCircle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,7 +27,8 @@ const COLORS = {
 };
 
 export default function ProfileScreen() {
-  const { user, profile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -42,22 +43,31 @@ export default function ProfileScreen() {
   const borderColor = darkMode ? '#374151' : COLORS.border;
 
   useEffect(() => {
-    if (profile) {
-      setName(profile.display_name || '');
-      setPhone(profile.phone || '');
+    if (user) {
+      loadProfile();
     }
-  }, [profile]);
+  }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      const { data } = await getProfile(user.id);
+      setProfile(data);
+      setName(data?.name || '');
+      setPhone(data?.phone || '');
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   const handleUpdateProfile = async () => {
-    if (!user) return;
-    
     setLoading(true);
     try {
       await updateProfile(user.id, {
-        display_name: name,
+        name,
         phone,
       });
       setEditing(false);
+      loadProfile();
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
@@ -122,14 +132,6 @@ export default function ProfileScreen() {
     },
   ];
 
-  if (!profile) {
-    return (
-      <View style={[styles.container, { backgroundColor, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text>Loading profile...</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor }]}
@@ -152,7 +154,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Change profile picture"
           >
             <Image
-              source={{ uri: profile.avatar_url || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
+              source={{ uri: 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg' }}
               style={styles.avatar}
             />
             <View style={[styles.cameraButton, { backgroundColor: COLORS.card }]}>
@@ -161,9 +163,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <Text variant="heading2" style={[styles.name, { color: COLORS.card }]}>
-            {profile.display_name || 'Your Name'}
+            {profile?.name || 'Your Name'}
           </Text>
-          <Text style={[styles.email, { color: 'rgba(255,255,255,0.8)' }]}>{profile.email}</Text>
+          <Text style={[styles.email, { color: 'rgba(255,255,255,0.8)' }]}>{user?.email}</Text>
         </Animated.View>
       </Animated.View>
 
@@ -400,7 +402,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 8,
-    gap: 12,
   },
   button: {
     minWidth: 100,

@@ -1,89 +1,86 @@
 import { supabase } from './supabase';
-import { Profile } from '@/types';
+import { User } from '@/types'; // assuming you renamed Profile to User
 
-export async function syncClerkUserToSupabase(clerkUser: any): Promise<{ data: Profile | null; error: any }> {
+export async function syncClerkUserToSupabase(
+  clerkUser: any
+): Promise<{ data: User | null; error: any }> {
   try {
     if (!clerkUser) {
       return { data: null, error: new Error('No Clerk user provided') };
     }
 
     // Check if user already exists in Supabase
-    const { data: existingProfile, error: fetchError } = await supabase
-      .from('profiles')
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users') // corrected table name here
       .select('*')
       .eq('id', clerkUser.id)
       .single();
 
     // If user doesn't exist, create them
     if (fetchError && fetchError.code === 'PGRST116') {
-      const newProfile = {
+      const newUser = {
         id: clerkUser.id,
         email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
-        display_name: clerkUser.fullName || 
-                     clerkUser.firstName || 
-                     clerkUser.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 
-                     'User',
-        avatar_url: clerkUser.imageUrl || null,
+        name: clerkUser.fullName || 
+              clerkUser.firstName || 
+              clerkUser.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 
+              'User', // changed display_name to name to match DB
         phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || null,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
-      const { data: createdProfile, error: createError } = await supabase
-        .from('profiles')
-        .insert([newProfile])
+      const { data: createdUser, error: createError } = await supabase
+        .from('users') // corrected table name here
+        .insert([newUser])
         .select()
         .single();
 
       if (createError) {
-        console.error('Error creating profile in Supabase:', createError);
+        console.error('Error creating user in Supabase:', createError);
         return { data: null, error: createError };
       }
 
-      console.log('Successfully created user profile in Supabase:', createdProfile);
-      return { data: createdProfile, error: null };
+      console.log('Successfully created user in Supabase:', createdUser);
+      return { data: createdUser, error: null };
     }
 
     if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('Error fetching profile from Supabase:', fetchError);
+      console.error('Error fetching user from Supabase:', fetchError);
       return { data: null, error: fetchError };
     }
 
     // If user exists, check if we need to update their information
-    if (existingProfile) {
+    if (existingUser) {
       const needsUpdate = 
-        existingProfile.email !== (clerkUser.emailAddresses?.[0]?.emailAddress || existingProfile.email) ||
-        existingProfile.display_name !== (clerkUser.fullName || clerkUser.firstName || existingProfile.display_name) ||
-        existingProfile.avatar_url !== (clerkUser.imageUrl || existingProfile.avatar_url) ||
-        existingProfile.phone !== (clerkUser.phoneNumbers?.[0]?.phoneNumber || existingProfile.phone);
+        existingUser.email !== (clerkUser.emailAddresses?.[0]?.emailAddress || existingUser.email) ||
+        existingUser.name !== (clerkUser.fullName || clerkUser.firstName || existingUser.name) ||
+        existingUser.phone !== (clerkUser.phoneNumbers?.[0]?.phoneNumber || existingUser.phone);
 
       if (needsUpdate) {
-        const updatedProfile = {
-          email: clerkUser.emailAddresses?.[0]?.emailAddress || existingProfile.email,
-          display_name: clerkUser.fullName || clerkUser.firstName || existingProfile.display_name,
-          avatar_url: clerkUser.imageUrl || existingProfile.avatar_url,
-          phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || existingProfile.phone,
-          updated_at: new Date().toISOString(),
+        const updatedUser = {
+          email: clerkUser.emailAddresses?.[0]?.emailAddress || existingUser.email,
+          name: clerkUser.fullName || clerkUser.firstName || existingUser.name,
+          phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || existingUser.phone,
         };
 
         const { data: updatedData, error: updateError } = await supabase
-          .from('profiles')
-          .update(updatedProfile)
+          .from('users') // corrected table name here
+          .update(updatedUser)
           .eq('id', clerkUser.id)
           .select()
           .single();
 
         if (updateError) {
-          console.error('Error updating profile in Supabase:', updateError);
-          return { data: existingProfile, error: updateError };
+          console.error('Error updating user in Supabase:', updateError);
+          return { data: existingUser, error: updateError };
         }
 
-        console.log('Successfully updated user profile in Supabase');
+        console.log('Successfully updated user in Supabase');
         return { data: updatedData, error: null };
       }
 
-      // No update needed, return existing profile
-      return { data: existingProfile, error: null };
+      // No update needed, return existing user
+      return { data: existingUser, error: null };
     }
 
     return { data: null, error: new Error('Unexpected state in user sync') };
@@ -93,18 +90,18 @@ export async function syncClerkUserToSupabase(clerkUser: any): Promise<{ data: P
   }
 }
 
-export async function ensureUserInSupabase(clerkUser: any): Promise<Profile | null> {
+export async function ensureUserInSupabase(clerkUser: any): Promise<User | null> {
   const { data, error } = await syncClerkUserToSupabase(clerkUser);
-  
+
   if (error) {
     console.error('Failed to sync user to Supabase:', error);
     return null;
   }
-  
+
   return data;
 }
 
-// Helper function to validate profile data
-export function validateProfileData(profile: Partial<Profile>): boolean {
-  return !!(profile.id && profile.email && profile.display_name);
+// Helper function to validate user data
+export function validateProfileData(user: Partial<User>): boolean {
+  return !!(user.id && user.email && user.name);
 }

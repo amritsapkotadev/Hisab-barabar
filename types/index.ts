@@ -1,15 +1,12 @@
 import { Database } from './supabase';
 
-export type Profile = Database['public']['Tables']['profiles']['Row'];
+export type User = Database['public']['Tables']['users']['Row'];
 export type Group = Database['public']['Tables']['groups']['Row'];
 export type GroupMember = Database['public']['Tables']['group_members']['Row'];
 export type Expense = Database['public']['Tables']['expenses']['Row'];
 export type ExpenseSplit = Database['public']['Tables']['expense_splits']['Row'];
 
-export type User = {
-  id: string;
-  email: string;
-};
+export type Profile = User; // Alias for backward compatibility
 
 export type SplitMethod = 'equal' | 'unequal' | 'share' | 'percentage';
 
@@ -26,7 +23,7 @@ export type SplitDetails = {
 
 export type ExpenseWithDetails = Expense & {
   splits: (ExpenseSplit & {
-    profiles: Profile;
+    user: User;
   })[];
   group: Group;
   splitDetails: SplitDetails;
@@ -34,7 +31,7 @@ export type ExpenseWithDetails = Expense & {
 
 export type GroupWithMembers = Group & {
   members: (GroupMember & {
-    profiles: Profile;
+    user: User;
   })[];
 };
 

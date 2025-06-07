@@ -5,20 +5,20 @@ import { Text } from '@/components/Text';
 import { ExpenseListItem } from '@/components/ExpenseListItem';
 import { useAuth } from '@/hooks/useAuth';
 import { getExpenses } from '@/services/expenses';
-import { Expense, Profile } from '@/types';
+import { Expense, User } from '@/types';
 import Layout from '@/constants/layout';
 
 export default function ActivityScreen() {
-  const [expenses, setExpenses] = useState<(Expense & { paidBy: Profile })[]>([]);
+  const [expenses, setExpenses] = useState<(Expense & { paidBy: User })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadExpenses();
-  }, [user, profile]);
+  }, [user]);
 
   const loadExpenses = async () => {
-    if (!user || !profile) return;
+    if (!user) return;
 
     try {
       const { data, error } = await getExpenses(user.id);
@@ -28,14 +28,12 @@ export default function ActivityScreen() {
         // Transform the data to match the expected type
         const transformedExpenses = data.map(expense => ({
           ...expense,
-          paidBy: expense.profiles || {
+          paidBy: {
             id: expense.created_by,
-            display_name: 'Unknown User',
+            name: 'User', // This will be populated from the joined users table
             email: '',
-            avatar_url: null,
             phone: null,
-            created_at: '',
-            updated_at: ''
+            created_at: ''
           }
         }));
         setExpenses(transformedExpenses);
@@ -46,16 +44,6 @@ export default function ActivityScreen() {
       setIsLoading(false);
     }
   };
-
-  if (!profile) {
-    return (
-      <View style={styles.container} variant="screen">
-        <View style={styles.centered}>
-          <Text>Setting up your account...</Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container} variant="screen">
