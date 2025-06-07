@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { User } from '@/types'; // assuming you renamed Profile to User
+import { User } from '@/types';
 
 export async function syncClerkUserToSupabase(
   clerkUser: any
@@ -9,9 +9,15 @@ export async function syncClerkUserToSupabase(
       return { data: null, error: new Error('No Clerk user provided') };
     }
 
-    // Check if user already exists in Supabase
+    console.log('Syncing Clerk user to Supabase:', {
+      id: clerkUser.id,
+      email: clerkUser.emailAddresses?.[0]?.emailAddress,
+      name: clerkUser.fullName || clerkUser.firstName
+    });
+
+    // Use service role client for user management
     const { data: existingUser, error: fetchError } = await supabase
-      .from('users') // corrected table name here
+      .from('users')
       .select('*')
       .eq('id', clerkUser.id)
       .single();
@@ -24,13 +30,15 @@ export async function syncClerkUserToSupabase(
         name: clerkUser.fullName || 
               clerkUser.firstName || 
               clerkUser.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 
-              'User', // changed display_name to name to match DB
+              'User',
         phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || null,
         created_at: new Date().toISOString(),
       };
 
+      console.log('Creating new user in Supabase:', newUser);
+
       const { data: createdUser, error: createError } = await supabase
-        .from('users') // corrected table name here
+        .from('users')
         .insert([newUser])
         .select()
         .single();
@@ -51,20 +59,26 @@ export async function syncClerkUserToSupabase(
 
     // If user exists, check if we need to update their information
     if (existingUser) {
+      const currentEmail = clerkUser.emailAddresses?.[0]?.emailAddress || existingUser.email;
+      const currentName = clerkUser.fullName || clerkUser.firstName || existingUser.name;
+      const currentPhone = clerkUser.phoneNumbers?.[0]?.phoneNumber || existingUser.phone;
+
       const needsUpdate = 
-        existingUser.email !== (clerkUser.emailAddresses?.[0]?.emailAddress || existingUser.email) ||
-        existingUser.name !== (clerkUser.fullName || clerkUser.firstName || existingUser.name) ||
-        existingUser.phone !== (clerkUser.phoneNumbers?.[0]?.phoneNumber || existingUser.phone);
+        existingUser.email !== currentEmail ||
+        existingUser.name !== currentName ||
+        existingUser.phone !== currentPhone;
 
       if (needsUpdate) {
+        console.log('Updating existing user in Supabase');
+
         const updatedUser = {
-          email: clerkUser.emailAddresses?.[0]?.emailAddress || existingUser.email,
-          name: clerkUser.fullName || clerkUser.firstName || existingUser.name,
-          phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || existingUser.phone,
+          email: currentEmail,
+          name: currentName,
+          phone: currentPhone,
         };
 
         const { data: updatedData, error: updateError } = await supabase
-          .from('users') // corrected table name here
+          .from('users')
           .update(updatedUser)
           .eq('id', clerkUser.id)
           .select()
@@ -80,6 +94,7 @@ export async function syncClerkUserToSupabase(
       }
 
       // No update needed, return existing user
+      console.log('User already exists and is up to date');
       return { data: existingUser, error: null };
     }
 
@@ -102,6 +117,35 @@ export async function ensureUserInSupabase(clerkUser: any): Promise<User | null>
 }
 
 // Helper function to validate user data
-export function validateProfileData(user: Partial<User>): boolean {
+export function validateUserData(user: Partial<User>): boolean {
   return !!(user.id && user.email && user.name);
+}
+
+// Function to create a Supabase auth session for Clerk users
+export async function createSupabaseSession(clerkUser: any, clerkToken: string) {
+  try {
+    // First ensure the user exists in our users table
+    const syncResult = await syncClerkUserToSupabase(clerkUser);
+    
+    if (syncResult.error) {
+      throw syncResult.error;
+    }
+
+    // Set the auth context for RLS policies
+    // This allows RLS policies to work with Clerk user IDs
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: clerkToken,
+      refresh_token: '', // Not needed for Clerk integration
+    });
+
+    if (sessionError) {
+      console.warn('Could not set Supabase session:', sessionError);
+      // This is not critical for the sync to work
+    }
+
+    return { data: syncResult.data, error: null };
+  } catch (error: any) {
+    console.error('Error creating Supabase session:', error);
+    return { data: null, error };
+  }
 }

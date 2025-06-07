@@ -5,7 +5,7 @@ import { useClerkSupabaseSync } from '@/hooks/useClerkSupabaseSync';
 import { View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
-import { RefreshCw } from 'lucide-react-native';
+import { RefreshCw, CircleAlert as AlertCircle } from 'lucide-react-native';
 
 export default function AppLayout() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -44,7 +44,7 @@ export default function AppLayout() {
           fontSize: 14,
           textAlign: 'center'
         }}>
-          This may take a few moments
+          Syncing with database
         </Text>
       </View>
     );
@@ -66,13 +66,15 @@ export default function AppLayout() {
           padding: 20,
           marginBottom: 20,
           borderWidth: 1,
-          borderColor: '#FECACA'
+          borderColor: '#FECACA',
+          alignItems: 'center'
         }}>
+          <AlertCircle size={48} color="#DC2626" style={{ marginBottom: 16 }} />
           <Text style={{ 
             color: '#DC2626', 
             textAlign: 'center', 
             marginBottom: 8,
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: '600'
           }}>
             Account Setup Failed
@@ -81,9 +83,18 @@ export default function AppLayout() {
             color: '#7F1D1D', 
             textAlign: 'center',
             fontSize: 14,
-            lineHeight: 20
+            lineHeight: 20,
+            marginBottom: 16
           }}>
             {error}
+          </Text>
+          <Text style={{ 
+            color: '#991B1B', 
+            textAlign: 'center',
+            fontSize: 12,
+            fontStyle: 'italic'
+          }}>
+            This usually happens due to network issues or database connectivity problems.
           </Text>
         </View>
         
@@ -106,7 +117,7 @@ export default function AppLayout() {
           fontSize: 12,
           maxWidth: 280
         }}>
-          If the problem persists, please contact support or try signing out and back in.
+          If the problem persists, please check your internet connection or contact support.
         </Text>
       </View>
     );
@@ -122,7 +133,12 @@ export default function AppLayout() {
         backgroundColor: '#F9FAFB',
         padding: 20
       }}>
-        <Text style={{ color: '#6B7280', textAlign: 'center' }}>
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={{ 
+          color: '#6B7280', 
+          textAlign: 'center',
+          marginTop: 16
+        }}>
           Finalizing account setup...
         </Text>
       </View>
