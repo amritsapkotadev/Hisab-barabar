@@ -11,12 +11,14 @@ export async function getProfile(userId: string) {
   return { data, error };
 }
 
-export async function createProfile(userId: string, displayName: string, avatarUrl: string | null = null) {
+export async function createProfile(profile: Omit<Profile, 'created_at' | 'updated_at'>) {
   const { data, error } = await supabase
     .from('profiles')
-    .insert([
-      { id: userId, display_name: displayName, avatar_url: avatarUrl },
-    ])
+    .insert([{
+      ...profile,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }])
     .select('*')
     .single();
   
@@ -26,7 +28,10 @@ export async function createProfile(userId: string, displayName: string, avatarU
 export async function updateProfile(userId: string, updates: Partial<Profile>) {
   const { data, error } = await supabase
     .from('profiles')
-    .update(updates)
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', userId)
     .select('*')
     .single();

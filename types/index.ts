@@ -4,8 +4,7 @@ export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Group = Database['public']['Tables']['groups']['Row'];
 export type GroupMember = Database['public']['Tables']['group_members']['Row'];
 export type Expense = Database['public']['Tables']['expenses']['Row'];
-export type ExpensePayer = Database['public']['Tables']['expense_payers']['Row'];
-export type Settlement = Database['public']['Tables']['settlements']['Row'];
+export type ExpenseSplit = Database['public']['Tables']['expense_splits']['Row'];
 
 export type User = {
   id: string;
@@ -26,8 +25,8 @@ export type SplitDetails = {
 };
 
 export type ExpenseWithDetails = Expense & {
-  payers: (ExpensePayer & {
-    user: Profile;
+  splits: (ExpenseSplit & {
+    profiles: Profile;
   })[];
   group: Group;
   splitDetails: SplitDetails;
@@ -35,7 +34,7 @@ export type ExpenseWithDetails = Expense & {
 
 export type GroupWithMembers = Group & {
   members: (GroupMember & {
-    profile: Profile;
+    profiles: Profile;
   })[];
 };
 
