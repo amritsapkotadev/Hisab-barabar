@@ -11,14 +11,14 @@ import Layout from '@/constants/layout';
 export default function ActivityScreen() {
   const [expenses, setExpenses] = useState<(Expense & { paidBy: Profile })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     loadExpenses();
-  }, [user]);
+  }, [user, profile]);
 
   const loadExpenses = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
 
     try {
       const { data, error } = await getExpenses(user.id);
@@ -28,7 +28,15 @@ export default function ActivityScreen() {
         // Transform the data to match the expected type
         const transformedExpenses = data.map(expense => ({
           ...expense,
-          paidBy: expense.profiles
+          paidBy: expense.profiles || {
+            id: expense.created_by,
+            display_name: 'Unknown User',
+            email: '',
+            avatar_url: null,
+            phone: null,
+            created_at: '',
+            updated_at: ''
+          }
         }));
         setExpenses(transformedExpenses);
       }
@@ -38,6 +46,16 @@ export default function ActivityScreen() {
       setIsLoading(false);
     }
   };
+
+  if (!profile) {
+    return (
+      <View style={styles.container} variant="screen">
+        <View style={styles.centered}>
+          <Text>Setting up your account...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container} variant="screen">

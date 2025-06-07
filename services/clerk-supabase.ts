@@ -1,4 +1,3 @@
-import { useUser } from '@clerk/clerk-expo';
 import { supabase } from './supabase';
 import { Profile } from '@/types';
 
@@ -20,7 +19,10 @@ export async function syncClerkUserToSupabase(clerkUser: any): Promise<{ data: P
       const newProfile = {
         id: clerkUser.id,
         email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
-        display_name: clerkUser.fullName || clerkUser.firstName || clerkUser.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User',
+        display_name: clerkUser.fullName || 
+                     clerkUser.firstName || 
+                     clerkUser.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 
+                     'User',
         avatar_url: clerkUser.imageUrl || null,
         phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || null,
         created_at: new Date().toISOString(),
@@ -42,33 +44,50 @@ export async function syncClerkUserToSupabase(clerkUser: any): Promise<{ data: P
       return { data: createdProfile, error: null };
     }
 
-    // If user exists, update their information
-    if (existingProfile) {
-      const updatedProfile = {
-        email: clerkUser.emailAddresses?.[0]?.emailAddress || existingProfile.email,
-        display_name: clerkUser.fullName || clerkUser.firstName || existingProfile.display_name,
-        avatar_url: clerkUser.imageUrl || existingProfile.avatar_url,
-        phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || existingProfile.phone,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: updatedData, error: updateError } = await supabase
-        .from('profiles')
-        .update(updatedProfile)
-        .eq('id', clerkUser.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('Error updating profile in Supabase:', updateError);
-        return { data: existingProfile, error: updateError };
-      }
-
-      return { data: updatedData, error: null };
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching profile from Supabase:', fetchError);
+      return { data: null, error: fetchError };
     }
 
-    return { data: existingProfile, error: null };
-  } catch (error) {
+    // If user exists, check if we need to update their information
+    if (existingProfile) {
+      const needsUpdate = 
+        existingProfile.email !== (clerkUser.emailAddresses?.[0]?.emailAddress || existingProfile.email) ||
+        existingProfile.display_name !== (clerkUser.fullName || clerkUser.firstName || existingProfile.display_name) ||
+        existingProfile.avatar_url !== (clerkUser.imageUrl || existingProfile.avatar_url) ||
+        existingProfile.phone !== (clerkUser.phoneNumbers?.[0]?.phoneNumber || existingProfile.phone);
+
+      if (needsUpdate) {
+        const updatedProfile = {
+          email: clerkUser.emailAddresses?.[0]?.emailAddress || existingProfile.email,
+          display_name: clerkUser.fullName || clerkUser.firstName || existingProfile.display_name,
+          avatar_url: clerkUser.imageUrl || existingProfile.avatar_url,
+          phone: clerkUser.phoneNumbers?.[0]?.phoneNumber || existingProfile.phone,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: updatedData, error: updateError } = await supabase
+          .from('profiles')
+          .update(updatedProfile)
+          .eq('id', clerkUser.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating profile in Supabase:', updateError);
+          return { data: existingProfile, error: updateError };
+        }
+
+        console.log('Successfully updated user profile in Supabase');
+        return { data: updatedData, error: null };
+      }
+
+      // No update needed, return existing profile
+      return { data: existingProfile, error: null };
+    }
+
+    return { data: null, error: new Error('Unexpected state in user sync') };
+  } catch (error: any) {
     console.error('Error syncing Clerk user to Supabase:', error);
     return { data: null, error };
   }
@@ -83,4 +102,9 @@ export async function ensureUserInSupabase(clerkUser: any): Promise<Profile | nu
   }
   
   return data;
+}
+
+// Helper function to validate profile data
+export function validateProfileData(profile: Partial<Profile>): boolean {
+  return !!(profile.id && profile.email && profile.display_name);
 }

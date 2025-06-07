@@ -50,4 +50,21 @@ export const checkNetworkConnection = async () => {
   return state.isConnected;
 };
 
+// Helper function to handle Supabase errors
+export const handleSupabaseError = (error: any) => {
+  if (error?.code === 'PGRST116') {
+    return 'Record not found';
+  }
+  if (error?.code === '23505') {
+    return 'This record already exists';
+  }
+  if (error?.message?.includes('JWT')) {
+    return 'Authentication expired. Please sign in again.';
+  }
+  if (error?.message?.includes('network')) {
+    return 'Network error. Please check your connection.';
+  }
+  return error?.message || 'An unexpected error occurred';
+};
+
 export default supabase;
