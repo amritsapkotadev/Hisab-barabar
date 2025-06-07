@@ -66,7 +66,12 @@ export async function getExpenses(userId: string) {
       expense_splits!inner (
         user_id,
         paid_amount,
-        owed_amount
+        owed_amount,
+        users (
+          id,
+          name,
+          email
+        )
       )
     `)
     .eq('expense_splits.user_id', userId)

@@ -6,7 +6,7 @@ import { View } from './View';
 import { Text } from './Text';
 import { Avatar } from './Avatar';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { ShoppingCart, Coffee, Plane, Utensils, Car, Chrome as Home, Film, Book, Gift, MoveHorizontal as MoreHorizontal } from 'lucide-react-native';
+import { Receipt } from 'lucide-react-native';
 
 type ExpenseListItemProps = {
   expense: Expense & {
@@ -22,9 +22,8 @@ export function ExpenseListItem({ expense, onPress }: ExpenseListItemProps) {
   
   const getCategoryIcon = () => {
     const iconProps = { size: 20, color: primaryColor };
-    
-    // Since we don't have category in the expense object, we'll use a default icon
-    return <MoreHorizontal {...iconProps} />;
+    // Using a default icon since we don't have category in the expense object
+    return <Receipt {...iconProps} />;
   };
 
   const formattedDate = format(new Date(expense.date), 'MMM d, yyyy');

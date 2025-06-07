@@ -30,7 +30,7 @@ export default function ActivityScreen() {
           ...expense,
           paidBy: {
             id: expense.created_by,
-            name: 'User', // We'll need to fetch this from users table
+            name: 'User', // This will be populated from the joined users table
             email: '',
             phone: null,
             created_at: ''
