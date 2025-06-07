@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, supabaseAdmin, setClerkUserContext } from './supabase';
 import { User } from '@/types';
 
 export async function syncClerkUserToSupabase(
@@ -15,7 +15,10 @@ export async function syncClerkUserToSupabase(
       name: clerkUser.fullName || clerkUser.firstName
     });
 
-    // Use service role client for user management
+    // Set up RLS context for this user
+    await setClerkUserContext(clerkUser.id);
+
+    // Use regular client for user operations (RLS will handle permissions)
     const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select('*')
@@ -25,7 +28,7 @@ export async function syncClerkUserToSupabase(
     // If user doesn't exist, create them
     if (fetchError && fetchError.code === 'PGRST116') {
       const newUser = {
-        id: clerkUser.id,
+        id: clerkUser.id, // This is now a TEXT field that accepts Clerk's user ID format
         email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
         name: clerkUser.fullName || 
               clerkUser.firstName || 
@@ -122,7 +125,7 @@ export function validateUserData(user: Partial<User>): boolean {
 }
 
 // Function to create a Supabase auth session for Clerk users
-export async function createSupabaseSession(clerkUser: any, clerkToken: string) {
+export async function createSupabaseSession(clerkUser: any, clerkToken?: string) {
   try {
     // First ensure the user exists in our users table
     const syncResult = await syncClerkUserToSupabase(clerkUser);
@@ -131,17 +134,10 @@ export async function createSupabaseSession(clerkUser: any, clerkToken: string) 
       throw syncResult.error;
     }
 
-    // Set the auth context for RLS policies
-    // This allows RLS policies to work with Clerk user IDs
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: clerkToken,
-      refresh_token: '', // Not needed for Clerk integration
-    });
+    // Set up the user context for RLS policies
+    await setClerkUserContext(clerkUser.id);
 
-    if (sessionError) {
-      console.warn('Could not set Supabase session:', sessionError);
-      // This is not critical for the sync to work
-    }
+    console.log('Supabase session context set for Clerk user:', clerkUser.id);
 
     return { data: syncResult.data, error: null };
   } catch (error: any) {

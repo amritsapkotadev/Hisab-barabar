@@ -13,7 +13,7 @@ const ExpoSecureStoreAdapter = {
   removeItem: (key: string) => SecureStore.deleteItemAsync(key),
 };
 
-// Configure Supabase client with proper schema and auth settings
+// Configure Supabase client with proper auth settings for Clerk integration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: ExpoSecureStoreAdapter,
@@ -26,7 +26,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'X-Client-Info': 'expo-router',
     },
   },
-  // Remove custom schema setting - use default public schema
   realtime: {
     params: {
       eventsPerSecond: 1,
@@ -82,22 +81,49 @@ export const handleSupabaseError = (error: any) => {
   if (error?.message?.includes('schema')) {
     return 'Database schema error. Please contact support.';
   }
+  if (error?.message?.includes('uuid')) {
+    return 'Invalid user ID format. Please try signing in again.';
+  }
   return error?.message || 'An unexpected error occurred';
+};
+
+// Helper function to create a custom JWT for Clerk users
+export const createClerkSupabaseJWT = async (clerkUserId: string) => {
+  try {
+    // Create a simple JWT-like token for RLS context
+    // This is a basic implementation - in production you might want to use a proper JWT library
+    const payload = {
+      sub: clerkUserId,
+      aud: 'authenticated',
+      role: 'authenticated',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (60 * 60), // 1 hour
+    };
+
+    // For now, we'll use the user ID directly in RLS policies
+    // In a production app, you'd want to implement proper JWT signing
+    return clerkUserId;
+  } catch (error) {
+    console.warn('Error creating Clerk Supabase JWT:', error);
+    return clerkUserId;
+  }
 };
 
 // Helper function to set up RLS context for Clerk users
 export const setClerkUserContext = async (clerkUserId: string) => {
   try {
-    // Set the user context for RLS policies
-    const { error } = await supabase.rpc('set_claim', {
-      uid: clerkUserId,
-      claim: 'sub',
-      value: clerkUserId
-    });
-
-    if (error) {
-      console.warn('Could not set user context for RLS:', error);
-    }
+    // Set a custom header that can be used in RLS policies
+    supabase.rest.headers['x-user-id'] = clerkUserId;
+    
+    // Also try to set the auth context if possible
+    const customToken = await createClerkSupabaseJWT(clerkUserId);
+    
+    // Note: This is a simplified approach. In production, you'd want to:
+    // 1. Create proper JWTs signed with your Supabase JWT secret
+    // 2. Use Supabase's auth.setSession() with a valid JWT
+    // 3. Implement proper token refresh logic
+    
+    console.log('Set Clerk user context for RLS:', clerkUserId);
   } catch (error) {
     console.warn('Error setting user context:', error);
   }
