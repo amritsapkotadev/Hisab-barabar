@@ -66,6 +66,7 @@
     "react-native-web": "^0.20.0",
     "readable-stream": "^4.7.0",
     "stream-http": "^3.2.0",
+    "svix": "^1.67.0",
     "url": "^0.11.3",
     "util": "^0.12.5",
     "zod": "^3.22.4",
