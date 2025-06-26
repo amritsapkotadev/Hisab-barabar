@@ -62,6 +62,7 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
+  const [activeTab, setActiveTab] = useState<'personal' | 'shared'>('shared');
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -97,6 +98,9 @@ export default function HomeScreen() {
     setRefreshing(true);
     fetchAll();
   };
+
+  // Filter for personal expenses
+  const personalExpenses = expenses.filter(e => (!e.groupId || (e.participants && user && e.participants.length === 1 && e.participants[0] === user.name)));
 
   // --- UI Components ---
   const renderAppBar = () => (
@@ -351,10 +355,62 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {renderAppBar()}
-        {renderNetBalanceCard()}
-        {renderQuickActions()}
-        {renderGroupsSection()}
-        {renderRecentExpenses()}
+        {/* Toggle Switch under welcome text */}
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity
+            style={[styles.toggleButton, activeTab === 'personal' && styles.toggleButtonActive]}
+            onPress={() => setActiveTab('personal')}
+          >
+            <Text style={[styles.toggleText, activeTab === 'personal' && styles.toggleTextActive]}>Personal</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, activeTab === 'shared' && styles.toggleButtonActive]}
+            onPress={() => setActiveTab('shared')}
+          >
+            <Text style={[styles.toggleText, activeTab === 'shared' && styles.toggleTextActive]}>Shared</Text>
+          </TouchableOpacity>
+        </View>
+        {activeTab === 'personal' ? (
+          <>
+            {/* Personal Expenses List */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Personal Expenses</Text>
+              </View>
+              {personalExpenses.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No personal expenses yet</Text>
+                  <Text style={styles.emptySubtext}>Add a personal expense to see it here</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={personalExpenses}
+                  renderItem={renderExpenseItem}
+                  keyExtractor={e => e.id}
+                  scrollEnabled={false}
+                  contentContainerStyle={styles.expensesContainer}
+                />
+              )}
+            </View>
+            {/* FAB for adding personal expense */}
+            <TouchableOpacity
+              style={styles.fabPersonal}
+              onPress={() => router.push('/add-expense-advanced?personal=true')}
+              activeOpacity={0.85}
+            >
+              <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.fabGradientPersonal}>
+                <Plus size={28} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {renderNetBalanceCard()}
+            {renderQuickActions()}
+            {renderGroupsSection()}
+            {renderRecentExpenses()}
+          </>
+        )}
       </Animated.ScrollView>
     </SafeAreaView>
   );
@@ -686,5 +742,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 16,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginHorizontal: 4,
+  },
+  toggleButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  toggleText: {
+    color: '#A0A0C0',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  toggleTextActive: {
+    color: '#fff',
+  },
+  fabPersonal: {
+    position: 'absolute',
+    right: 24,
+    bottom: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 10,
+  },
+  fabGradientPersonal: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 30,
+    width: 60,
+    height: 60,
   },
 });
