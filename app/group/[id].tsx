@@ -11,10 +11,14 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ArrowLeft, Plus, DollarSign, Calendar, Share2, Users, CreditCard, ChevronRight, Check, BarChart2, UserPlus } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
 import ShareGroupModal from '@/components/ShareGroupModal';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
@@ -40,7 +44,7 @@ const SegmentedControl = ({ tabs, activeTab, onTabPress }: SegmentedControlProps
     const newIndex = tabs.findIndex(tab => tab.id === activeTab);
     Animated.spring(slideAnim, {
       toValue: newIndex * tabWidth,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [activeTab]);
 
@@ -53,7 +57,7 @@ const SegmentedControl = ({ tabs, activeTab, onTabPress }: SegmentedControlProps
           style={styles.segmentedTab}
           onPress={() => onTabPress(tab.id)}
         >
-          {tab.icon}
+          {tab.icon && React.isValidElement(tab.icon) && React.cloneElement(tab.icon as React.ReactElement<{ color: string }>, { color: activeTab === tab.id ? '#fff' : '#9CA3AF' })}
           <Text style={[styles.segmentedTabText, activeTab === tab.id && styles.activeSegmentedTabText]}>
             {tab.label}
           </Text>
@@ -76,6 +80,8 @@ export default function GroupScreen() {
   const [deleting, setDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('expenses');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [joining, setJoining] = useState(false);
 
   const fetchGroupData = async () => {
     if (!id) return;
@@ -122,7 +128,7 @@ export default function GroupScreen() {
   };
 
   const getColorForName = (name: string) => {
-    const colors = ['#8B5CF6', '#0EA5E9', '#10B981', '#F59E0B', '#EC4899', '#EF4444', '#78716C'];
+    const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#EF4444', '#78716C'];
     if (!name) return colors[0];
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
@@ -141,6 +147,21 @@ export default function GroupScreen() {
       setDeleting(false);
       const message = err?.response?.data?.message || 'Failed to delete group.';
       alert(message);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!group) return;
+    setJoining(true);
+    try {
+      await apiService.joinGroupById(group.id);
+      setShowAddMemberModal(false);
+      await fetchGroupData();
+      Alert.alert('Success', 'You have joined the group!');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to join group.');
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -213,7 +234,7 @@ export default function GroupScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4F46E5" />
+          <ActivityIndicator size="large" color="#8B5CF6" />
           <Text style={styles.loadingText}>Summoning Group...</Text>
         </View>
       </SafeAreaView>
@@ -234,29 +255,29 @@ export default function GroupScreen() {
   }
   
   const tabs = [
-    { id: 'expenses', label: 'Expenses', icon: <DollarSign size={18} color={activeTab === 'expenses' ? '#4F46E5' : '#64748B'} /> },
-    { id: 'balances', label: 'Balances', icon: <BarChart2 size={18} color={activeTab === 'balances' ? '#4F46E5' : '#64748B'} /> },
-    { id: 'members', label: 'Members', icon: <Users size={18} color={activeTab === 'members' ? '#4F46E5' : '#64748B'} /> },
+    { id: 'expenses', label: 'Expenses', icon: <DollarSign size={18} /> },
+    { id: 'balances', label: 'Balances', icon: <BarChart2 size={18} /> },
+    { id: 'members', label: 'Members', icon: <Users size={18} /> },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#E2E8F0" />
+        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#E5E7EB" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
            <Text style={styles.headerEmoji}>{group.emoji || '💰'}</Text>
            <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         </View>
-        <TouchableOpacity style={styles.shareButton} onPress={() => setShowShareModal(true)}>
-          <Share2 size={22} color="#E2E8F0" />
+        <TouchableOpacity style={styles.headerButton} onPress={() => setShowShareModal(true)}>
+          <Share2 size={22} color="#E5E7EB" />
         </TouchableOpacity>
       </View>
       
       <ScrollView
         contentContainerStyle={styles.scrollViewContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8B5CF6" />}
       >
         <Animated.View style={{ opacity: fadeAnim }}>
           <View style={styles.summaryContainer}>
@@ -285,10 +306,11 @@ export default function GroupScreen() {
                     renderItem={renderExpenseCard}
                     keyExtractor={(item) => item.id}
                     scrollEnabled={false}
+                    ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
                   />
                 ) : (
                   <View style={styles.emptyState}>
-                    <DollarSign size={48} color="#4F46E5" />
+                    <DollarSign size={48} color="#8B5CF6" />
                     <Text style={styles.emptyText}>No expenses yet</Text>
                     <Text style={styles.emptySubtext}>Tap the '+' to add one!</Text>
                   </View>
@@ -298,13 +320,15 @@ export default function GroupScreen() {
 
             {activeTab === 'balances' && (
               <>
-                {isSettled && (
+                {isSettled ? (
                   <View style={styles.settledBadge}>
-                    <Check size={14} color="#10B981" />
+                    <Check size={14} color="#22C55E" />
                     <Text style={styles.settledText}>All Settled Up!</Text>
                   </View>
+                ) : (
+                   renderBalanceCard()
                 )}
-                {renderBalanceCard()}
+
                 {!isSettled && (
                   <TouchableOpacity style={styles.settleButton}>
                     <Text style={styles.settleButtonText}>Settle Balances</Text>
@@ -315,11 +339,42 @@ export default function GroupScreen() {
 
             {activeTab === 'members' && (
               <>
-                <TouchableOpacity style={styles.addMemberButton}>
-                  <UserPlus size={16} color="#4F46E5" />
+                <TouchableOpacity style={styles.addMemberButton} onPress={() => setShowAddMemberModal(true)}>
+                  <UserPlus size={16} color="#8B5CF6" />
                   <Text style={styles.addMemberText}>Add Member</Text>
                 </TouchableOpacity>
                 {renderMembers()}
+                <Modal
+                  visible={showAddMemberModal}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowAddMemberModal(false)}
+                >
+                  <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                      <Text style={styles.modalTitle}>Join Group</Text>
+                      <Text style={styles.modalMessage}>
+                        You will be added as a member to this group. Continue?
+                      </Text>
+                      <View style={styles.modalActionRow}>
+                        <Pressable
+                          style={[styles.modalButton, styles.modalCancelButton]}
+                          onPress={() => setShowAddMemberModal(false)}
+                          disabled={joining}
+                        >
+                          <Text style={[styles.modalButtonText, styles.modalCancelButtonText]}>Cancel</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.modalButton, styles.modalConfirmButton]}
+                          onPress={handleAddMember}
+                          disabled={joining}
+                        >
+                          <Text style={[styles.modalButtonText, styles.modalConfirmButtonText]}>{joining ? 'Joining...' : 'Join'}</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                </Modal>
               </>
             )}
           </View>
@@ -354,7 +409,12 @@ export default function GroupScreen() {
         onPress={() => router.push(`/add-expense/${group.id}`)}
         activeOpacity={0.85}
       >
-        <Plus size={28} color="#fff" />
+        <LinearGradient
+          colors={['#A78BFA', '#7C3AED']}
+          style={styles.fabGradient}
+        >
+          <Plus size={28} color="#fff" />
+        </LinearGradient>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -363,7 +423,7 @@ export default function GroupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#111827',
   },
   header: {
     flexDirection: 'row',
@@ -371,9 +431,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1F2937',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
   },
-  backButton: {
+  headerButton: {
     padding: 8,
   },
   headerTitleContainer: {
@@ -389,22 +451,19 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Inter_700Bold',
-    color: '#E2E8F0',
+    color: '#F3F4F6',
     maxWidth: '80%',
-  },
-  shareButton: {
-    padding: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#111827',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     fontFamily: 'Inter_500Medium',
   },
   errorContainer: {
@@ -414,13 +473,13 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   errorText: {
-    color: '#EF4444',
+    color: '#F87171',
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#8B5CF6',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -436,28 +495,28 @@ const styles = StyleSheet.create({
   summaryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    padding: 16,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1F2937',
     borderRadius: 16,
     margin: 16,
+    padding: 16,
   },
   summaryBox: {
     alignItems: 'center',
   },
   summaryLabel: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     fontFamily: 'Inter_500Medium',
     marginBottom: 4,
   },
   summaryValue: {
     fontSize: 18,
-    color: '#F1F5F9',
+    color: '#F3F4F6',
     fontFamily: 'Inter_700Bold',
   },
   segmentedControlContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1F2937',
     borderRadius: 12,
     marginHorizontal: 16,
     padding: 4,
@@ -474,23 +533,19 @@ const styles = StyleSheet.create({
   },
   segmentedTabText: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     fontFamily: 'Inter_600SemiBold',
   },
   activeSegmentedTabText: {
-    color: '#4F46E5',
+    color: '#FFFFFF',
   },
   activeTabIndicator: {
     position: 'absolute',
     top: 4,
+    bottom: 4,
     left: 4,
-    height: '100%',
-    backgroundColor: '#E0E7FF',
+    backgroundColor: '#8B5CF6',
     borderRadius: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
   },
   contentSection: {
     padding: 16,
@@ -498,10 +553,11 @@ const styles = StyleSheet.create({
   expenseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1F2937',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#374151'
   },
   expenseAvatar: {
     width: 40,
@@ -521,12 +577,12 @@ const styles = StyleSheet.create({
   },
   expenseDescription: {
     fontSize: 15,
-    color: '#F1F5F9',
+    color: '#F3F4F6',
     fontFamily: 'Inter_600SemiBold',
   },
   expensePaidBy: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     fontFamily: 'Inter_500Medium',
     marginTop: 2,
   },
@@ -537,18 +593,20 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 16,
     fontFamily: 'Inter_700Bold',
-    color: '#F1F5F9',
+    color: '#F3F4F6',
   },
   expenseDate: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     fontFamily: 'Inter_500Medium',
     marginTop: 2,
   },
   balanceCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1F2937',
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#374151',
     gap: 16,
   },
   balanceRow: {
@@ -576,7 +634,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 15,
-    color: '#E2E8F0',
+    color: '#F3F4F6',
     fontFamily: 'Inter_500Medium',
     flex: 1,
   },
@@ -588,11 +646,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_700Bold',
   },
-  positiveBalance: { color: '#10B981' },
+  positiveBalance: { color: '#22C55E' },
   negativeBalance: { color: '#EF4444' },
-  neutralBalance: { color: '#94A3B8' },
+  neutralBalance: { color: '#9CA3AF' },
   settledBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -601,9 +659,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginBottom: 16,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+    borderWidth: 1,
   },
   settledText: {
-    color: '#10B981',
+    color: '#22C55E',
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
   },
@@ -613,9 +673,11 @@ const styles = StyleSheet.create({
   memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1F2937',
     borderRadius: 12,
     padding: 12,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   memberAvatar: {
     width: 44,
@@ -632,16 +694,18 @@ const styles = StyleSheet.create({
   },
   memberNameLarge: {
     fontSize: 16,
-    color: '#E2E8F0',
+    color: '#F3F4F6',
     fontFamily: 'Inter_600SemiBold',
     flex: 1,
   },
   creatorBadge: {
-    backgroundColor: 'rgba(79, 70, 229, 0.15)',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
     marginLeft: 8,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderWidth: 1,
   },
   creatorText: {
     color: '#A78BFA',
@@ -652,18 +716,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 48,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#1F2937',
     borderRadius: 16,
   },
   emptyText: {
     fontSize: 18,
-    color: '#F1F5F9',
+    color: '#F3F4F6',
     fontFamily: 'Inter_600SemiBold',
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: '#9CA3AF',
     marginTop: 8,
   },
   deleteGroupButton: {
@@ -673,9 +737,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   deleteGroupButtonText: {
-    color: '#EF4444',
+    color: '#F87171',
     fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
   },
@@ -686,17 +752,20 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4F46E5',
-    justifyContent: 'center',
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
+  fabGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 28,
+  },
   settleButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#8B5CF6',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -714,7 +783,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderWidth: 1,
     alignSelf: 'flex-start',
     marginBottom: 16,
   },
@@ -723,4 +794,56 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1F2937',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#F3F4F6',
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#9CA3AF',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#374151',
+  },
+  modalConfirmButton: {
+    backgroundColor: '#8B5CF6',
+  },
+  modalButtonText: {
+    fontWeight: '600',
+  },
+  modalCancelButtonText: {
+    color: '#F3F4F6',
+  },
+  modalConfirmButtonText: {
+    color: '#FFFFFF',
+  }
 });
