@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { ArrowLeft, DollarSign, Check, X } from 'lucide-react-native';
+import { ArrowLeft, DollarSign, Check, User, Users } from 'lucide-react-native';
 import { Group } from '@/types';
 import { apiService } from '@/services/api';
 
@@ -45,9 +45,7 @@ export default function AddExpenseScreen() {
         const groupData = await apiService.getGroup(groupId);
         if (groupData) {
           setGroup(groupData);
-          // Select all members by default
           setSelectedParticipants(groupData.members);
-          // Set first member as default payer
           if (groupData.members.length > 0) {
             setPaidBy(groupData.members[0]);
           }
@@ -76,7 +74,6 @@ export default function AddExpenseScreen() {
   const toggleParticipant = (member: string) => {
     setSelectedParticipants(prev => {
       if (prev.includes(member)) {
-        // Don't allow removing if it's the only participant
         if (prev.length === 1) {
           Alert.alert('Error', 'At least one participant is required');
           return prev;
@@ -89,7 +86,6 @@ export default function AddExpenseScreen() {
   };
 
   const handleSubmit = async () => {
-    // Validation
     if (!description.trim()) {
       Alert.alert('Error', 'Please enter a description');
       return;
@@ -127,10 +123,7 @@ export default function AddExpenseScreen() {
           date,
         });
         Alert.alert('Success', 'Expense updated successfully!', [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
+          { text: 'OK', onPress: () => router.back() }
         ]);
       } else {
         await apiService.createExpense({
@@ -142,15 +135,14 @@ export default function AddExpenseScreen() {
           date,
         });
         Alert.alert('Success', 'Expense added successfully!', [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
+          { text: 'OK', onPress: () => router.back() }
         ]);
       }
     } catch (error) {
-      Alert.alert('Error', params.edit === 'true' ? 'Failed to update expense. Please try again.' : 'Failed to add expense. Please try again.');
-      console.error(params.edit === 'true' ? 'Error updating expense:' : 'Error creating expense:', error);
+      Alert.alert('Error', params.edit === 'true' 
+        ? 'Failed to update expense. Please try again.' 
+        : 'Failed to add expense. Please try again.');
+      console.error('Error:', error);
     } finally {
       setSubmitting(false);
     }
@@ -160,16 +152,13 @@ export default function AddExpenseScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={24} color="#374151" />
           </TouchableOpacity>
           <Text style={styles.title}>Loading...</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color="#4F46E5" />
           <Text style={styles.loadingText}>Loading group data...</Text>
         </View>
       </SafeAreaView>
@@ -180,10 +169,7 @@ export default function AddExpenseScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={24} color="#374151" />
           </TouchableOpacity>
           <Text style={styles.title}>Error</Text>
@@ -198,14 +184,11 @@ export default function AddExpenseScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#374151" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>Add Expense</Text>
+          <Text style={styles.title}>{params.edit === 'true' ? 'Edit Expense' : 'Add Expense'}</Text>
           <Text style={styles.subtitle}>{group.name}</Text>
         </View>
       </View>
@@ -218,7 +201,7 @@ export default function AddExpenseScreen() {
             value={description}
             onChangeText={setDescription}
             placeholder="e.g., Dinner at Italian restaurant"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9CA3AF"
             maxLength={100}
           />
         </View>
@@ -226,13 +209,13 @@ export default function AddExpenseScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Amount *</Text>
           <View style={styles.amountContainer}>
-            <DollarSign size={20} color="#6b7280" />
+            <DollarSign size={20} color="#6B7280" />
             <TextInput
               style={styles.amountInput}
               value={amount}
               onChangeText={setAmount}
               placeholder="0.00"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#9CA3AF"
               keyboardType="decimal-pad"
               maxLength={10}
             />
@@ -246,62 +229,96 @@ export default function AddExpenseScreen() {
             value={date}
             onChangeText={setDate}
             placeholder="YYYY-MM-DD"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#9CA3AF"
           />
         </View>
 
+        {/* Enhanced Paid By Section */}
         <View style={styles.section}>
-          <Text style={styles.label}>Paid by *</Text>
-          <View style={styles.optionsContainer}>
+          <View style={styles.sectionHeader}>
+            <User size={18} color="#4F46E5" />
+            <Text style={styles.sectionTitle}>Paid by *</Text>
+          </View>
+          <View style={styles.paidByContainer}>
             {group.members.map((member) => (
               <TouchableOpacity
                 key={member}
                 style={[
-                  styles.optionButton,
-                  paidBy === member && styles.selectedOption,
+                  styles.paidByButton,
+                  paidBy === member && styles.paidByButtonSelected,
                 ]}
                 onPress={() => setPaidBy(member)}
               >
-                <Text style={[
-                  styles.optionText,
-                  paidBy === member && styles.selectedOptionText,
-                ]}>
-                  {member}
-                </Text>
+                <View style={styles.paidByContent}>
+                  <View style={[
+                    styles.paidByAvatar,
+                    paidBy === member && styles.paidByAvatarSelected
+                  ]}>
+                    <Text style={[
+                      styles.paidByInitial,
+                      paidBy === member && styles.paidByInitialSelected
+                    ]}>
+                      {member.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={[
+                    styles.paidByText,
+                    paidBy === member && styles.paidByTextSelected,
+                  ]}>
+                    {member}
+                  </Text>
+                </View>
                 {paidBy === member && (
-                  <Check size={16} color="#ffffff" />
+                  <View style={styles.paidByCheckmark}>
+                    <Check size={16} color="#FFFFFF" />
+                  </View>
                 )}
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
+        {/* Enhanced Split Between Section */}
         <View style={styles.section}>
-          <Text style={styles.label}>Participants *</Text>
+          <View style={styles.sectionHeader}>
+            <Users size={18} color="#4F46E5" />
+            <Text style={styles.sectionTitle}>Split between *</Text>
+          </View>
           <Text style={styles.participantsHelper}>
-            Select who should split this expense
+            Select who should share this expense
           </Text>
-          <View style={styles.optionsContainer}>
+          <View style={styles.participantsContainer}>
             {group.members.map((member) => (
               <TouchableOpacity
                 key={member}
                 style={[
                   styles.participantButton,
-                  selectedParticipants.includes(member) && styles.selectedParticipant,
+                  selectedParticipants.includes(member) && styles.participantButtonSelected,
                 ]}
                 onPress={() => toggleParticipant(member)}
               >
-                <Text style={[
-                  styles.participantText,
-                  selectedParticipants.includes(member) && styles.selectedParticipantText,
+                <View style={styles.participantContent}>
+                  <View style={[
+                    styles.participantAvatar,
+                    selectedParticipants.includes(member) && styles.participantAvatarSelected
+                  ]}>
+                    <Text style={[
+                      styles.participantInitial,
+                      selectedParticipants.includes(member) && styles.participantInitialSelected
+                    ]}>
+                      {member.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.participantName}>{member}</Text>
+                </View>
+                <View style={[
+                  styles.participantCheckbox,
+                  selectedParticipants.includes(member) && styles.participantCheckboxSelected,
                 ]}>
-                  {member}
-                </Text>
-                {selectedParticipants.includes(member) ? (
-                  <Check size={16} color="#059669" />
-                ) : (
-                  <View style={styles.uncheckedBox} />
-                )}
+                  {selectedParticipants.includes(member) && (
+                    <Check size={14} color="#FFFFFF" />
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -314,12 +331,18 @@ export default function AddExpenseScreen() {
               <Text style={styles.splitAmount}>
                 ${amount ? (parseFloat(amount) / selectedParticipants.length).toFixed(2) : '0.00'} per person
               </Text>
-              <Text style={styles.splitParticipants}>
-                Split between {selectedParticipants.length} participant(s):
-              </Text>
-              <Text style={styles.splitList}>
-                {selectedParticipants.join(', ')}
-              </Text>
+              <View style={styles.splitDetails}>
+                <View style={styles.splitDetailRow}>
+                  <Text style={styles.splitDetailLabel}>Paid by: </Text>
+                  <Text style={styles.splitDetailValue}>{paidBy}</Text>
+                </View>
+                <View style={styles.splitDetailRow}>
+                  <Text style={styles.splitDetailLabel}>Split between: </Text>
+                  <Text style={styles.splitDetailValue}>
+                    {selectedParticipants.length} {selectedParticipants.length === 1 ? 'person' : 'people'}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
         )}
@@ -332,11 +355,13 @@ export default function AddExpenseScreen() {
           disabled={submitting}
         >
           {submitting ? (
-            <ActivityIndicator color="#ffffff\" size="small" />
+            <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <>
-              <DollarSign size={20} color="#ffffff" />
-              <Text style={styles.submitButtonText}>Add Expense</Text>
+              <DollarSign size={20} color="#FFFFFF" />
+              <Text style={styles.submitButtonText}>
+                {params.edit === 'true' ? 'Update Expense' : 'Add Expense'}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -348,16 +373,16 @@ export default function AddExpenseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     marginRight: 16,
@@ -367,13 +392,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#111827',
   },
   subtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6B7280',
     marginTop: 2,
   },
   loadingContainer: {
@@ -384,7 +409,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6b7280',
+    color: '#6B7280',
   },
   errorContainer: {
     flex: 1,
@@ -393,7 +418,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    color: '#dc2626',
+    color: '#DC2626',
     fontSize: 16,
     textAlign: 'center',
   },
@@ -404,18 +429,29 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
-  label: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#111827',
+    marginLeft: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
     color: '#374151',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
     color: '#111827',
@@ -423,11 +459,11 @@ const styles = StyleSheet.create({
   amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 14,
     paddingVertical: 12,
   },
   amountInput: {
@@ -437,64 +473,128 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   participantsHelper: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 8,
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 12,
   },
-  optionsContainer: {
+  // Paid By Section Styles
+  paidByContainer: {
     gap: 8,
   },
-  optionButton: {
+  paidByButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
-  selectedOption: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
+  paidByButtonSelected: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#4F46E5',
   },
-  optionText: {
+  paidByContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paidByAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  paidByAvatarSelected: {
+    backgroundColor: '#4F46E5',
+  },
+  paidByInitial: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  paidByInitialSelected: {
+    color: '#FFFFFF',
+  },
+  paidByText: {
     fontSize: 16,
     color: '#374151',
   },
-  selectedOptionText: {
-    color: '#ffffff',
+  paidByTextSelected: {
+    color: '#4F46E5',
+    fontWeight: '600',
+  },
+  paidByCheckmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4F46E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Participants Section Styles
+  participantsContainer: {
+    gap: 8,
   },
   participantButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
-  selectedParticipant: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#059669',
+  participantButtonSelected: {
+    backgroundColor: '#F5F3FF',
+    borderColor: '#8B5CF6',
   },
-  participantText: {
+  participantContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  participantAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  participantAvatarSelected: {
+    backgroundColor: '#8B5CF6',
+  },
+  participantInitial: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  participantInitialSelected: {
+    color: '#FFFFFF',
+  },
+  participantName: {
     fontSize: 16,
     color: '#374151',
   },
-  selectedParticipantText: {
-    color: '#059669',
-  },
-  uncheckedBox: {
-    width: 16,
-    height: 16,
+  participantCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 2,
+    borderColor: '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  participantCheckboxSelected: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  // Split Preview Styles
   splitPreview: {
     marginTop: 16,
   },
@@ -505,36 +605,43 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   splitCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E5E7EB',
   },
   splitAmount: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#059669',
+    color: '#10B981',
     marginBottom: 8,
   },
-  splitParticipants: {
-    fontSize: 12,
-    color: '#6b7280',
+  splitDetails: {
+    marginTop: 8,
+  },
+  splitDetailRow: {
+    flexDirection: 'row',
     marginBottom: 4,
   },
-  splitList: {
+  splitDetailLabel: {
     fontSize: 14,
-    color: '#374151',
-    lineHeight: 18,
+    fontWeight: '500',
+    color: '#6B7280',
   },
+  splitDetailValue: {
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  // Footer Styles
   footer: {
     padding: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#E5E7EB',
   },
   submitButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#4F46E5',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -542,12 +649,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   submitButtonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: '#9CA3AF',
   },
   submitButtonText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#FFFFFF',
   },
 });

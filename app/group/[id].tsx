@@ -9,15 +9,30 @@ import {
   ActivityIndicator,
   ScrollView,
   Animated,
-  Easing,
   Dimensions,
   Alert,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { ArrowLeft, Plus, DollarSign, Calendar, Share2, Users, CreditCard, ChevronRight, Check, BarChart2, UserPlus } from 'lucide-react-native';
+import { 
+  ArrowLeft, 
+  Plus, 
+  DollarSign, 
+  Share2, 
+  Users, 
+  ChevronRight, 
+  Check, 
+  BarChart2, 
+  UserPlus,
+  Download,
+  X,
+  Clock,
+  User,
+  FileText
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
 import ShareGroupModal from '@/components/ShareGroupModal';
@@ -26,42 +41,48 @@ import { Group, Expense } from '@/types';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
+import { BlurView } from 'expo-blur';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-interface SegmentedControlProps {
-  tabs: {
-    id: string;
-    label: string;
-    icon: React.ReactNode;
-  }[];
-  activeTab: string;
-  onTabPress: (id: string) => void;
-}
-
-const SegmentedControl = ({ tabs, activeTab, onTabPress }: SegmentedControlProps) => {
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const tabWidth = (width - 32) / tabs.length;
+// Custom Components
+const SegmentedControl = ({ tabs, activeTab, onTabPress }) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const tabWidth = (width - 40) / tabs.length;
 
   useEffect(() => {
-    const newIndex = tabs.findIndex(tab => tab.id === activeTab);
-    Animated.spring(slideAnim, {
-      toValue: newIndex * tabWidth,
-      useNativeDriver: false,
+    const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
+    Animated.spring(translateX, {
+      toValue: activeIndex * tabWidth,
+      useNativeDriver: true,
+      damping: 15,
     }).start();
   }, [activeTab]);
 
   return (
-    <View style={styles.segmentedControlContainer}>
-      <Animated.View style={[styles.activeTabIndicator, { transform: [{ translateX: slideAnim }], width: tabWidth }]} />
+    <View style={styles.segmentedContainer}>
+      <Animated.View style={[
+        styles.activeSegment,
+        { 
+          width: tabWidth - 16,
+          transform: [{ translateX }],
+        }
+      ]} />
       {tabs.map((tab) => (
         <TouchableOpacity
           key={tab.id}
-          style={styles.segmentedTab}
+          style={styles.segment}
           onPress={() => onTabPress(tab.id)}
+          activeOpacity={0.7}
         >
-          {tab.icon && React.isValidElement(tab.icon) && React.cloneElement(tab.icon as React.ReactElement<{ color: string }>, { color: activeTab === tab.id ? '#fff' : '#9CA3AF' })}
-          <Text style={[styles.segmentedTabText, activeTab === tab.id && styles.activeSegmentedTabText]}>
+          {React.cloneElement(tab.icon, { 
+            color: activeTab === tab.id ? '#fff' : '#94a3b8',
+            size: 18 
+          })}
+          <Text style={[
+            styles.segmentText,
+            activeTab === tab.id && styles.activeSegmentText
+          ]}>
             {tab.label}
           </Text>
         </TouchableOpacity>
@@ -70,216 +91,207 @@ const SegmentedControl = ({ tabs, activeTab, onTabPress }: SegmentedControlProps
   );
 };
 
+const MemberAvatar = ({ name, size = 40 }) => {
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
+  const color = colors[name.charCodeAt(0) % colors.length];
 
-export default function GroupScreen() {
+  return (
+    <View style={[
+      styles.avatar,
+      { 
+        backgroundColor: color,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+      }
+    ]}>
+      <Text style={[
+        styles.avatarText,
+        { fontSize: size * 0.4 }
+      ]}>
+        {initials}
+      </Text>
+    </View>
+  );
+};
+
+const GroupScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [group, setGroup] = useState<Group | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('expenses');
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [activeTab, setActiveTab] = useState('expenses');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [joining, setJoining] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportModalVisible, setExportModalVisible] = useState(false);
-  const [exportResult, setExportResult] = useState<string | null>(null);
-  const [showAdModal, setShowAdModal] = useState(false);
-  const [adLoading, setAdLoading] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportResult, setExportResult] = useState('');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const cardAnim = useRef(new Animated.Value(0)).current;
 
+  // Fetch group data
   const fetchGroupData = async () => {
-    if (!id) return;
     try {
       setLoading(true);
-      setError(null);
       const [groupData, expenseData] = await Promise.all([
         apiService.getGroup(id),
         apiService.getGroupExpenses(id),
       ]);
       setGroup(groupData);
       setExpenses(expenseData);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }).start();
+      
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(cardAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          damping: 10,
+        })
+      ]).start();
     } catch (err) {
-      setError('Failed to load group data. Please try again.');
-      console.error('Error fetching group data:', err);
+      setError('Failed to load group data');
     } finally {
       setLoading(false);
     }
-  };
-  
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchGroupData();
-    setRefreshing(false);
   };
 
   useEffect(() => {
     fetchGroupData();
   }, [id]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-  
-  const getInitials = (name: string) => {
-    if (!name) return '??';
-    return name.split(' ').map((n) => n[0]).join('').toUpperCase();
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchGroupData();
+    setRefreshing(false);
   };
 
-  const getColorForName = (name: string) => {
-    const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#EF4444', '#78716C'];
-    if (!name) return colors[0];
-    const index = name.charCodeAt(0) % colors.length;
-    return colors[index];
-  };
+  // Helper functions
+  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric' 
+  });
 
-  const isSettled = group && Object.values(group.balances).every(balance => Math.abs(balance) < 0.01);
+  const isSettled = group && Object.values(group.balances).every(b => Math.abs(b) < 0.01);
 
+  // Handlers
   const handleDeleteGroup = async () => {
-    if (!group) return;
-    setDeleting(true);
     try {
       await apiService.deleteGroup(group.id);
-      setShowDeleteModal(false);
       router.replace('/');
-    } catch (err: any) {
-      setDeleting(false);
-      const message = err?.response?.data?.message || 'Failed to delete group.';
-      alert(message);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to delete group');
     }
   };
 
   const handleAddMember = async () => {
-    if (!group) return;
-    setJoining(true);
     try {
       await apiService.joinGroupById(group.id);
-      setShowAddMemberModal(false);
       await fetchGroupData();
-      Alert.alert('Success', 'You have joined the group!');
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to join group.');
-    } finally {
-      setJoining(false);
+      setShowAddMemberModal(false);
+      Alert.alert('Success', 'You joined the group!');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to join group');
     }
   };
 
-  const handleExportGroup = async () => {
-    setShowAdModal(true);
-  };
-
-  const proceedExportGroup = async () => {
-    if (!group) return;
-    setExporting(true);
-    setShowAdModal(false);
+  const handleExport = async () => {
     try {
-      const groupExpenses = await apiService.getGroupExpenses(group.id);
-      let csv = `Group Name,Description,Members,Total Expenses,Created At\n`;
-      csv += `"${group.name}","${group.description}","${group.members.join(';')}",${group.totalExpenses},${group.createdAt}\n\n`;
-      csv += `Expenses:\nDate,Description,Amount,Paid By,Participants\n`;
-      groupExpenses.forEach(exp => {
-        csv += `${exp.date},"${exp.description}",${exp.amount},${exp.paidBy},"${exp.participants.join(';')}"\n`;
+      let csv = `Group: ${group.name}\n\n`;
+      csv += `Expenses:\nDate,Description,Amount,Paid By\n`;
+      expenses.forEach(exp => {
+        csv += `${formatDate(exp.date)},${exp.description},${exp.amount},${exp.paidBy}\n`;
       });
       csv += `\nBalances:\nMember,Balance\n`;
       Object.entries(group.balances).forEach(([member, balance]) => {
-        csv += `"${member}",${balance}\n`;
+        csv += `${member},${balance.toFixed(2)}\n`;
       });
-      const fileName = `hisabkitab-group-${group.name.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
-      const fileUri = FileSystem.cacheDirectory + fileName;
-      await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Group Data' });
+      
+      if (Platform.OS !== 'web' && await Sharing.isAvailableAsync()) {
+        const fileUri = FileSystem.cacheDirectory + `group-${group.id}.csv`;
+        await FileSystem.writeAsStringAsync(fileUri, csv);
+        await Sharing.shareAsync(fileUri);
       } else {
         setExportResult(csv);
-        setExportModalVisible(true);
+        setShowExportModal(true);
       }
     } catch (err) {
-      Alert.alert('Export Failed', 'Could not export group data.');
-    } finally {
-      setExporting(false);
+      Alert.alert('Error', 'Failed to export data');
     }
   };
 
-  const renderExpenseCard = ({ item }: { item: Expense }) => (
-    <TouchableOpacity onPress={() => router.push(`/group/${id}/expense/${item.id}`)}>
-      <View style={styles.expenseCard}>
-        <View style={[styles.expenseAvatar, { backgroundColor: getColorForName(item.paidBy) }]}>
-          <Text style={styles.expenseAvatarText}>{getInitials(item.paidBy)}</Text>
-        </View>
+  // Render functions
+  const renderExpenseCard = ({ item, index }) => (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{
+          translateY: fadeAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [50 * (index + 1), 0],
+          })
+        }]
+      }}
+    >
+      <TouchableOpacity 
+        style={styles.expenseCard}
+        onPress={() => router.push(`/group/${id}/expense/${item.id}`)}
+        activeOpacity={0.8}
+      >
+        <MemberAvatar name={item.paidBy} size={44} />
         <View style={styles.expenseInfo}>
-          <Text style={styles.expenseDescription} numberOfLines={1}>{item.description}</Text>
-          <Text style={styles.expensePaidBy}>Paid by {item.paidBy}</Text>
+          <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
+          <Text style={styles.expenseSubtitle}>Paid by {item.paidBy}</Text>
         </View>
-        <View style={styles.amountContainer}>
-          <Text style={styles.amount}>${item.amount.toFixed(2)}</Text>
+        <View style={styles.expenseAmountContainer}>
+          <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
           <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
         </View>
-        <ChevronRight size={18} color="#475569" />
-      </View>
-    </TouchableOpacity>
+        <ChevronRight size={18} color="#94a3b8" />
+      </TouchableOpacity>
+    </Animated.View>
   );
 
-  const renderBalanceCard = () => {
-    if (!group || !group.balances || Object.keys(group.balances).length === 0) return null;
-    const maxBalance = Math.max(...Object.values(group.balances).map(b => Math.abs(Number(b))));
+  const renderBalanceItem = ({ member, balance }) => (
+    <View style={styles.balanceItem}>
+      <MemberAvatar name={member} size={36} />
+      <Text style={styles.balanceName} numberOfLines={1}>{member}</Text>
+      <Text style={[
+        styles.balanceAmount,
+        balance > 0 ? styles.positiveBalance : 
+        balance < 0 ? styles.negativeBalance : 
+        styles.neutralBalance
+      ]}>
+        {balance > 0 ? '+' : ''}{balance.toFixed(2)}
+      </Text>
+    </View>
+  );
 
-    return (
-      <View style={styles.balanceCard}>
-        {Object.entries(group.balances).map(([member, balance]) => (
-          <View key={member} style={styles.balanceRow}>
-            <View style={styles.memberInfo}>
-              <View style={[styles.memberAvatarSmall, { backgroundColor: getColorForName(member) }]}>
-                <Text style={styles.memberAvatarTextSmall}>{getInitials(member)}</Text>
-              </View>
-              <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
-            </View>
-            <View style={styles.balanceVisualization}>
-              <Text style={[styles.balanceAmount, balance > 0 ? styles.positiveBalance : balance < 0 ? styles.negativeBalance : styles.neutralBalance]}>
-                {balance > 0 ? `+ $${Math.abs(balance).toFixed(2)}` : balance < 0 ? `- $${Math.abs(balance).toFixed(2)}` : '$0.00'}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    );
-  };
-  
-  const renderMembers = () => {
-    if (!group) return null;
-    return (
-      <View style={styles.membersContainer}>
-        {group.members.map((member, idx) => (
-          <View key={idx} style={styles.memberCard}>
-             <View style={[styles.memberAvatar, { backgroundColor: getColorForName(member) }]}>
-                <Text style={styles.memberAvatarText}>{getInitials(member)}</Text>
-              </View>
-            <Text style={styles.memberNameLarge} numberOfLines={1}>{member}</Text>
-            {group.createdBy === member && (
-              <View style={styles.creatorBadge}>
-                <Text style={styles.creatorText}>Admin</Text>
-              </View>
-            )}
-          </View>
-        ))}
-      </View>
-    );
-  };
+  const renderMemberItem = (member) => (
+    <View style={styles.memberItem}>
+      <MemberAvatar name={member} size={44} />
+      <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
+      {group.createdBy === member && (
+        <View style={styles.adminBadge}>
+          <Text style={styles.adminText}>Admin</Text>
+        </View>
+      )}
+    </View>
+  );
 
-  if (loading && !group) {
+  // Loading and error states
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Summoning Group...</Text>
+          <ActivityIndicator size="large" color="#8b5cf6" />
+          <Text style={styles.loadingText}>Loading group...</Text>
         </View>
       </SafeAreaView>
     );
@@ -289,263 +301,310 @@ export default function GroupScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error || 'Group not found.'}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchGroupData}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
+          <Text style={styles.errorText}>{error || 'Group not found'}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={fetchGroupData}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.retryText}>Try Again</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
-  
+
   const tabs = [
-    { id: 'expenses', label: 'Expenses', icon: <DollarSign size={18} /> },
-    { id: 'balances', label: 'Balances', icon: <BarChart2 size={18} /> },
-    { id: 'members', label: 'Members', icon: <Users size={18} /> },
+    { id: 'expenses', label: 'Expenses', icon: <DollarSign /> },
+    { id: 'balances', label: 'Balances', icon: <BarChart2 /> },
+    { id: 'members', label: 'Members', icon: <Users /> },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#0f172a', '#1e293b']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#E5E7EB" />
+        <TouchableOpacity 
+          style={styles.headerButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <ArrowLeft size={24} color="#e2e8f0" />
         </TouchableOpacity>
+        
         <View style={styles.headerTitleContainer}>
-           <Text style={styles.headerEmoji}>{group.emoji || '💰'}</Text>
-           <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
+          <Text style={styles.headerEmoji}>{group.emoji || '💰'}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleExportGroup} disabled={exporting}>
-            <DollarSign size={22} color={exporting ? '#a3a3a3' : '#A78BFA'} />
+        
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={handleExport}
+            activeOpacity={0.7}
+          >
+            <Download size={22} color="#a78bfa" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={() => setShowShareModal(true)}>
-            <Share2 size={22} color="#E5E7EB" />
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setShowShareModal(true)}
+            activeOpacity={0.7}
+          >
+            <Share2 size={22} color="#e2e8f0" />
           </TouchableOpacity>
         </View>
       </View>
-      
+
+      {/* Content */}
       <ScrollView
-        contentContainerStyle={styles.scrollViewContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8B5CF6" />}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8b5cf6"
+            colors={['#8b5cf6']}
+          />
+        }
       >
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <View style={styles.summaryContainer}>
-            <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Total Spent</Text>
-              <Text style={styles.summaryValue}>${group.totalExpenses.toFixed(2)}</Text>
-            </View>
-            <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Members</Text>
-              <Text style={styles.summaryValue}>{group.members.length}</Text>
-            </View>
-            <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Expenses</Text>
-              <Text style={styles.summaryValue}>{expenses.length}</Text>
-            </View>
+        {/* Summary Cards */}
+        <Animated.View 
+          style={[
+            styles.summaryContainer,
+            { 
+              opacity: fadeAnim,
+              transform: [{ scale: cardAnim }] 
+            }
+          ]}
+        >
+          <View style={styles.summaryCard}>
+            <DollarSign size={20} color="#a78bfa" />
+            <Text style={styles.summaryLabel}>Total</Text>
+            <Text style={styles.summaryValue}>${group.totalExpenses.toFixed(2)}</Text>
           </View>
-          
-          <SegmentedControl tabs={tabs} activeTab={activeTab} onTabPress={setActiveTab} />
-          
-          <View style={styles.contentSection}>
-            {activeTab === 'expenses' && (
-              <>
-                {expenses.length > 0 ? (
-                  <FlatList
-                    data={expenses}
-                    renderItem={renderExpenseCard}
-                    keyExtractor={(item) => item.id}
-                    scrollEnabled={false}
-                    ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-                  />
-                ) : (
-                  <View style={styles.emptyState}>
-                    <DollarSign size={48} color="#8B5CF6" />
-                    <Text style={styles.emptyText}>No expenses yet</Text>
-                    <Text style={styles.emptySubtext}>Tap the '+' to add one!</Text>
-                  </View>
-                )}
-              </>
-            )}
-
-            {activeTab === 'balances' && (
-              <>
-                {isSettled ? (
-                  <View style={styles.settledBadge}>
-                    <Check size={14} color="#22C55E" />
-                    <Text style={styles.settledText}>All Settled Up!</Text>
-                  </View>
-                ) : (
-                   renderBalanceCard()
-                )}
-
-                {!isSettled && (
-                  <TouchableOpacity style={styles.settleButton}>
-                    <Text style={styles.settleButtonText}>Settle Balances</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-
-            {activeTab === 'members' && (
-              <>
-                <TouchableOpacity style={styles.addMemberButton} onPress={() => setShowAddMemberModal(true)}>
-                  <UserPlus size={16} color="#8B5CF6" />
-                  <Text style={styles.addMemberText}>Add Member</Text>
-                </TouchableOpacity>
-                {renderMembers()}
-                <Modal
-                  visible={showAddMemberModal}
-                  transparent
-                  animationType="fade"
-                  onRequestClose={() => setShowAddMemberModal(false)}
-                >
-                  <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                      <Text style={styles.modalTitle}>Join Group</Text>
-                      <Text style={styles.modalMessage}>
-                        You will be added as a member to this group. Continue?
-                      </Text>
-                      <View style={styles.modalActionRow}>
-                        <Pressable
-                          style={[styles.modalButton, styles.modalCancelButton]}
-                          onPress={() => setShowAddMemberModal(false)}
-                          disabled={joining}
-                        >
-                          <Text style={[styles.modalButtonText, styles.modalCancelButtonText]}>Cancel</Text>
-                        </Pressable>
-                        <Pressable
-                          style={[styles.modalButton, styles.modalConfirmButton]}
-                          onPress={handleAddMember}
-                          disabled={joining}
-                        >
-                          <Text style={[styles.modalButtonText, styles.modalConfirmButtonText]}>{joining ? 'Joining...' : 'Join'}</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-                </Modal>
-              </>
-            )}
+          <View style={styles.summaryCard}>
+            <User size={20} color="#a78bfa" />
+            <Text style={styles.summaryLabel}>Members</Text>
+            <Text style={styles.summaryValue}>{group.members.length}</Text>
           </View>
+          <View style={styles.summaryCard}>
+            <FileText size={20} color="#a78bfa" />
+            <Text style={styles.summaryLabel}>Expenses</Text>
+            <Text style={styles.summaryValue}>{expenses.length}</Text>
+          </View>
+        </Animated.View>
 
-          {isSettled && (
-            <TouchableOpacity style={styles.deleteGroupButton} onPress={() => setShowDeleteModal(true)}>
-              <Text style={styles.deleteGroupButtonText}>Delete Group</Text>
-            </TouchableOpacity>
+        {/* Segmented Control */}
+        <SegmentedControl 
+          tabs={tabs} 
+          activeTab={activeTab} 
+          onTabPress={setActiveTab} 
+        />
+
+        {/* Tab Content */}
+        <View style={styles.tabContent}>
+          {activeTab === 'expenses' && (
+            expenses.length > 0 ? (
+              <FlatList
+                data={expenses}
+                renderItem={renderExpenseCard}
+                keyExtractor={item => item.id}
+                scrollEnabled={false}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <DollarSign size={48} color="#475569" />
+                <Text style={styles.emptyTitle}>No expenses yet</Text>
+                <Text style={styles.emptySubtitle}>Add your first expense</Text>
+              </View>
+            )
           )}
 
-        </Animated.View>
+          {activeTab === 'balances' && (
+            <>
+              {isSettled ? (
+                <View style={styles.settledBanner}>
+                  <Check size={16} color="#22c55e" />
+                  <Text style={styles.settledText}>All settled up!</Text>
+                </View>
+              ) : (
+                <View style={styles.balancesContainer}>
+                  {Object.entries(group.balances).map(([member, balance]) => (
+                    <View key={member}>
+                      {renderBalanceItem({ member, balance })}
+                    </View>
+                  ))}
+                </View>
+              )}
+              
+              {!isSettled && (
+                <TouchableOpacity 
+                  style={styles.settleButton}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.settleButtonText}>Settle Up</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
+          {activeTab === 'members' && (
+            <>
+              <TouchableOpacity 
+                style={styles.addMemberButton}
+                onPress={() => setShowAddMemberModal(true)}
+                activeOpacity={0.7}
+              >
+                <UserPlus size={18} color="#8b5cf6" />
+                <Text style={styles.addMemberText}>Add Member</Text>
+              </TouchableOpacity>
+              
+              <View style={styles.membersContainer}>
+                {group.members.map(member => (
+                  <View key={member}>
+                    {renderMemberItem(member)}
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Delete button for settled groups */}
+        {isSettled && (
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => setShowDeleteModal(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.deleteText}>Delete Group</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
-      {group && (
-        <ShareGroupModal
-          visible={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          group={{ id: group.id, name: group.name, inviteLink: group.inviteLink }}
-        />
-      )}
+      {/* Add Expense FAB */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push(`/add-expense/${group.id}`)}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={['#a78bfa', '#7c3aed']}
+          style={styles.fabGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Plus size={28} color="#fff" />
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* Modals */}
+      <ShareGroupModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        group={group}
+      />
 
       <DeleteConfirmationModal
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteGroup}
         title="Delete Group"
-        message="Are you sure you want to delete this group? This action is permanent."
+        message="Are you sure? This action cannot be undone."
       />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push(`/add-expense/${group.id}`)}
-        activeOpacity={0.85}
-      >
-        <LinearGradient
-          colors={['#A78BFA', '#7C3AED']}
-          style={styles.fabGradient}
-        >
-          <Plus size={28} color="#fff" />
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Export Modal (fallback for web or if sharing is not available) */}
       <Modal
-        visible={exportModalVisible}
+        visible={showAddMemberModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setExportModalVisible(false)}
+        onRequestClose={() => setShowAddMemberModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <BlurView intensity={30} style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Exported CSV</Text>
-            <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
-              <Text selectable style={{ color: '#F3F4F6', fontSize: 13 }}>{exportResult}</Text>
-            </ScrollView>
-            <View style={styles.modalActionRow}>
-              <Pressable
-                style={[styles.modalButton, styles.modalConfirmButton]}
-                onPress={async () => {
-                  if (exportResult) await Clipboard.setStringAsync(exportResult);
-                  Alert.alert('Copied', 'CSV copied to clipboard!');
-                }}
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowAddMemberModal(false)}
+              activeOpacity={0.7}
+            >
+              <X size={24} color="#94a3b8" />
+            </TouchableOpacity>
+            
+            <Text style={styles.modalTitle}>Join Group</Text>
+            <Text style={styles.modalText}>
+              You'll be added as a member to "{group.name}"
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={() => setShowAddMemberModal(false)}
+                activeOpacity={0.7}
               >
-                <Text style={[styles.modalButtonText, styles.modalConfirmButtonText]}>Copy CSV</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalCancelButton]}
-                onPress={() => setExportModalVisible(false)}
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.confirmButton}
+                onPress={handleAddMember}
+                activeOpacity={0.7}
               >
-                <Text style={[styles.modalButtonText, styles.modalCancelButtonText]}>Close</Text>
-              </Pressable>
+                <Text style={styles.confirmText}>Join</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </BlurView>
       </Modal>
 
-      {/* Ad Required Modal */}
       <Modal
-        visible={showAdModal}
+        visible={showExportModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowAdModal(false)}
+        onRequestClose={() => setShowExportModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <BlurView intensity={30} style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Watch Ad to Export</Text>
-            <Text style={styles.modalMessage}>
-              You must watch an ad to export this CSV.
-            </Text>
-            <View style={styles.modalActionRow}>
-              <Pressable
-                style={[styles.modalButton, styles.modalConfirmButton]}
-                onPress={async () => {
-                  setAdLoading(true);
-                  setTimeout(() => {
-                    setAdLoading(false);
-                    proceedExportGroup();
-                  }, 2000);
-                }}
-                disabled={adLoading}
-              >
-                <Text style={[styles.modalButtonText, styles.modalConfirmButtonText]}>{adLoading ? 'Watching...' : 'Watch Ad'}</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalCancelButton]}
-                onPress={() => setShowAdModal(false)}
-                disabled={adLoading}
-              >
-                <Text style={[styles.modalButtonText, styles.modalCancelButtonText]}>Cancel</Text>
-              </Pressable>
-            </View>
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowExportModal(false)}
+              activeOpacity={0.7}
+            >
+              <X size={24} color="#94a3b8" />
+            </TouchableOpacity>
+            
+            <Text style={styles.modalTitle}>Export Data</Text>
+            
+            <ScrollView style={styles.exportScroll}>
+              <Text selectable style={styles.exportText}>
+                {exportResult}
+              </Text>
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={styles.copyButton}
+              onPress={() => {
+                Clipboard.setStringAsync(exportResult);
+                Alert.alert('Copied!', 'Data copied to clipboard');
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.copyText}>Copy to Clipboard</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </BlurView>
       </Modal>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
   },
   header: {
     flexDirection: 'row',
@@ -553,39 +612,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#1F2937',
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: 'rgba(71, 85, 105, 0.3)',
   },
   headerButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(71, 85, 105, 0.2)',
   },
   headerTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+    marginHorizontal: 16,
   },
   headerEmoji: {
     fontSize: 24,
     marginRight: 8,
   },
   headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter_700Bold',
-    color: '#F3F4F6',
-    maxWidth: '80%',
+    fontSize: 18,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#f8fafc',
+    maxWidth: '70%',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#111827',
+    gap: 16,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#9CA3AF',
+    color: '#94a3b8',
     fontFamily: 'Inter_500Medium',
   },
   errorContainer: {
@@ -593,288 +656,283 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    gap: 16,
   },
   errorText: {
-    color: '#F87171',
-    fontSize: 16,
+    color: '#f87171',
+    fontFamily: 'Inter_500Medium',
     textAlign: 'center',
-    marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#8b5cf6',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  retryButtonText: {
+  retryText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
   },
-  scrollViewContent: {
+  scrollContent: {
     paddingBottom: 100,
   },
   summaryContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#1F2937',
-    borderRadius: 16,
+    justifyContent: 'space-between',
     margin: 16,
-    padding: 16,
+    gap: 12,
   },
-  summaryBox: {
+  summaryCard: {
+    flex: 1,
+    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.3)',
   },
   summaryLabel: {
-    fontSize: 13,
-    color: '#9CA3AF',
+    color: '#94a3b8',
     fontFamily: 'Inter_500Medium',
-    marginBottom: 4,
+    fontSize: 13,
   },
   summaryValue: {
-    fontSize: 18,
-    color: '#F3F4F6',
+    color: '#f8fafc',
     fontFamily: 'Inter_700Bold',
+    fontSize: 18,
   },
-  segmentedControlContainer: {
+  segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1F2937',
+    backgroundColor: 'rgba(71, 85, 105, 0.2)',
     borderRadius: 12,
     marginHorizontal: 16,
-    padding: 4,
-    height: 50,
-    position: 'relative',
+    padding: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.3)',
   },
-  segmentedTab: {
+  activeSegment: {
+    position: 'absolute',
+    backgroundColor: '#8b5cf6',
+    borderRadius: 8,
+    height: '110%',
+    top: '15%',
+    left: 8,
+  },
+  segment: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    paddingVertical: 8,
     zIndex: 1,
   },
-  segmentedTabText: {
-    fontSize: 14,
-    color: '#9CA3AF',
+  segmentText: {
+    color: '#94a3b8',
     fontFamily: 'Inter_600SemiBold',
+    fontSize: 14,
   },
-  activeSegmentedTabText: {
-    color: '#FFFFFF',
+  activeSegmentText: {
+    color: '#fff',
   },
-  activeTabIndicator: {
-    position: 'absolute',
-    top: 4,
-    bottom: 4,
-    left: 4,
-    backgroundColor: '#8B5CF6',
-    borderRadius: 8,
-  },
-  contentSection: {
+  tabContent: {
     padding: 16,
   },
   expenseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1F2937',
+    backgroundColor: 'rgba(71, 85, 105, 0.2)',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#374151'
+    borderColor: 'rgba(71, 85, 105, 0.3)',
   },
-  expenseAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  avatar: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  expenseAvatarText: {
-    fontSize: 16,
+  avatarText: {
     color: '#fff',
     fontFamily: 'Inter_700Bold',
   },
   expenseInfo: {
     flex: 1,
+    marginLeft: 12,
   },
-  expenseDescription: {
-    fontSize: 15,
-    color: '#F3F4F6',
+  expenseTitle: {
+    color: '#f8fafc',
     fontFamily: 'Inter_600SemiBold',
-  },
-  expensePaidBy: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontFamily: 'Inter_500Medium',
-    marginTop: 2,
-  },
-  amountContainer: {
-    alignItems: 'flex-end',
-    marginRight: 8,
-  },
-  amount: {
     fontSize: 16,
+  },
+  expenseSubtitle: {
+    color: '#94a3b8',
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  expenseAmountContainer: {
+    alignItems: 'flex-end',
+    marginRight: 12,
+  },
+  expenseAmount: {
+    color: '#f8fafc',
     fontFamily: 'Inter_700Bold',
-    color: '#F3F4F6',
+    fontSize: 16,
   },
   expenseDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    color: '#94a3b8',
     fontFamily: 'Inter_500Medium',
-    marginTop: 2,
-  },
-  balanceCard: {
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#374151',
-    gap: 16,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  memberInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  memberAvatarSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  memberAvatarTextSmall: {
-     fontSize: 14,
-     color: '#fff',
-     fontFamily: 'Inter_600SemiBold',
-  },
-  memberName: {
-    fontSize: 15,
-    color: '#F3F4F6',
-    fontFamily: 'Inter_500Medium',
-    flex: 1,
-  },
-  balanceVisualization: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  balanceAmount: {
-    fontSize: 14,
-    fontFamily: 'Inter_700Bold',
-  },
-  positiveBalance: { color: '#22C55E' },
-  negativeBalance: { color: '#EF4444' },
-  neutralBalance: { color: '#9CA3AF' },
-  settledBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 16,
-    borderColor: 'rgba(34, 197, 94, 0.3)',
-    borderWidth: 1,
-  },
-  settledText: {
-    color: '#22C55E',
-    fontSize: 14,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  membersContainer: {
-    gap: 12,
-  },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#374151',
-  },
-  memberAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  memberAvatarText: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter_700Bold',
-  },
-  memberNameLarge: {
-    fontSize: 16,
-    color: '#F3F4F6',
-    fontFamily: 'Inter_600SemiBold',
-    flex: 1,
-  },
-  creatorBadge: {
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 8,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    borderWidth: 1,
-  },
-  creatorText: {
-    color: '#A78BFA',
     fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
+    marginTop: 4,
+  },
+  separator: {
+    height: 12,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 48,
-    backgroundColor: '#1F2937',
-    borderRadius: 16,
+    gap: 12,
   },
-  emptyText: {
-    fontSize: 18,
-    color: '#F3F4F6',
+  emptyTitle: {
+    color: '#f8fafc',
     fontFamily: 'Inter_600SemiBold',
+    fontSize: 18,
+  },
+  emptySubtitle: {
+    color: '#94a3b8',
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+  },
+  balancesContainer: {
+    gap: 12,
+  },
+  balanceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.3)',
+  },
+  balanceName: {
+    flex: 1,
+    color: '#f8fafc',
+    fontFamily: 'Inter_500Medium',
+    fontSize: 15,
+    marginLeft: 12,
+  },
+  balanceAmount: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 15,
+  },
+  positiveBalance: {
+    color: '#22c55e',
+  },
+  negativeBalance: {
+    color: '#ef4444',
+  },
+  neutralBalance: {
+    color: '#94a3b8',
+  },
+  settledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.2)',
+  },
+  settledText: {
+    color: '#22c55e',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  settleButton: {
+    backgroundColor: '#8b5cf6',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
     marginTop: 16,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 8,
+  settleButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter_600SemiBold',
   },
-  deleteGroupButton: {
+  addMemberButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
+  addMemberText: {
+    color: '#a78bfa',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  membersContainer: {
+    gap: 12,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.3)',
+  },
+  memberName: {
+    flex: 1,
+    color: '#f8fafc',
+    fontFamily: 'Inter_500Medium',
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  adminBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  adminText: {
+    color: '#a78bfa',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+  },
+  deleteButton: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     padding: 16,
     borderRadius: 12,
-    marginHorizontal: 16,
-    marginTop: 24,
     alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 16,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
   },
-  deleteGroupButtonText: {
-    color: '#F87171',
+  deleteText: {
+    color: '#f87171',
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 16,
   },
   fab: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 32,
     right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    shadowColor: '#000',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -884,88 +942,91 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 28,
+    borderRadius: 30,
   },
-  settleButton: {
-    backgroundColor: '#8B5CF6',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  settleButtonText: {
-    color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 16,
-  },
-  addMemberButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-    marginBottom: 16,
-  },
-  addMemberText: {
-    color: '#A78BFA',
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
-  },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
   },
   modalContent: {
-    backgroundColor: '#1F2937',
+    width: '100%',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 24,
-    width: '85%',
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: 'rgba(71, 85, 105, 0.3)',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    color: '#f8fafc',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
     marginBottom: 12,
-    color: '#F3F4F6',
-  },
-  modalMessage: {
-    fontSize: 15,
-    color: '#9CA3AF',
-    marginBottom: 24,
     textAlign: 'center',
   },
-  modalActionRow: {
+  modalText: {
+    color: '#94a3b8',
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButtons: {
     flexDirection: 'row',
     gap: 12,
   },
-  modalButton: {
+  cancelButton: {
     flex: 1,
-    paddingVertical: 10,
+    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.3)',
+  },
+  cancelText: {
+    color: '#f8fafc',
+    fontFamily: 'Inter_600SemiBold',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#8b5cf6',
+    padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
-  modalCancelButton: {
-    backgroundColor: '#374151',
+  confirmText: {
+    color: '#fff',
+    fontFamily: 'Inter_600SemiBold',
   },
-  modalConfirmButton: {
-    backgroundColor: '#8B5CF6',
+  exportScroll: {
+    maxHeight: 200,
+    marginBottom: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    borderRadius: 8,
+    padding: 12,
   },
-  modalButtonText: {
-    fontWeight: '600',
+  exportText: {
+    color: '#f8fafc',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
   },
-  modalCancelButtonText: {
-    color: '#F3F4F6',
+  copyButton: {
+    backgroundColor: '#8b5cf6',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  modalConfirmButtonText: {
-    color: '#FFFFFF',
-  }
+  copyText: {
+    color: '#fff',
+    fontFamily: 'Inter_600SemiBold',
+  },
 });
+
+export default GroupScreen;
