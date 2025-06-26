@@ -139,45 +139,50 @@ export default function TransactionsScreen() {
   };
 
   const renderExpenseCard = ({ item }: { item: Expense }) => (
-    <View style={styles.expenseCard}>
-      <View style={styles.expenseContent}>
-        <View style={styles.expenseIcon}>
-          <User size={22} color="#2563eb" />
-        </View>
-        <View style={styles.expenseInfo}>
-          <Text style={styles.expenseDescription}>{item.description}</Text>
-          <View style={styles.expenseDetails}>
-            <View style={styles.detailItem}>
-              <User size={12} color="#6b7280" />
-              <Text style={styles.detailText}>Paid by {item.paidBy}</Text>
+    <TouchableOpacity
+      onPress={() => router.push(`/group/${item.groupId}/expense/${item.id}`)}
+      activeOpacity={0.85}
+    >
+      <View style={styles.expenseCard}>
+        <View style={styles.expenseContent}>
+          <View style={styles.expenseIcon}>
+            <User size={22} color="#2563eb" />
+          </View>
+          <View style={styles.expenseInfo}>
+            <Text style={styles.expenseDescription}>{item.description}</Text>
+            <View style={styles.expenseDetails}>
+              <View style={styles.detailItem}>
+                <User size={12} color="#6b7280" />
+                <Text style={styles.detailText}>Paid by {item.paidBy}</Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Receipt size={12} color="#6b7280" />
+                <Text style={styles.detailText}>{getGroupName(item.groupId)}</Text>
+              </View>
             </View>
-            <View style={styles.detailItem}>
-              <Receipt size={12} color="#6b7280" />
-              <Text style={styles.detailText}>{getGroupName(item.groupId)}</Text>
+            <View style={styles.participantsRow}>
+              <Text style={styles.participantsLabel}>
+                Split between {item.participants.length} people
+              </Text>
             </View>
           </View>
-          <View style={styles.participantsRow}>
-            <Text style={styles.participantsLabel}>
-              Split between {item.participants.length} people
-            </Text>
+          <View style={styles.expenseRight}>
+            <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
+            <Text style={styles.expenseDate}>{formatDate(item.createdAt)}</Text>
+            <Text style={styles.expenseTime}>{formatTime(item.createdAt)}</Text>
           </View>
         </View>
-        <View style={styles.expenseRight}>
-          <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
-          <Text style={styles.expenseDate}>{formatDate(item.createdAt)}</Text>
-          <Text style={styles.expenseTime}>{formatTime(item.createdAt)}</Text>
+        <View style={styles.expenseActions}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeleteExpense(item)}
+          >
+            <Trash2 size={14} color="#dc2626" />
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
         </View>
       </View>
-      <View style={styles.expenseActions}>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDeleteExpense(item)}
-        >
-          <Trash2 size={14} color="#dc2626" />
-          <Text style={styles.deleteButtonText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderFilterButton = (filter: 'all' | 'week' | 'month', label: string) => (

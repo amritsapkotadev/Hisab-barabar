@@ -12,32 +12,37 @@ import {
   Image,
   FlatList,
   Dimensions,
-  Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera } from 'lucide-react-native';
+import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { apiService } from '@/services/api';
 import type { Group, Expense, User } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const isIOS = Platform.OS === 'ios';
 
+// Modern color palette
 const COLORS = {
-  primary: '#6c5ce7',
-  secondary: '#00b894',
-  accent: '#fbc2eb',
-  background: '#f5f7fa',
-  card: 'rgba(255,255,255,0.95)',
-  glass: 'rgba(255,255,255,0.5)',
-  border: '#e0e3eb',
-  text: '#22223b',
-  subtext: '#636e72',
-  positive: '#00b894',
-  negative: '#e17055',
-  shadow: '#d1d8e0',
-  progressBg: '#e0e3eb',
-  chip: 'rgba(255,255,255,0.7)',
+  primary: '#7E57C2',
+  secondary: '#5C6BC0',
+  accent: '#EC407A',
+  background: '#0F0F1B',
+  card: 'rgba(255,255,255,0.08)',
+  glass: 'rgba(255,255,255,0.15)',
+  border: 'rgba(255,255,255,0.1)',
+  text: '#FFFFFF',
+  subtext: '#A0A0C0',
+  positive: '#66BB6A',
+  negative: '#EF5350',
+  shadow: '#000000',
+  progressBg: 'rgba(255,255,255,0.1)',
+  chip: 'rgba(255,255,255,0.2)',
+  gradientStart: '#1E1E3A',
+  gradientEnd: '#2D2D4A',
 };
 
 function getNetBalance(groups: Group[], userId: string) {
@@ -72,7 +77,7 @@ export default function HomeScreen() {
       setUser(userRes);
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 800,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start();
@@ -94,70 +99,83 @@ export default function HomeScreen() {
   };
 
   // --- UI Components ---
-  const renderHeroHeader = () => {
+  const renderAppBar = () => (
+    <View style={styles.appBar}>
+      <View style={styles.appBarContent}>
+        <View style={styles.avatarContainer}>
+          <Image
+            source={user?.picture ? { uri: user.picture } : require('@/assets/images/icon.png')}
+            style={styles.avatar}
+          />
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting}>Welcome back</Text>
+            <Text style={styles.userName}>{user ? user.name.split(' ')[0] : 'User'}</Text>
+          </View>
+        </View>
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={() => router.push('/profile/notifications')}
+        >
+          <View style={styles.notificationBadge} />
+          <Bell size={24} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderNetBalanceCard = () => {
     const net = user ? getNetBalance(groups, user.id) : 0;
     const isPositive = net >= 0;
+    const formattedNet = Math.abs(net).toFixed(2);
+    
     return (
-      <LinearGradient
-        colors={[COLORS.primary, COLORS.accent, COLORS.secondary]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.heroHeader}
-      >
-        <SafeAreaView>
-          <View style={styles.heroRow}>
-            <View style={styles.heroAvatarWrap}>
-              <Image
-                source={user?.picture ? { uri: user.picture } : require('@/assets/images/icon.png')}
-                style={styles.heroAvatar}
-              />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.heroGreeting}>{user ? `Hi, ${user.name.split(' ')[0]}!` : 'Welcome!'}</Text>
-              <Text style={styles.heroSubtitle}>Your smart expense dashboard</Text>
-            </View>
-            <TouchableOpacity style={styles.heroBellBtn} onPress={() => router.push('/profile/notifications')}>
-              <Bell size={26} color={COLORS.primary} />
-            </TouchableOpacity>
+      <BlurView intensity={20} tint="dark" style={styles.balanceCard}>
+        <LinearGradient
+          colors={['rgba(126, 87, 194, 0.3)', 'rgba(92, 107, 192, 0.3)']}
+          style={styles.balanceGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.balanceContent}>
+          <View style={styles.balanceHeader}>
+            <Wallet size={20} color={COLORS.text} />
+            <Text style={styles.balanceTitle}>Net Balance</Text>
           </View>
-          <View style={styles.heroBalanceCard}>
-            <Animated.View style={styles.heroBalanceIconBg}>
-              <Wallet size={70} color={'#fff'} style={{ opacity: 0.08 }} />
-            </Animated.View>
-            <Text style={styles.heroBalanceLabel}>Net Balance</Text>
-            <Text style={[styles.heroBalanceValue, { color: isPositive ? COLORS.positive : COLORS.negative }]}>₹{Math.abs(net).toFixed(2)}</Text>
-            <View style={[styles.heroChip, { backgroundColor: COLORS.chip }]}> 
-              <Text style={[styles.heroChipText, { color: isPositive ? COLORS.positive : COLORS.negative }]}>{isPositive ? 'You are owed' : 'You owe'}</Text>
-            </View>
-          </View>
-        </SafeAreaView>
-        <View style={styles.heroCurve} />
-      </LinearGradient>
+          <Text style={[styles.balanceValue, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
+            ₹{formattedNet}
+          </Text>
+          <Text style={[styles.balanceStatus, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
+            {isPositive ? 'You are owed' : 'You owe'}
+          </Text>
+        </View>
+      </BlurView>
     );
   };
 
   const renderQuickActions = () => (
-    <View style={styles.quickActionsBarWrap}>
-      <View style={styles.quickActionsBarGlass}>
-        <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/add-expense-advanced')} activeOpacity={0.85}>
-          <LinearGradient colors={[COLORS.primary, COLORS.accent]} style={styles.quickActionIconGlass}>
-            <Plus size={28} color="#fff" />
+    <View style={styles.actionsContainer}>
+      {[
+        { icon: <Plus size={22} color="#FFF" />, label: 'Add', action: () => router.push('/add-expense-advanced') },
+        { icon: <Users size={22} color="#FFF" />, label: 'Group', action: () => router.push('/add-group') },
+        { icon: <Camera size={22} color="#FFF" />, label: 'Scan', action: () => alert('Scan Receipt coming soon!') },
+      ].map((action, index) => (
+        <TouchableOpacity
+          key={index}
+          style={styles.actionButton}
+          onPress={action.action}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.secondary]}
+            style={styles.actionIcon}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            {action.icon}
           </LinearGradient>
-          <Text style={styles.quickActionText}>Add</Text>
+          <Text style={styles.actionLabel}>{action.label}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.quickActionBtn} onPress={() => router.push('/add-group')} activeOpacity={0.85}>
-          <LinearGradient colors={[COLORS.secondary, COLORS.primary]} style={styles.quickActionIconGlass}>
-            <Users size={28} color="#fff" />
-          </LinearGradient>
-          <Text style={styles.quickActionText}>Group</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.quickActionBtn} onPress={() => alert('Scan Receipt coming soon!')} activeOpacity={0.85}>
-          <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.quickActionIconGlass}>
-            <Camera size={28} color="#fff" />
-          </LinearGradient>
-          <Text style={styles.quickActionText}>Scan</Text>
-        </TouchableOpacity>
-      </View>
+      ))}
     </View>
   );
 
@@ -166,38 +184,49 @@ export default function HomeScreen() {
     const limit = item.limit || Math.max(1000, spent * 1.5);
     const progress = Math.min(spent / limit, 1);
     const isActive = index === activeGroupIdx;
+    
     return (
       <TouchableOpacity
-        style={[styles.groupCarouselCard, isActive && styles.groupCarouselCardActive]}
+        style={[styles.groupCard, isActive && styles.groupCardActive]}
         onPress={() => router.push(`/group/${item.id}`)}
         activeOpacity={0.9}
       >
-        <View style={styles.groupCarouselAvatarWrap}>
-          <View style={styles.groupCarouselAvatar}>
-            <Users size={22} color={COLORS.primary} />
+        <BlurView intensity={isIOS ? 20 : 10} tint="dark" style={styles.groupCardInner}>
+          <View style={styles.groupIcon}>
+            <Users size={18} color={COLORS.primary} />
           </View>
-        </View>
-        <Text style={styles.groupCarouselName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.groupCarouselMembers}>{item.members.length} members</Text>
-        <View style={styles.groupCarouselProgressWrap}>
-          <View style={styles.groupCarouselProgressBg} />
-          <Animated.View style={[styles.groupCarouselProgress, { width: `${progress * 100}%`, backgroundColor: progress < 1 ? COLORS.secondary : COLORS.negative }]} />
-          <Text style={styles.groupCarouselProgressText}>{Math.round(progress * 100)}%</Text>
-        </View>
+          <Text style={styles.groupName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.groupMembers}>{item.members.length} members</Text>
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBackground} />
+            <View style={[styles.progressFill, { 
+              width: `${progress * 100}%`,
+              backgroundColor: progress < 0.7 ? COLORS.positive : COLORS.negative 
+            }]} />
+            <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
+          </View>
+        </BlurView>
       </TouchableOpacity>
     );
   };
 
-  const renderGroupsCarousel = () => (
+  const renderGroupsSection = () => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Groups</Text>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/groups')}>
-          <Text style={styles.seeAll}>See All</Text>
+        <Text style={styles.sectionTitle}>Your Groups</Text>
+        <TouchableOpacity 
+          style={styles.seeAllButton}
+          onPress={() => router.push('/(tabs)/groups')}
+        >
+          <Text style={styles.seeAllText}>See All</Text>
+          <ChevronRight size={16} color={COLORS.subtext} />
         </TouchableOpacity>
       </View>
       {groups.length === 0 ? (
-        <Text style={styles.emptyText}>No groups yet. Create one to get started!</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No groups yet</Text>
+          <Text style={styles.emptySubtext}>Create your first group to get started</Text>
+        </View>
       ) : (
         <FlatList
           data={groups}
@@ -205,11 +234,11 @@ export default function HomeScreen() {
           keyExtractor={g => g.id}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.groupsCarouselRow}
-          snapToInterval={180}
+          contentContainerStyle={styles.groupsContainer}
+          snapToInterval={SCREEN_WIDTH * 0.7 + 16}
           decelerationRate="fast"
           onScroll={e => {
-            const idx = Math.round(e.nativeEvent.contentOffset.x / 180);
+            const idx = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH * 0.7 + 16));
             setActiveGroupIdx(idx);
           }}
         />
@@ -220,30 +249,35 @@ export default function HomeScreen() {
   const renderExpenseItem = ({ item }: { item: Expense }) => {
     const group = groups.find((g) => g.id === item.groupId);
     const isPositive = user && item.paidBy === user.name;
+    
     return (
       <TouchableOpacity
         style={styles.expenseCard}
         onPress={() => router.push(`/group/${item.groupId}`)}
         activeOpacity={0.85}
       >
-        <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive : COLORS.negative }] }>
-          <FileText size={18} color="#fff" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.expenseSubtitle} numberOfLines={1}>
+        <BlurView intensity={20} tint="dark" style={styles.expenseCardInner}>
+          <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive : COLORS.negative }]}>
+            <FileText size={16} color="#FFF" />
+          </View>
+          <View style={styles.expenseInfo}>
+            <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
+            <Text style={styles.expenseGroup} numberOfLines={1}>
               {group ? group.name : 'Unknown Group'}
             </Text>
-            <View style={styles.groupTag}>
-              <Text style={styles.groupTagText}>{item.paidBy}</Text>
-            </View>
           </View>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.expenseAmount, { color: isPositive ? COLORS.positive : COLORS.negative }]}>₹{item.amount.toFixed(2)}</Text>
-          <Text style={styles.expenseDate}>{new Date(item.date || item.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</Text>
-        </View>
+          <View style={styles.expenseAmountContainer}>
+            <Text style={[styles.expenseAmount, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
+              ₹{item.amount.toFixed(2)}
+            </Text>
+            <Text style={styles.expenseDate}>
+              {new Date(item.date || item.createdAt).toLocaleDateString('en-IN', { 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </Text>
+          </View>
+        </BlurView>
       </TouchableOpacity>
     );
   };
@@ -252,18 +286,26 @@ export default function HomeScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Expenses</Text>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/transactions')}>
-          <Text style={styles.seeAll}>See All</Text>
+        <TouchableOpacity 
+          style={styles.seeAllButton}
+          onPress={() => router.push('/(tabs)/transactions')}
+        >
+          <Text style={styles.seeAllText}>See All</Text>
+          <ChevronRight size={16} color={COLORS.subtext} />
         </TouchableOpacity>
       </View>
       {expenses.length === 0 ? (
-        <Text style={styles.emptyText}>No expenses recorded yet.</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No expenses yet</Text>
+          <Text style={styles.emptySubtext}>Add your first expense to see it here</Text>
+        </View>
       ) : (
         <FlatList
           data={expenses.slice(0, 5)}
           renderItem={renderExpenseItem}
           keyExtractor={e => e.id}
           scrollEnabled={false}
+          contentContainerStyle={styles.expensesContainer}
         />
       )}
     </View>
@@ -272,26 +314,22 @@ export default function HomeScreen() {
   // --- Main Render ---
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading your dashboard...</Text>
-        </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading your dashboard...</Text>
       </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <AlertCircle size={40} color={COLORS.negative} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={fetchAll}>
-            <RefreshCw size={18} color="#fff" />
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+      <SafeAreaView style={styles.errorContainer}>
+        <AlertCircle size={48} color={COLORS.negative} />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchAll}>
+          <RefreshCw size={18} color="#FFF" />
+          <Text style={styles.retryText}>Try Again</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -300,12 +338,22 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <Animated.ScrollView
         style={{ opacity: fadeAnim }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={[COLORS.primary]} 
+            tintColor={COLORS.primary}
+            progressBackgroundColor={COLORS.background}
+          />
+        }
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {renderHeroHeader()}
+        {renderAppBar()}
+        {renderNetBalanceCard()}
         {renderQuickActions()}
-        {renderGroupsCarousel()}
+        {renderGroupsSection()}
         {renderRecentExpenses()}
       </Animated.ScrollView>
     </SafeAreaView>
@@ -317,359 +365,326 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  heroHeader: {
-    width: '100%',
-    paddingBottom: 36,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
-    overflow: 'hidden',
-    minHeight: 260,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
-  heroRow: {
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: 24,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  appBar: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  appBarContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  avatarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    marginBottom: 8,
   },
-  heroAvatarWrap: {
-    backgroundColor: COLORS.card,
-    borderRadius: 32,
-    padding: 4,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-  },
-  heroAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: COLORS.glass,
   },
-  heroBellBtn: {
-    padding: 10,
-    borderRadius: 16,
-    backgroundColor: COLORS.glass,
-    elevation: 2,
+  greetingContainer: {
+    marginLeft: 12,
   },
-  heroGreeting: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: COLORS.text,
-    fontFamily: 'Inter-Bold',
-    lineHeight: 32,
-  },
-  heroSubtitle: {
-    fontSize: 15,
+  greeting: {
+    fontSize: 14,
     color: COLORS.subtext,
-    marginTop: 2,
     fontFamily: 'Inter-Regular',
   },
-  heroBalanceCard: {
-    marginHorizontal: 24,
-    marginTop: 18,
-    borderRadius: 24,
-    padding: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.card,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 8,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  heroBalanceIconBg: {
-    position: 'absolute',
-    right: 18,
-    top: 18,
-    opacity: 0.18,
-  },
-  heroBalanceLabel: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 2,
-  },
-  heroBalanceValue: {
-    fontSize: 36,
-    fontWeight: '800',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 2,
-  },
-  heroChip: {
-    marginTop: 8,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    alignSelf: 'center',
-  },
-  heroChipText: {
-    fontSize: 14,
+  userName: {
+    fontSize: 20,
     fontWeight: '700',
-    fontFamily: 'Inter-SemiBold',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    marginTop: 2,
   },
-  heroCurve: {
+  notificationButton: {
+    padding: 8,
+    position: 'relative',
+  },
+  notificationBadge: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: -1,
-    height: 40,
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
-    zIndex: 2,
-  },
-  quickActionsBarWrap: {
-    marginTop: -32,
-    marginBottom: 16,
-    alignItems: 'center',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
     zIndex: 10,
   },
-  quickActionsBarGlass: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.glass,
+  balanceCard: {
+    marginHorizontal: 24,
     borderRadius: 24,
-    padding: 10,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
-    width: SCREEN_WIDTH - 48,
+    overflow: 'hidden',
+    height: 160,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  balanceGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  balanceContent: {
+    flex: 1,
+    padding: 24,
     justifyContent: 'space-between',
   },
-  quickActionBtn: {
-    flex: 1,
+  balanceHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
   },
-  quickActionIconGlass: {
-    width: 54,
-    height: 54,
+  balanceTitle: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
+  },
+  balanceValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    fontFamily: 'Inter-Bold',
+  },
+  balanceStatus: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 4,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginBottom: 32,
+  },
+  actionButton: {
+    alignItems: 'center',
+    width: '30%',
+  },
+  actionIcon: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
+    marginBottom: 8,
   },
-  quickActionText: {
-    fontSize: 15,
-    color: COLORS.primary,
-    fontFamily: 'Inter-SemiBold',
-    textAlign: 'center',
+  actionLabel: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontFamily: 'Inter-Medium',
   },
   section: {
-    paddingHorizontal: 20,
     marginBottom: 24,
-    marginTop: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    paddingHorizontal: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    fontFamily: 'Inter-Medium',
+    marginRight: 4,
+  },
+  groupsContainer: {
+    paddingLeft: 24,
+    paddingRight: 8,
+  },
+  groupCard: {
+    width: SCREEN_WIDTH * 0.7,
+    marginRight: 16,
+    borderRadius: 24,
+    overflow: 'hidden',
+    height: 180,
+  },
+  groupCardActive: {
+    transform: [{ scale: 1.02 }],
+  },
+  groupCardInner: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'space-between',
+  },
+  groupIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(126, 87, 194, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(126, 87, 194, 0.4)',
+  },
+  groupName: {
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
+    marginTop: 8,
   },
-  seeAll: {
+  groupMembers: {
     fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontFamily: 'Inter-SemiBold',
-  },
-  groupsCarouselRow: {
-    flexDirection: 'row',
-    paddingBottom: 8,
-    gap: 12,
-  },
-  groupCarouselCard: {
-    width: 160,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: COLORS.card,
-    elevation: 3,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    marginRight: 12,
-    alignItems: 'center',
-    padding: 18,
-    transform: [{ scale: 0.95 }],
-  },
-  groupCarouselCardActive: {
-    transform: [{ scale: 1.08 }],
-    shadowOpacity: 0.18,
-    elevation: 8,
-  },
-  groupCarouselAvatarWrap: {
-    marginBottom: 10,
-  },
-  groupCarouselAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: COLORS.glass,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    marginBottom: 2,
-  },
-  groupCarouselName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 2,
-    textAlign: 'center',
-  },
-  groupCarouselMembers: {
-    fontSize: 12,
     color: COLORS.subtext,
     fontFamily: 'Inter-Regular',
-    marginBottom: 6,
-    textAlign: 'center',
+    marginTop: 2,
   },
-  groupCarouselProgressWrap: {
-    width: '100%',
-    height: 18,
-    borderRadius: 9,
+  progressContainer: {
+    height: 6,
+    borderRadius: 3,
     backgroundColor: COLORS.progressBg,
-    marginTop: 6,
+    marginTop: 16,
     overflow: 'hidden',
-    justifyContent: 'center',
+    position: 'relative',
   },
-  groupCarouselProgressBg: {
+  progressBackground: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.progressBg,
-    borderRadius: 9,
   },
-  groupCarouselProgress: {
-    height: 18,
-    borderRadius: 9,
+  progressFill: {
+    height: '100%',
     position: 'absolute',
     left: 0,
     top: 0,
   },
-  groupCarouselProgressText: {
-    fontSize: 11,
+  progressText: {
+    position: 'absolute',
+    right: 8,
+    top: -20,
+    fontSize: 12,
     color: COLORS.text,
     fontFamily: 'Inter-SemiBold',
-    textAlign: 'center',
-    zIndex: 2,
+  },
+  expensesContainer: {
+    paddingHorizontal: 24,
   },
   expenseCard: {
+    marginBottom: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  expenseCardInner: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
   },
   expenseIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 16,
+  },
+  expenseInfo: {
+    flex: 1,
   },
   expenseTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  expenseSubtitle: {
+  expenseGroup: {
+    fontSize: 13,
+    color: COLORS.subtext,
+    fontFamily: 'Inter-Regular',
+  },
+  expenseAmountContainer: {
+    alignItems: 'flex-end',
+  },
+  expenseAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: 'Inter-Bold',
+    marginBottom: 4,
+  },
+  expenseDate: {
     fontSize: 12,
     color: COLORS.subtext,
     fontFamily: 'Inter-Regular',
   },
-  groupTag: {
-    backgroundColor: COLORS.glass,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 4,
+  emptyContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    marginHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
-  groupTagText: {
-    fontSize: 11,
-    color: COLORS.primary,
-    fontFamily: 'Inter-SemiBold',
+  emptyText: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontFamily: 'Inter-Medium',
+    textAlign: 'center',
   },
-  expenseAmount: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 2,
-  },
-  expenseDate: {
-    fontSize: 11,
+  emptySubtext: {
+    fontSize: 14,
     color: COLORS.subtext,
     fontFamily: 'Inter-Regular',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
+    marginTop: 8,
+    textAlign: 'center',
   },
   loadingText: {
     fontSize: 16,
     color: COLORS.subtext,
-    marginTop: 16,
+    marginTop: 24,
     fontFamily: 'Inter-Medium',
   },
   errorText: {
-    fontSize: 16,
-    color: COLORS.negative,
-    marginTop: 16,
+    fontSize: 18,
+    color: COLORS.text,
     fontFamily: 'Inter-Medium',
+    marginTop: 24,
     textAlign: 'center',
   },
-  retryBtn: {
+  retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 18,
+    borderRadius: 12,
+    marginTop: 24,
     gap: 8,
   },
   retryText: {
-    color: '#fff',
-    fontSize: 15,
+    color: '#FFF',
+    fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
-  },
-  emptyText: {
-    color: COLORS.subtext,
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    marginTop: 8,
-    marginBottom: 8,
-    textAlign: 'center',
-    opacity: 0.7,
   },
 });

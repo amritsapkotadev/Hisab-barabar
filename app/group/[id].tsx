@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, FC } from 'react';
 import {
   View,
   Text,
@@ -45,8 +45,21 @@ import { BlurView } from 'expo-blur';
 
 const { width, height } = Dimensions.get('window');
 
-// Custom Components
-const SegmentedControl = ({ tabs, activeTab, onTabPress }) => {
+const COLORS = {
+  primary: '#7c3aed',
+  secondary: '#a78bfa',
+  background: '#f8fafc',
+  card: '#fff',
+  text: '#1e293b',
+  muted: '#64748b',
+  positive: '#22c55e',
+  negative: '#ef4444',
+  border: '#e5e7eb',
+  fab: ['#a78bfa', '#7c3aed'],
+};
+
+type TabType = { id: string; label: string; icon: React.ReactElement<any, any> };
+const SegmentedControl: FC<{ tabs: TabType[]; activeTab: string; onTabPress: (id: string) => void }> = ({ tabs, activeTab, onTabPress }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const tabWidth = (width - 40) / tabs.length;
 
@@ -68,50 +81,38 @@ const SegmentedControl = ({ tabs, activeTab, onTabPress }) => {
           transform: [{ translateX }],
         }
       ]} />
-      {tabs.map((tab) => (
+      {tabs.map((tab: TabType) => (
         <TouchableOpacity
           key={tab.id}
-          style={styles.segment}
+          style={[styles.segmentButton, activeTab === tab.id ? styles.segmentButtonActive : undefined]}
           onPress={() => onTabPress(tab.id)}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
-          {React.cloneElement(tab.icon, { 
-            color: activeTab === tab.id ? '#fff' : '#94a3b8',
-            size: 18 
-          })}
-          <Text style={[
-            styles.segmentText,
-            activeTab === tab.id && styles.activeSegmentText
-          ]}>
-            {tab.label}
-          </Text>
+          {React.isValidElement(tab.icon)
+            ? React.cloneElement(tab.icon, { size: 18 })
+            : tab.icon}
+          <Text style={[styles.segmentButtonText, activeTab === tab.id ? styles.segmentButtonTextActive : undefined]}>{tab.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
   );
 };
 
-const MemberAvatar = ({ name, size = 40 }) => {
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+const MemberAvatar = ({ name, size = 40 }: { name: string; size?: number }) => {
+  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
   const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
   const color = colors[name.charCodeAt(0) % colors.length];
 
   return (
-    <View style={[
-      styles.avatar,
-      { 
-        backgroundColor: color,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-      }
-    ]}>
-      <Text style={[
-        styles.avatarText,
-        { fontSize: size * 0.4 }
-      ]}>
-        {initials}
-      </Text>
+    <View style={{
+      backgroundColor: color,
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+    }}>
+      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: size * 0.4 }}>{initials}</Text>
     </View>
   );
 };
@@ -173,7 +174,7 @@ const GroupScreen = () => {
   };
 
   // Helper functions
-  const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { 
+  const formatDate = (dateString: string): string => new Date(dateString).toLocaleDateString('en-US', { 
     month: 'short', 
     day: 'numeric' 
   });
@@ -181,7 +182,8 @@ const GroupScreen = () => {
   const isSettled = group && Object.values(group.balances).every(b => Math.abs(b) < 0.01);
 
   // Handlers
-  const handleDeleteGroup = async () => {
+  const handleDeleteGroup = async (): Promise<void> => {
+    if (!group) return;
     try {
       await apiService.deleteGroup(group.id);
       router.replace('/');
@@ -190,7 +192,8 @@ const GroupScreen = () => {
     }
   };
 
-  const handleAddMember = async () => {
+  const handleAddMember = async (): Promise<void> => {
+    if (!group) return;
     try {
       await apiService.joinGroupById(group.id);
       await fetchGroupData();
@@ -201,18 +204,18 @@ const GroupScreen = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (): Promise<void> => {
+    if (!group) return;
     try {
       let csv = `Group: ${group.name}\n\n`;
       csv += `Expenses:\nDate,Description,Amount,Paid By\n`;
-      expenses.forEach(exp => {
+      expenses.forEach((exp: Expense) => {
         csv += `${formatDate(exp.date)},${exp.description},${exp.amount},${exp.paidBy}\n`;
       });
       csv += `\nBalances:\nMember,Balance\n`;
-      Object.entries(group.balances).forEach(([member, balance]) => {
+      Object.entries(group.balances).forEach(([member, balance]: [string, number]) => {
         csv += `${member},${balance.toFixed(2)}\n`;
       });
-      
       if (Platform.OS !== 'web' && await Sharing.isAvailableAsync()) {
         const fileUri = FileSystem.cacheDirectory + `group-${group.id}.csv`;
         await FileSystem.writeAsStringAsync(fileUri, csv);
@@ -227,14 +230,14 @@ const GroupScreen = () => {
   };
 
   // Render functions
-  const renderExpenseCard = ({ item, index }) => (
+  const renderExpenseCard = ({ item }: { item: Expense }) => (
     <Animated.View
       style={{
         opacity: fadeAnim,
         transform: [{
           translateY: fadeAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [50 * (index + 1), 0],
+            outputRange: [50 * (item.id.charCodeAt(0) + 1), 0],
           })
         }]
       }}
@@ -258,7 +261,7 @@ const GroupScreen = () => {
     </Animated.View>
   );
 
-  const renderBalanceItem = ({ member, balance }) => (
+  const renderBalanceItem = ({ member, balance }: { member: string; balance: number }) => (
     <View style={styles.balanceItem}>
       <MemberAvatar name={member} size={36} />
       <Text style={styles.balanceName} numberOfLines={1}>{member}</Text>
@@ -273,11 +276,11 @@ const GroupScreen = () => {
     </View>
   );
 
-  const renderMemberItem = (member) => (
+  const renderMemberItem = (member: string) => (
     <View style={styles.memberItem}>
       <MemberAvatar name={member} size={44} />
       <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
-      {group.createdBy === member && (
+      {group && group.createdBy === member && (
         <View style={styles.adminBadge}>
           <Text style={styles.adminText}>Admin</Text>
         </View>
@@ -719,7 +722,7 @@ const styles = StyleSheet.create({
     top: '15%',
     left: 8,
   },
-  segment: {
+  segmentButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -728,12 +731,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     zIndex: 1,
   },
-  segmentText: {
+  segmentButtonText: {
     color: '#94a3b8',
     fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
   },
-  activeSegmentText: {
+  segmentButtonActive: {
+    backgroundColor: '#ede9fe',
+  },
+  segmentButtonTextActive: {
     color: '#fff',
   },
   tabContent: {
@@ -1030,3 +1036,4 @@ const styles = StyleSheet.create({
 });
 
 export default GroupScreen;
+    
