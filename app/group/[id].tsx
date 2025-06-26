@@ -23,6 +23,9 @@ import { apiService } from '@/services/api';
 import ShareGroupModal from '@/components/ShareGroupModal';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import { Group, Expense } from '@/types';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import * as Clipboard from 'expo-clipboard';
 
 const { width } = Dimensions.get('window');
 
@@ -82,6 +85,11 @@ export default function GroupScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [exportResult, setExportResult] = useState<string | null>(null);
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
 
   const fetchGroupData = async () => {
     if (!id) return;
@@ -162,6 +170,42 @@ export default function GroupScreen() {
       Alert.alert('Error', err.message || 'Failed to join group.');
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleExportGroup = async () => {
+    setShowAdModal(true);
+  };
+
+  const proceedExportGroup = async () => {
+    if (!group) return;
+    setExporting(true);
+    setShowAdModal(false);
+    try {
+      const groupExpenses = await apiService.getGroupExpenses(group.id);
+      let csv = `Group Name,Description,Members,Total Expenses,Created At\n`;
+      csv += `"${group.name}","${group.description}","${group.members.join(';')}",${group.totalExpenses},${group.createdAt}\n\n`;
+      csv += `Expenses:\nDate,Description,Amount,Paid By,Participants\n`;
+      groupExpenses.forEach(exp => {
+        csv += `${exp.date},"${exp.description}",${exp.amount},${exp.paidBy},"${exp.participants.join(';')}"\n`;
+      });
+      csv += `\nBalances:\nMember,Balance\n`;
+      Object.entries(group.balances).forEach(([member, balance]) => {
+        csv += `"${member}",${balance}\n`;
+      });
+      const fileName = `hisabkitab-group-${group.name.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+      const fileUri = FileSystem.cacheDirectory + fileName;
+      await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Export Group Data' });
+      } else {
+        setExportResult(csv);
+        setExportModalVisible(true);
+      }
+    } catch (err) {
+      Alert.alert('Export Failed', 'Could not export group data.');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -270,9 +314,14 @@ export default function GroupScreen() {
            <Text style={styles.headerEmoji}>{group.emoji || '💰'}</Text>
            <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         </View>
-        <TouchableOpacity style={styles.headerButton} onPress={() => setShowShareModal(true)}>
-          <Share2 size={22} color="#E5E7EB" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleExportGroup} disabled={exporting}>
+            <DollarSign size={22} color={exporting ? '#a3a3a3' : '#A78BFA'} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton} onPress={() => setShowShareModal(true)}>
+            <Share2 size={22} color="#E5E7EB" />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <ScrollView
@@ -416,6 +465,79 @@ export default function GroupScreen() {
           <Plus size={28} color="#fff" />
         </LinearGradient>
       </TouchableOpacity>
+
+      {/* Export Modal (fallback for web or if sharing is not available) */}
+      <Modal
+        visible={exportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Exported CSV</Text>
+            <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
+              <Text selectable style={{ color: '#F3F4F6', fontSize: 13 }}>{exportResult}</Text>
+            </ScrollView>
+            <View style={styles.modalActionRow}>
+              <Pressable
+                style={[styles.modalButton, styles.modalConfirmButton]}
+                onPress={async () => {
+                  if (exportResult) await Clipboard.setStringAsync(exportResult);
+                  Alert.alert('Copied', 'CSV copied to clipboard!');
+                }}
+              >
+                <Text style={[styles.modalButtonText, styles.modalConfirmButtonText]}>Copy CSV</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={() => setExportModalVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, styles.modalCancelButtonText]}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Ad Required Modal */}
+      <Modal
+        visible={showAdModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAdModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Watch Ad to Export</Text>
+            <Text style={styles.modalMessage}>
+              You must watch an ad to export this CSV.
+            </Text>
+            <View style={styles.modalActionRow}>
+              <Pressable
+                style={[styles.modalButton, styles.modalConfirmButton]}
+                onPress={async () => {
+                  setAdLoading(true);
+                  setTimeout(() => {
+                    setAdLoading(false);
+                    proceedExportGroup();
+                  }, 2000);
+                }}
+                disabled={adLoading}
+              >
+                <Text style={[styles.modalButtonText, styles.modalConfirmButtonText]}>{adLoading ? 'Watching...' : 'Watch Ad'}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={() => setShowAdModal(false)}
+                disabled={adLoading}
+              >
+                <Text style={[styles.modalButtonText, styles.modalCancelButtonText]}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

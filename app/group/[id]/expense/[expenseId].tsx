@@ -134,17 +134,11 @@ export default function ExpenseDetailsScreen() {
         </View>
       </View>
       <TouchableOpacity
-        style={{
-          backgroundColor: '#2563eb',
-          padding: 14,
-          borderRadius: 8,
-          alignItems: 'center',
-          marginHorizontal: 20,
-          marginTop: 10,
-        }}
+        style={styles.editButton}
         onPress={() => router.push({
-          pathname: `/add-expense/${id}`,
+          pathname: '/add-expense/[groupId]',
           params: {
+            groupId: id,
             edit: 'true',
             expenseId: expense.id,
             description: expense.description,
@@ -155,7 +149,7 @@ export default function ExpenseDetailsScreen() {
           }
         })}
       >
-        <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Edit Expense</Text>
+        <Text style={styles.editButtonText}>Edit Expense</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -164,25 +158,25 @@ export default function ExpenseDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#111827',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1F2937',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#374151',
   },
   backButton: {
     marginRight: 16,
     padding: 4,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#111827',
+    color: '#F3F4F6',
     flex: 1,
   },
   loadingContainer: {
@@ -197,20 +191,22 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    color: '#dc2626',
+    color: '#F87171',
     fontSize: 16,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1F2937',
     margin: 20,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 18,
+    padding: 22,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   row: {
     flexDirection: 'row',
@@ -218,23 +214,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#e0e7ff',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#8B5CF6',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    shadowColor: '#8B5CF6',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
   avatarText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#6366f1',
+    color: '#fff',
   },
   description: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#F3F4F6',
     marginBottom: 6,
   },
   detailRow: {
@@ -244,36 +244,40 @@ const styles = StyleSheet.create({
   },
   detailText: {
     marginLeft: 6,
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 15,
+    color: '#9CA3AF',
   },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 12,
+    marginBottom: 14,
+    backgroundColor: 'rgba(139,92,246,0.08)',
+    borderRadius: 10,
+    padding: 10,
+    alignSelf: 'flex-start',
   },
   amount: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#059669',
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#A78BFA',
     marginLeft: 8,
   },
   participantsSection: {
-    marginTop: 12,
+    marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: '#374151',
     paddingTop: 12,
   },
   participantsLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#A78BFA',
     marginBottom: 4,
   },
   participantsList: {
     fontSize: 15,
-    color: '#374151',
+    color: '#F3F4F6',
     lineHeight: 20,
   },
   breakdownSection: {
@@ -281,12 +285,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: '#374151',
   },
   breakdownTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: '#F3F4F6',
     marginBottom: 8,
   },
   breakdownRow: {
@@ -294,23 +298,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+    paddingVertical: 2,
   },
   breakdownPayer: {
-    fontSize: 14,
-    color: '#059669',
-    fontWeight: '600',
+    fontSize: 15,
+    color: '#22C55E',
+    fontWeight: '700',
   },
   breakdownAmount: {
-    fontSize: 14,
-    color: '#059669',
-    fontWeight: '600',
+    fontSize: 15,
+    color: '#22C55E',
+    fontWeight: '700',
   },
   breakdownOwes: {
-    fontSize: 14,
-    color: '#374151',
+    fontSize: 15,
+    color: '#F3F4F6',
   },
   breakdownOwesAmount: {
-    fontSize: 14,
-    color: '#ef4444',
+    fontSize: 15,
+    color: '#F87171',
+    fontWeight: '600',
+  },
+  editButton: {
+    backgroundColor: '#8B5CF6',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 18,
+    shadowColor: '#8B5CF6',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  editButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 17,
+    letterSpacing: 0.2,
   },
 }); 
