@@ -9,6 +9,7 @@ const {
   updateExpense,
   getExpenseById,
 } = require('../controllers/expenseController');
+router.post('/personal', createPersonalExpense);
 
 const protect = require('../middleware/authMiddleware');
 

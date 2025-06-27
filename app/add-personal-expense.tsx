@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
   Modal,
   FlatList,
   Animated,
-  Easing
+  Easing,
+  Alert,
 } from 'react-native';
 
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ const AddExpenseScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [animation] = useState(new Animated.Value(0));
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
 
   const categories = [
     { id: '1', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
@@ -44,7 +46,7 @@ const AddExpenseScreen = () => {
 
   const paymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Digital Wallet'];
 
-  const handleDateChange = (event, selectedDate) => {
+  const handleDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
     setShowDatePicker(false);
     setDate(currentDate);
@@ -56,55 +58,62 @@ const AddExpenseScreen = () => {
         toValue: 1,
         duration: 150,
         easing: Easing.linear,
-        useNativeDriver: true
+        useNativeDriver: true,
       }),
       Animated.timing(animation, {
         toValue: 0,
         duration: 150,
         easing: Easing.linear,
-        useNativeDriver: true
-      })
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
   const handleAddExpense = async () => {
-    if (!amount || isNaN(Number(amount))) {
+    if (!amount || isNaN(Number(amount)) || !category || !note || !user) {
       triggerAnimation();
+      Alert.alert('Missing Field', 'Please fill all fields.');
       return;
     }
 
     setLoading(true);
     try {
       await apiService.createExpense({
-        description: note || 'Personal Expense',
+        description: note,
         amount: Number(amount),
         date: date.toISOString(),
         type: 'personal',
-        paidBy: 'You',         // Adjust or remove if backend uses auth user
-        participants: ['You'], // Adjust accordingly if needed
+        paidBy: user.name,
+        participants: [user.name],
         paymentMethod,
         category,
       });
       setAmount('');
       setNote('');
       setCategory('');
-      alert('Expense added successfully!');
-    } catch (err) {
+      Alert.alert('Success', 'Expense added successfully!');
+    } catch (err: any) {
       console.error('Add expense error:', err);
-      alert(err.message || 'Failed to add expense.');
+      Alert.alert('Error', err.message || 'Failed to add expense.');
     } finally {
       setLoading(false);
     }
   };
 
   const animatedStyle = {
-    transform: [{
-      translateX: animation.interpolate({
-        inputRange: [0, 0.5, 1],
-        outputRange: [0, -10, 0]
-      })
-    }]
+    transform: [
+      {
+        translateX: animation.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, -10, 0],
+        }),
+      },
+    ],
   };
+
+  useEffect(() => {
+    apiService.getUserProfile().then(setUser);
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -113,7 +122,7 @@ const AddExpenseScreen = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Track Your Expense</Text>
-        
+
         {/* Amount Input */}
         <Animated.View style={[styles.card, animatedStyle]}>
           <Text style={styles.label}>Amount</Text>
@@ -131,10 +140,10 @@ const AddExpenseScreen = () => {
             />
           </View>
         </Animated.View>
-        
+
         {/* Category Selection */}
-        <TouchableOpacity 
-          style={styles.card} 
+        <TouchableOpacity
+          style={styles.card}
           onPress={() => !loading && setShowCategoryModal(true)}
           activeOpacity={0.8}
           disabled={loading}
@@ -142,11 +151,16 @@ const AddExpenseScreen = () => {
           <Text style={styles.label}>Category</Text>
           <View style={styles.categoryPreview}>
             {category ? (
-              <View style={[styles.categoryBadge, { backgroundColor: categories.find(c => c.name === category)?.color || '#2563EB' }]}>
-                <Ionicons 
-                  name={categories.find(c => c.name === category)?.icon || 'help'} 
-                  size={20} 
-                  color="#fff" 
+              <View
+                style={[
+                  styles.categoryBadge,
+                  { backgroundColor: categories.find((c) => c.name === category)?.color || '#2563EB' },
+                ]}
+              >
+                <Ionicons
+                  name={categories.find((c) => c.name === category)?.icon as any || 'help'}
+                  size={20}
+                  color="#fff"
                 />
                 <Text style={styles.categoryText}>{category}</Text>
               </View>
@@ -156,7 +170,7 @@ const AddExpenseScreen = () => {
             <MaterialIcons name="keyboard-arrow-right" size={24} color="#666" />
           </View>
         </TouchableOpacity>
-        
+
         {/* Note Input */}
         <View style={styles.card}>
           <Text style={styles.label}>Note</Text>
@@ -170,10 +184,10 @@ const AddExpenseScreen = () => {
             editable={!loading}
           />
         </View>
-        
+
         {/* Date Selection */}
-        <TouchableOpacity 
-          style={styles.card} 
+        <TouchableOpacity
+          style={styles.card}
           onPress={() => !loading && setShowDatePicker(true)}
           activeOpacity={0.8}
           disabled={loading}
@@ -182,11 +196,11 @@ const AddExpenseScreen = () => {
           <View style={styles.datePreview}>
             <FontAwesome5 name="calendar-alt" size={18} color="#666" />
             <Text style={styles.dateText}>
-              {date.toLocaleDateString('en-US', { 
-                weekday: 'short', 
-                month: 'short', 
+              {date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
                 day: 'numeric',
-                year: 'numeric'
+                year: 'numeric',
               })}
             </Text>
           </View>
@@ -200,35 +214,34 @@ const AddExpenseScreen = () => {
             />
           )}
         </TouchableOpacity>
-        
+
         {/* Payment Method */}
         <View style={styles.card}>
           <Text style={styles.label}>Payment Method</Text>
           <View style={styles.paymentMethods}>
-            {paymentMethods.map(method => (
+            {paymentMethods.map((method) => (
               <TouchableOpacity
                 key={method}
-                style={[
-                  styles.paymentMethod,
-                  paymentMethod === method && styles.selectedPaymentMethod
-                ]}
+                style={[styles.paymentMethod, paymentMethod === method && styles.selectedPaymentMethod]}
                 onPress={() => setPaymentMethod(method)}
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <Text style={[
-                  styles.paymentMethodText,
-                  paymentMethod === method && styles.selectedPaymentMethodText
-                ]}>
+                <Text
+                  style={[
+                    styles.paymentMethodText,
+                    paymentMethod === method && styles.selectedPaymentMethodText,
+                  ]}
+                >
                   {method}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
-        
+
         {/* Submit Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.addButton, loading && { opacity: 0.6 }]}
           onPress={handleAddExpense}
           activeOpacity={0.8}
@@ -245,7 +258,7 @@ const AddExpenseScreen = () => {
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
-      
+
       {/* Category Modal */}
       <Modal
         visible={showCategoryModal}
@@ -257,17 +270,14 @@ const AddExpenseScreen = () => {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Category</Text>
-              <TouchableOpacity 
-                onPress={() => setShowCategoryModal(false)}
-                style={styles.closeButton}
-              >
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            
+
             <FlatList
               data={categories}
-              keyExtractor={item => item.id}
+              keyExtractor={(item) => item.id}
               numColumns={3}
               contentContainerStyle={styles.categoryGrid}
               renderItem={({ item }) => (
@@ -280,7 +290,7 @@ const AddExpenseScreen = () => {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.categoryIconContainer, { backgroundColor: item.color }]}>
-                    <Ionicons name={item.icon} size={24} color="#fff" />
+                    <Ionicons name={item.icon as any} size={24} color="#fff" />
                   </View>
                   <Text style={styles.categoryName}>{item.name}</Text>
                 </TouchableOpacity>
