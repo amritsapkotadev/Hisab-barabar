@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const expenseSchema = new mongoose.Schema({
+  // Common fields for all expenses
   description: { 
     type: String, 
     required: true,
@@ -12,25 +13,44 @@ const expenseSchema = new mongoose.Schema({
     required: true,
     min: 0.01
   },
-  paidBy: { 
+  date: { 
     type: String, 
-    required: true,
+    required: true 
+  },
+  type: {
+    type: String,
+    enum: ['personal', 'group'],
+    required: true
+  },
+
+  // Used in both, but mandatory only for group
+  createdBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
+
+  // Group-specific fields
+  groupId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Group',
+    default: null // will be null for personal
+  },
+  paidBy: { 
+    type: String, // can use ObjectId if needed
     trim: true
   },
   participants: [{ 
-    type: String,
-    required: true,
+    type: String, // or ObjectId
     trim: true
   }],
   splits: [{
     participant: {
-      type: String,
-      required: true,
+      type: String, // or ObjectId
       trim: true
     },
     amount: {
       type: Number,
-      required: true,
       min: 0
     },
     percentage: {
@@ -41,40 +61,21 @@ const expenseSchema = new mongoose.Schema({
   }],
   payers: [{
     name: {
-      type: String,
-      required: true,
+      type: String, // or ObjectId
       trim: true
     },
     amountPaid: {
       type: Number,
-      required: true,
       min: 0
     }
   }],
+
   splitType: {
     type: String,
     enum: ['equal', 'unequal', 'percentage', 'shares'],
     default: 'equal'
-  },
-  groupId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Group', 
-    required: true 
-  },
-  date: { 
-    type: String, 
-    required: true 
-  },
-  createdBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
   }
+
 }, { 
   timestamps: true 
 });
-
-// Index for better query performance
-expenseSchema.index({ groupId: 1, createdAt: -1 });
-
-module.exports = mongoose.model('Expense', expenseSchema);

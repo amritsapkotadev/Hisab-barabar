@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,18 @@ import {
   FlatList,
   Dimensions,
   Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight } from 'lucide-react-native';
+import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight, Edit3 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { apiService } from '@/services/api';
 import type { Group, Expense, User } from '@/types';
-
+import AddExpenseScreen from '../add-personal-expense'; 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isIOS = Platform.OS === 'ios';
 
@@ -63,6 +66,10 @@ export default function HomeScreen() {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<'personal' | 'shared'>('shared');
+  const [personalBudget, setPersonalBudget] = useState<number>(0);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [budgetInput, setBudgetInput] = useState('');
+  const inputRef = useRef<TextInput>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -101,6 +108,14 @@ export default function HomeScreen() {
 
   // Filter for personal expenses
   const personalExpenses = expenses.filter(e => (!e.groupId || (e.participants && user && e.participants.length === 1 && e.participants[0] === user.name)));
+
+  // Calculate spent and left for this month
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const spentThisMonth = personalExpenses
+    .filter(e => new Date(e.date || e.createdAt) >= startOfMonth)
+    .reduce((sum, e) => sum + e.amount, 0);
+  const leftThisMonth = Math.max(0, personalBudget - spentThisMonth);
 
   // --- UI Components ---
   const renderAppBar = () => (
@@ -372,6 +387,36 @@ export default function HomeScreen() {
         </View>
         {activeTab === 'personal' ? (
           <>
+            {/* Personal Budget Card */}
+            <BlurView intensity={20} tint="dark" style={styles.personalBudgetCard}>
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                style={styles.personalBudgetGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              <View style={styles.personalBudgetContent}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.personalBudgetTitle}>Monthly Budget</Text>
+                  <TouchableOpacity onPress={() => {
+                    setBudgetInput(personalBudget ? String(personalBudget) : '');
+                    setShowBudgetModal(true);
+                    setTimeout(() => inputRef.current?.focus(), 200);
+                  }}>
+                    <Edit3 size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.personalBudgetValue}>₹{personalBudget ? personalBudget.toFixed(2) : '--'}</Text>
+                <View style={styles.personalBudgetRow}>
+                  <Text style={styles.personalBudgetLabel}>Spent this month:</Text>
+                  <Text style={styles.personalBudgetSpent}>₹{spentThisMonth.toFixed(2)}</Text>
+                </View>
+                <View style={styles.personalBudgetRow}>
+                  <Text style={styles.personalBudgetLabel}>Left:</Text>
+                  <Text style={styles.personalBudgetLeft}>₹{leftThisMonth.toFixed(2)}</Text>
+                </View>
+              </View>
+            </BlurView>
             {/* Personal Expenses List */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -395,13 +440,56 @@ export default function HomeScreen() {
             {/* FAB for adding personal expense */}
             <TouchableOpacity
               style={styles.fabPersonal}
-              onPress={() => router.push('/add-expense-advanced?personal=true')}
+              onPress={() => router.push('/add-personal-expense')}
               activeOpacity={0.85}
             >
               <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.fabGradientPersonal}>
                 <Plus size={28} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
+            {/* Modal for editing budget */}
+            <Modal
+              visible={showBudgetModal}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowBudgetModal(false)}
+            >
+              <KeyboardAvoidingView style={styles.budgetModalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <View style={styles.budgetModalContent}>
+                  <Text style={styles.budgetModalTitle}>Set Monthly Budget</Text>
+                  <TextInput
+                    ref={inputRef}
+                    style={styles.budgetInput}
+                    keyboardType="numeric"
+                    placeholder="Enter amount"
+                    placeholderTextColor="#A0A0C0"
+                    value={budgetInput}
+                    onChangeText={setBudgetInput}
+                    onSubmitEditing={() => {
+                      setPersonalBudget(Number(budgetInput) || 0);
+                      setShowBudgetModal(false);
+                    }}
+                  />
+                  <View style={{ flexDirection: 'row', marginTop: 16, gap: 12 }}>
+                    <TouchableOpacity
+                      style={[styles.budgetModalBtn, { backgroundColor: COLORS.negative }]}
+                      onPress={() => setShowBudgetModal(false)}
+                    >
+                      <Text style={styles.budgetModalBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.budgetModalBtn, { backgroundColor: COLORS.primary }]}
+                      onPress={() => {
+                        setPersonalBudget(Number(budgetInput) || 0);
+                        setShowBudgetModal(false);
+                      }}
+                    >
+                      <Text style={styles.budgetModalBtnText}>Save</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </Modal>
           </>
         ) : (
           <>
@@ -790,5 +878,100 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     width: 60,
     height: 60,
+  },
+  personalBudgetCard: {
+    marginHorizontal: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+    height: 160,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  personalBudgetGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  personalBudgetContent: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'space-between',
+  },
+  personalBudgetTitle: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontFamily: 'Inter-Medium',
+    marginBottom: 4,
+  },
+  personalBudgetValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    fontFamily: 'Inter-Bold',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  personalBudgetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  personalBudgetLabel: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    fontFamily: 'Inter-Regular',
+  },
+  personalBudgetSpent: {
+    fontSize: 14,
+    color: COLORS.negative,
+    fontFamily: 'Inter-Bold',
+  },
+  personalBudgetLeft: {
+    fontSize: 14,
+    color: COLORS.positive,
+    fontFamily: 'Inter-Bold',
+  },
+  budgetModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  budgetModalContent: {
+    width: '85%',
+    backgroundColor: COLORS.background,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  budgetModalTitle: {
+    fontSize: 18,
+    color: COLORS.text,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  budgetInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 12,
+    padding: 12,
+    color: COLORS.text,
+    fontSize: 18,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  budgetModalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  budgetModalBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
