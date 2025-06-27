@@ -28,6 +28,7 @@ const AddExpenseScreen = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [animation] = useState(new Animated.Value(0));
+  const [loading, setLoading] = useState(false);
 
   const categories = [
     { id: '1', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
@@ -72,21 +73,27 @@ const AddExpenseScreen = () => {
       return;
     }
 
+    setLoading(true);
     try {
       await apiService.createExpense({
         description: note || 'Personal Expense',
         amount: Number(amount),
         date: date.toISOString(),
         type: 'personal',
-        paidBy: 'You',
-        participants: ['You'],
+        paidBy: 'You',         // Adjust or remove if backend uses auth user
+        participants: ['You'], // Adjust accordingly if needed
         paymentMethod,
+        category,
       });
       setAmount('');
       setNote('');
       setCategory('');
+      alert('Expense added successfully!');
     } catch (err) {
-      console.error(err);
+      console.error('Add expense error:', err);
+      alert(err.message || 'Failed to add expense.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,7 +111,7 @@ const AddExpenseScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Track Your Expense</Text>
         
         {/* Amount Input */}
@@ -120,6 +127,7 @@ const AddExpenseScreen = () => {
               value={amount}
               onChangeText={setAmount}
               autoFocus
+              editable={!loading}
             />
           </View>
         </Animated.View>
@@ -127,8 +135,9 @@ const AddExpenseScreen = () => {
         {/* Category Selection */}
         <TouchableOpacity 
           style={styles.card} 
-          onPress={() => setShowCategoryModal(true)}
+          onPress={() => !loading && setShowCategoryModal(true)}
           activeOpacity={0.8}
+          disabled={loading}
         >
           <Text style={styles.label}>Category</Text>
           <View style={styles.categoryPreview}>
@@ -158,14 +167,16 @@ const AddExpenseScreen = () => {
             value={note}
             onChangeText={setNote}
             multiline
+            editable={!loading}
           />
         </View>
         
         {/* Date Selection */}
         <TouchableOpacity 
           style={styles.card} 
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => !loading && setShowDatePicker(true)}
           activeOpacity={0.8}
+          disabled={loading}
         >
           <Text style={styles.label}>Date</Text>
           <View style={styles.datePreview}>
@@ -185,6 +196,7 @@ const AddExpenseScreen = () => {
               mode="date"
               display="spinner"
               onChange={handleDateChange}
+              maximumDate={new Date()}
             />
           )}
         </TouchableOpacity>
@@ -202,6 +214,7 @@ const AddExpenseScreen = () => {
                 ]}
                 onPress={() => setPaymentMethod(method)}
                 activeOpacity={0.7}
+                disabled={loading}
               >
                 <Text style={[
                   styles.paymentMethodText,
@@ -216,9 +229,10 @@ const AddExpenseScreen = () => {
         
         {/* Submit Button */}
         <TouchableOpacity 
-          style={styles.addButton}
+          style={[styles.addButton, loading && { opacity: 0.6 }]}
           onPress={handleAddExpense}
           activeOpacity={0.8}
+          disabled={loading}
         >
           <LinearGradient
             colors={['#2563EB', '#1E40AF']}
@@ -227,7 +241,7 @@ const AddExpenseScreen = () => {
             end={{ x: 1, y: 0 }}
           >
             <Ionicons name="add" size={24} color="white" />
-            <Text style={styles.addButtonText}>Add Expense</Text>
+            <Text style={styles.addButtonText}>{loading ? 'Adding...' : 'Add Expense'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
