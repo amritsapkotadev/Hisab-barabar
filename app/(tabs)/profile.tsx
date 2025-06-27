@@ -411,7 +411,7 @@ export default function ProfileScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appName}>SplitSaathi</Text>
+          <Text style={styles.appName}>Amrit Sapkota</Text>
           <Text style={styles.appVersion}>v1.0.0</Text>
           <Text style={styles.appFooter}>Made with ❤️ in Nepal</Text>
         </View>

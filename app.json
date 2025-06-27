@@ -8,33 +8,65 @@
     "scheme": "splitsaathi",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.splitsaathi.app"
+      "bundleIdentifier": "com.splitsaathi.app",
+      "associatedDomains": ["applinks:splitsaathi.up.railway.app"]
     },
+
     "android": {
+      "package": "com.splitsaathi.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#4f46e5"
       },
-      "package": "com.splitsaathi.app"
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": {
+            "scheme": "https",
+            "host": "splitsaathi.up.railway.app",
+            "pathPrefix": "/join"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "splitsaathi",
+            "host": "*"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
+
     "web": {
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
+
     "plugins": [
-      ["expo-router", { "origin": "https://splitsaathi.up.railway.app/" }],
+      [
+        "expo-router",
+        {
+          "origin": "https://splitsaathi.up.railway.app"
+        }
+      ],
       "expo-font",
       "expo-web-browser"
     ],
+
     "experiments": {
       "typedRoutes": true
     },
+
     "extra": {
       "router": {
-        "origin": "https://splitsaathi.up.railway.app/"
+        "origin": "https://splitsaathi.up.railway.app"
       }
     }
   }
