@@ -8,7 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Modal,
+  Modal as RNModal,
   FlatList,
   Alert,
   ActivityIndicator,
@@ -16,8 +16,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import QRScannerScreen from './scan-qr';
 import {
-  Plus, X, ArrowLeft, Users, Smile, Share2, Copy, ChevronRight, Sparkles
+  Plus, X, ArrowLeft, Users, Smile, Share2, Copy, ChevronRight, Sparkles, Camera
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -45,6 +46,7 @@ export default function AddGroupScreen() {
   const [shareableLink, setShareableLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>('');
+  const [showQRScanner, setShowQRScanner] = useState(false);
   const confettiRef = useRef<any>(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [isFocused, setIsFocused] = useState(false);
@@ -159,6 +161,24 @@ export default function AddGroupScreen() {
       setLoading(false);
     }
   };
+  const handleQRScan = (data: string) => {
+    try {
+      const qrData = JSON.parse(data);
+      if (qrData.groupId && qrData.inviteCode) {
+        router.push({
+          pathname: '/scan-qr',
+          params: { 
+            groupId: qrData.groupId,
+            inviteCode: qrData.inviteCode 
+          }
+        });
+      }
+    } catch (error) {
+      Alert.alert('Invalid QR Code', 'Please scan a valid group invitation QR code');
+    }
+    setShowQRScanner(false);
+  };
+  
 
   const resetForm = () => {
     setGroupName('');
@@ -172,7 +192,7 @@ export default function AddGroupScreen() {
 
   if (success && createdGroup) {
     return (
-      <Modal visible={success} animationType="fade" transparent>
+      <RNModal visible={success} animationType="fade" transparent>
         <View style={styles.successModalBg}>
           <ConfettiCannon
             count={200}
@@ -253,7 +273,7 @@ export default function AddGroupScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      </RNModal>
     );
   }
 
@@ -262,6 +282,7 @@ export default function AddGroupScreen() {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         style={styles.keyboardAvoidingView}
+        keyboardVerticalOffset={80}
       >
         <LinearGradient
           colors={['#f0f9ff', '#e0f2fe']}
@@ -310,7 +331,6 @@ export default function AddGroupScreen() {
                   placeholderTextColor="#94a3b8"
                   maxLength={32}
                   autoCapitalize="words"
-                  autoFocus
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                 />
@@ -378,33 +398,51 @@ export default function AddGroupScreen() {
           </View>
         </ScrollView>
         
-        <Animated.View style={[styles.createButtonContainer, { transform: [{ scale: scaleAnim }] }]}> 
+        <View style={styles.bottomButtonsContainer}>
           <TouchableOpacity
-            style={styles.createButton}
-            onPress={handleCreateGroup}
-            disabled={!groupName.trim() || groupName.trim().length < 3 || loading}
+            style={styles.scanQRButton}
+            onPress={() => setShowQRScanner(true)}
             activeOpacity={0.8}
           >
             <LinearGradient 
-              colors={["#0ea5e9", "#38bdf8"]}
+              colors={["#7e22ce", "#9333ea"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.createButtonGradient}
+              style={styles.scanQRButtonGradient}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Sparkles size={20} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.createButtonText}>Create Group</Text>
-                </>
-              )}
+              <Camera size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.scanQRButtonText}>Join by QR</Text>
             </LinearGradient>
           </TouchableOpacity>
-        </Animated.View>
+
+          <Animated.View style={[styles.createButtonContainer, { transform: [{ scale: scaleAnim }] }]}> 
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={handleCreateGroup}
+              disabled={!groupName.trim() || groupName.trim().length < 3 || loading}
+              activeOpacity={0.8}
+            >
+              <LinearGradient 
+                colors={["#0ea5e9", "#38bdf8"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.createButtonGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Sparkles size={20} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.createButtonText}>Create Group</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       </KeyboardAvoidingView>
       
-      <Modal 
+      <RNModal 
         visible={showEmojiPicker} 
         animationType="slide" 
         transparent
@@ -442,7 +480,39 @@ export default function AddGroupScreen() {
             />
           </View>
         </View>
-      </Modal>
+      </RNModal>
+
+      <RNModal
+        visible={showQRScanner}
+        animationType="slide"
+        onRequestClose={() => setShowQRScanner(false)}
+      >
+        <View style={styles.qrScannerContainer}>
+          <TouchableOpacity 
+            style={styles.qrScannerCloseButton}
+            onPress={() => setShowQRScanner(false)}
+          >
+            <X size={28} color="#fff" />
+          </TouchableOpacity>
+          
+          <Text style={styles.qrScannerTitle}>Scan Group QR Code</Text>
+          
+          <View style={styles.qrScannerPlaceholder}>
+            <Text style={styles.qrScannerPlaceholderText}>
+              QR Scanner would appear here
+            </Text>
+            <TouchableOpacity
+              style={styles.qrScannerTestButton}
+              onPress={() => handleQRScan(JSON.stringify({
+                groupId: "test-group-id",
+                inviteCode: "test-invite-code"
+              }))}
+            >
+              <Text style={styles.qrScannerTestButtonText}>Simulate Scan</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </RNModal>
     </SafeAreaView>
   );
 }
@@ -640,11 +710,36 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     textAlign: 'center',
   },
-  createButtonContainer: {
+  bottomButtonsContainer: {
     position: 'absolute',
     left: 24,
     right: 24,
     bottom: 32,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  scanQRButton: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#7e22ce',
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  scanQRButtonGradient: {
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  scanQRButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+  },
+  createButtonContainer: {
+    flex: 1,
   },
   createButton: {
     borderRadius: 16,
@@ -886,5 +981,48 @@ const styles = StyleSheet.create({
   },
   emojiOptionText: {
     fontSize: 28,
+  },
+  // QR Scanner
+  qrScannerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrScannerCloseButton: {
+    position: 'absolute',
+    top: 50,
+    left: 24,
+    zIndex: 10,
+  },
+  qrScannerTitle: {
+    position: 'absolute',
+    top: 50,
+    color: '#fff',
+    fontSize: 20,
+    fontFamily: 'Inter_700Bold',
+  },
+  qrScannerPlaceholder: {
+    width: '80%',
+    height: 300,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  qrScannerPlaceholderText: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  qrScannerTestButton: {
+    backgroundColor: '#7e22ce',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  qrScannerTestButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter_600SemiBold',
   },
 });

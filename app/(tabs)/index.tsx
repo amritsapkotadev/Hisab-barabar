@@ -27,7 +27,8 @@ import type { Group, Expense, User } from '@/types';
 import AddExpenseScreen from '../add-personal-expense'; 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isIOS = Platform.OS === 'ios';
-
+import { useCameraPermission, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
+import QRScannerScreen from '../scan-qr';
 // Modern color palette
 const COLORS = {
   primary: '#7E57C2',
@@ -174,9 +175,9 @@ export default function HomeScreen() {
   const renderQuickActions = () => (
     <View style={styles.actionsContainer}>
       {[
-        { icon: <Plus size={22} color="#FFF" />, label: 'Add', action: () => router.push('/add-expense-advanced') },
-        { icon: <Users size={22} color="#FFF" />, label: 'Group', action: () => router.push('/add-group') },
-        { icon: <Camera size={22} color="#FFF" />, label: 'Scan', action: () => alert('Scan Receipt coming soon!') },
+        { icon: <Plus size={22} color="#FFF" />, label: 'Add Expense', action: () => router.push('/add-expense-advanced') },
+        { icon: <Users size={22} color="#FFF" />, label: 'Add group', action: () => router.push('/add-group') },
+       
       ].map((action, index) => (
         <TouchableOpacity
           key={index}

@@ -231,6 +231,46 @@ export const apiService = {
     }
   },
 
+  // New method for joining group via QR code
+  async joinGroupWithInviteCode(groupId: string, inviteCode: string): Promise<Group> {
+    try {
+      console.log('Joining group with invite code:', { groupId, inviteCode });
+      const response = await api.post(`/api/groups/${groupId}/join-with-code`, {
+        inviteCode
+      });
+      console.log('Join group with code response:', response.data);
+      return response.data.data || response.data;
+    } catch (error: any) {
+      console.error('Join group with code API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to join group with invite code');
+    }
+  },
+
+  // New method to get group invite details
+  async getGroupInviteDetails(groupId: string): Promise<{ inviteCode: string; qrCodeData: string }> {
+    try {
+      console.log('Fetching group invite details:', groupId);
+      const response = await api.get(`/api/groups/${groupId}/invite-details`);
+      console.log('Group invite details:', response.data);
+      
+      // Generate QR code data string
+      const qrCodeData = JSON.stringify({
+        groupId,
+        inviteCode: response.data.inviteCode,
+        app: 'SplitSaathi',
+        timestamp: new Date().toISOString()
+      });
+
+      return {
+        inviteCode: response.data.inviteCode,
+        qrCodeData
+      };
+    } catch (error: any) {
+      console.error('Get group invite details API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to get group invite details');
+    }
+  },
+
   // Expenses
   async getGroupExpenses(groupId: string): Promise<Expense[]> {
     try {
