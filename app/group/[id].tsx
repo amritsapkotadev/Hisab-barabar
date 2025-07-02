@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   Platform,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -31,7 +32,11 @@ import {
   X,
   Clock,
   User,
-  FileText
+  FileText,
+  Settings,
+  Trash2,
+  ArrowUpRight,
+  Bell
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
@@ -42,8 +47,10 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { BlurView } from 'expo-blur';
+import Constants from 'expo-constants';
 
 const { width, height } = Dimensions.get('window');
+const statusBarHeight = Constants.statusBarHeight;
 
 const COLORS = {
   primary: '#7c3aed',
@@ -56,6 +63,7 @@ const COLORS = {
   negative: '#ef4444',
   border: '#e5e7eb',
   fab: ['#a78bfa', '#7c3aed'],
+  header: '#7c3aed',
 };
 
 type TabType = { id: string; label: string; icon: React.ReactElement<any, any> };
@@ -129,6 +137,7 @@ const GroupScreen = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [exportResult, setExportResult] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
@@ -247,16 +256,26 @@ const GroupScreen = () => {
         onPress={() => router.push(`/group/${id}/expense/${item.id}`)}
         activeOpacity={0.8}
       >
-        <MemberAvatar name={item.paidBy} size={44} />
+        <View style={styles.expenseIcon}>
+          <DollarSign size={20} color="#7C3AED" />
+        </View>
         <View style={styles.expenseInfo}>
           <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
-          <Text style={styles.expenseSubtitle}>Paid by {item.paidBy}</Text>
+          <View style={styles.expenseMeta}>
+            <View style={styles.expensePaidBy}>
+              <MemberAvatar name={item.paidBy} size={24} />
+              <Text style={styles.expenseSubtitle}>{item.paidBy}</Text>
+            </View>
+            <View style={styles.expenseDateContainer}>
+              <Clock size={14} color="#94a3b8" />
+              <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
+            </View>
+          </View>
         </View>
         <View style={styles.expenseAmountContainer}>
-          <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
-          <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
+          <Text style={styles.expenseAmount}>₹{item.amount.toFixed(2)}</Text>
+          <ChevronRight size={18} color="#94a3b8" />
         </View>
-        <ChevronRight size={18} color="#94a3b8" />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -271,7 +290,7 @@ const GroupScreen = () => {
         balance < 0 ? styles.negativeBalance : 
         styles.neutralBalance
       ]}>
-        {balance > 0 ? '+' : ''}{balance.toFixed(2)}
+        {balance > 0 ? '+' : ''}₹{Math.abs(balance).toFixed(2)}
       </Text>
     </View>
   );
@@ -279,12 +298,12 @@ const GroupScreen = () => {
   const renderMemberItem = (member: string) => (
     <View style={styles.memberItem}>
       <MemberAvatar name={member} size={44} />
-      <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
-      {group && group.createdBy === member && (
-        <View style={styles.adminBadge}>
-          <Text style={styles.adminText}>Admin</Text>
-        </View>
-      )}
+      <View style={styles.memberInfo}>
+        <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
+        {group && group.createdBy === member && (
+          <Text style={styles.adminText}>Group Admin</Text>
+        )}
+      </View>
     </View>
   );
 
@@ -293,7 +312,7 @@ const GroupScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color="#7C3AED" />
           <Text style={styles.loadingText}>Loading group...</Text>
         </View>
       </SafeAreaView>
@@ -325,19 +344,19 @@ const GroupScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#0f172a', '#1e293b']}
-        style={StyleSheet.absoluteFill}
-      />
-      
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#7C3AED', '#5B21B6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.headerButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <ArrowLeft size={24} color="#e2e8f0" />
+          <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
         
         <View style={styles.headerTitleContainer}>
@@ -345,23 +364,14 @@ const GroupScreen = () => {
           <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         </View>
         
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.headerButton}
-            onPress={handleExport}
-            activeOpacity={0.7}
-          >
-            <Download size={22} color="#a78bfa" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerButton}
-            onPress={() => setShowShareModal(true)}
-            activeOpacity={0.7}
-          >
-            <Share2 size={22} color="#e2e8f0" />
-          </TouchableOpacity>
-        </View>
-      </View>
+        <TouchableOpacity 
+          style={styles.headerButton}
+          onPress={() => setShowSettings(true)}
+          activeOpacity={0.7}
+        >
+          <Settings size={22} color="#fff" />
+        </TouchableOpacity>
+      </LinearGradient>
 
       {/* Content */}
       <ScrollView
@@ -370,8 +380,8 @@ const GroupScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#8b5cf6"
-            colors={['#8b5cf6']}
+            tintColor="#7C3AED"
+            colors={['#7C3AED']}
           />
         }
       >
@@ -386,21 +396,36 @@ const GroupScreen = () => {
           ]}
         >
           <View style={styles.summaryCard}>
-            <DollarSign size={20} color="#a78bfa" />
+            <View style={styles.summaryIcon}>
+              <DollarSign size={20} color="#7C3AED" />
+            </View>
             <Text style={styles.summaryLabel}>Total</Text>
-            <Text style={styles.summaryValue}>${group.totalExpenses.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>₹{group.totalExpenses.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryCard}>
-            <User size={20} color="#a78bfa" />
+            <View style={styles.summaryIcon}>
+              <User size={20} color="#7C3AED" />
+            </View>
             <Text style={styles.summaryLabel}>Members</Text>
             <Text style={styles.summaryValue}>{group.members.length}</Text>
           </View>
           <View style={styles.summaryCard}>
-            <FileText size={20} color="#a78bfa" />
+            <View style={styles.summaryIcon}>
+              <FileText size={20} color="#7C3AED" />
+            </View>
             <Text style={styles.summaryLabel}>Expenses</Text>
             <Text style={styles.summaryValue}>{expenses.length}</Text>
           </View>
         </Animated.View>
+
+        {/* Track Your Expense Banner */}
+        <View style={styles.trackingBanner}>
+          <View style={styles.trackingIcon}>
+            <Bell size={20} color="#fff" />
+          </View>
+          <Text style={styles.trackingText}>Track Your Expenses</Text>
+          <ArrowUpRight size={18} color="#fff" />
+        </View>
 
         {/* Segmented Control */}
         <SegmentedControl 
@@ -422,9 +447,9 @@ const GroupScreen = () => {
               />
             ) : (
               <View style={styles.emptyState}>
-                <DollarSign size={48} color="#475569" />
+                <DollarSign size={48} color="#CBD5E1" />
                 <Text style={styles.emptyTitle}>No expenses yet</Text>
-                <Text style={styles.emptySubtitle}>Add your first expense</Text>
+                <Text style={styles.emptySubtitle}>Add your first expense to get started</Text>
               </View>
             )
           )}
@@ -450,6 +475,7 @@ const GroupScreen = () => {
                 <TouchableOpacity 
                   style={styles.settleButton}
                   activeOpacity={0.8}
+                  onPress={() => router.push(`/settle-up/${group.id}`)}
                 >
                   <Text style={styles.settleButtonText}>Settle Up</Text>
                 </TouchableOpacity>
@@ -464,7 +490,7 @@ const GroupScreen = () => {
                 onPress={() => setShowAddMemberModal(true)}
                 activeOpacity={0.7}
               >
-                <UserPlus size={18} color="#8b5cf6" />
+                <UserPlus size={18} color="#7C3AED" />
                 <Text style={styles.addMemberText}>Add Member</Text>
               </TouchableOpacity>
               
@@ -478,17 +504,6 @@ const GroupScreen = () => {
             </>
           )}
         </View>
-
-        {/* Delete button for settled groups */}
-        {isSettled && (
-          <TouchableOpacity 
-            style={styles.deleteButton}
-            onPress={() => setShowDeleteModal(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.deleteText}>Delete Group</Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
       {/* Add Expense FAB */}
@@ -498,7 +513,7 @@ const GroupScreen = () => {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#a78bfa', '#7c3aed']}
+          colors={['#7C3AED', '#5B21B6']}
           style={styles.fabGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -601,6 +616,55 @@ const GroupScreen = () => {
           </View>
         </BlurView>
       </Modal>
+
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettings}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <BlurView intensity={30} style={styles.settingsContainer}>
+          <View style={styles.settingsContent}>
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowSettings(false)}
+              activeOpacity={0.7}
+            >
+              <X size={24} color="#94a3b8" />
+            </TouchableOpacity>
+            
+            <Text style={styles.modalTitle}>Group Settings</Text>
+            
+            <TouchableOpacity 
+              style={styles.settingsOption}
+              onPress={() => setShowShareModal(true)}
+              activeOpacity={0.7}
+            >
+              <Share2 size={20} color="#7C3AED" />
+              <Text style={styles.settingsOptionText}>Share Group</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.settingsOption}
+              onPress={handleExport}
+              activeOpacity={0.7}
+            >
+              <Download size={20} color="#7C3AED" />
+              <Text style={styles.settingsOptionText}>Export Data</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.settingsOption}
+              onPress={() => setShowDeleteModal(true)}
+              activeOpacity={0.7}
+            >
+              <Trash2 size={20} color="#EF4444" />
+              <Text style={[styles.settingsOptionText, { color: '#EF4444' }]}>Delete Group</Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -608,20 +672,22 @@ const GroupScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(71, 85, 105, 0.3)',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingTop: statusBarHeight + 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   headerButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   headerTitleContainer: {
     flexDirection: 'row',
@@ -632,49 +698,13 @@ const styles = StyleSheet.create({
   },
   headerEmoji: {
     fontSize: 24,
-    marginRight: 8,
+    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#f8fafc',
-    maxWidth: '70%',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    color: '#94a3b8',
-    fontFamily: 'Inter_500Medium',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 16,
-  },
-  errorText: {
-    color: '#f87171',
-    fontFamily: 'Inter_500Medium',
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryText: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    maxWidth: '70%',
   },
   scrollContent: {
     paddingBottom: 100,
@@ -687,36 +717,74 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: 'rgba(71, 85, 105, 0.2)',
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.3)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryIcon: {
+    backgroundColor: '#EDE9FE',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   summaryLabel: {
-    color: '#94a3b8',
-    fontFamily: 'Inter_500Medium',
+    color: '#64748B',
+    fontWeight: '600',
     fontSize: 13,
   },
   summaryValue: {
-    color: '#f8fafc',
-    fontFamily: 'Inter_700Bold',
+    color: '#1E293B',
+    fontWeight: '700',
     fontSize: 18,
+  },
+  trackingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7C3AED',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    gap: 10,
+  },
+  trackingIcon: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  trackingText: {
+    flex: 1,
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    backgroundColor: '#fff',
     borderRadius: 12,
     marginHorizontal: 16,
     padding: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.3)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   activeSegment: {
     position: 'absolute',
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#7C3AED',
     borderRadius: 8,
     height: '110%',
     top: '15%',
@@ -733,14 +801,15 @@ const styles = StyleSheet.create({
   },
   segmentButtonText: {
     color: '#94a3b8',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
     fontSize: 14,
   },
   segmentButtonActive: {
-    backgroundColor: '#ede9fe',
+    backgroundColor: '#EDE9FE',
+    borderRadius: 8,
   },
   segmentButtonTextActive: {
-    color: '#fff',
+    color: '#7C3AED',
   },
   tabContent: {
     padding: 16,
@@ -748,49 +817,67 @@ const styles = StyleSheet.create({
   expenseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(71, 85, 105, 0.2)',
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.3)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  avatar: {
+  expenseIcon: {
+    backgroundColor: '#EDE9FE',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: {
-    color: '#fff',
-    fontFamily: 'Inter_700Bold',
-  },
   expenseInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
   },
   expenseTitle: {
-    color: '#f8fafc',
-    fontFamily: 'Inter_600SemiBold',
+    color: '#1E293B',
+    fontWeight: '600',
     fontSize: 16,
+    marginBottom: 6,
+  },
+  expenseMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  expensePaidBy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   expenseSubtitle: {
-    color: '#94a3b8',
-    fontFamily: 'Inter_500Medium',
-    fontSize: 13,
-    marginTop: 4,
+    color: '#64748B',
+    fontWeight: '500',
+    fontSize: 14,
   },
-  expenseAmountContainer: {
-    alignItems: 'flex-end',
-    marginRight: 12,
-  },
-  expenseAmount: {
-    color: '#f8fafc',
-    fontFamily: 'Inter_700Bold',
-    fontSize: 16,
+  expenseDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   expenseDate: {
-    color: '#94a3b8',
-    fontFamily: 'Inter_500Medium',
-    fontSize: 12,
-    marginTop: 4,
+    color: '#94A3B8',
+    fontWeight: '500',
+    fontSize: 13,
+  },
+  expenseAmountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  expenseAmount: {
+    color: '#1E293B',
+    fontWeight: '700',
+    fontSize: 16,
   },
   separator: {
     height: 12,
@@ -802,13 +889,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
-    color: '#f8fafc',
-    fontFamily: 'Inter_600SemiBold',
+    color: '#1E293B',
+    fontWeight: '600',
     fontSize: 18,
   },
   emptySubtitle: {
-    color: '#94a3b8',
-    fontFamily: 'Inter_500Medium',
+    color: '#94A3B8',
+    fontWeight: '500',
     fontSize: 14,
   },
   balancesContainer: {
@@ -817,22 +904,25 @@ const styles = StyleSheet.create({
   balanceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.3)',
+    padding: 16,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   balanceName: {
     flex: 1,
-    color: '#f8fafc',
-    fontFamily: 'Inter_500Medium',
-    fontSize: 15,
+    color: '#1E293B',
+    fontWeight: '500',
+    fontSize: 16,
     marginLeft: 12,
   },
   balanceAmount: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 15,
+    fontWeight: '700',
+    fontSize: 16,
   },
   positiveBalance: {
     color: '#22c55e',
@@ -847,19 +937,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: '#DCFCE7',
+    padding: 16,
+    borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.2)',
+    borderColor: '#BBF7D0',
   },
   settledText: {
-    color: '#22c55e',
-    fontFamily: 'Inter_600SemiBold',
+    color: '#16A34A',
+    fontWeight: '600',
   },
   settleButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#7C3AED',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -867,7 +957,7 @@ const styles = StyleSheet.create({
   },
   settleButtonText: {
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
   },
   addMemberButton: {
     flexDirection: 'row',
@@ -875,15 +965,15 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    backgroundColor: '#EDE9FE',
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: '#DDD6FE',
     alignSelf: 'flex-start',
     marginBottom: 16,
   },
   addMemberText: {
-    color: '#a78bfa',
-    fontFamily: 'Inter_600SemiBold',
+    color: '#7C3AED',
+    fontWeight: '600',
   },
   membersContainer: {
     gap: 12,
@@ -891,45 +981,61 @@ const styles = StyleSheet.create({
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.3)',
+    padding: 16,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  memberInfo: {
+    flex: 1,
+    marginLeft: 16,
   },
   memberName: {
-    flex: 1,
-    color: '#f8fafc',
-    fontFamily: 'Inter_500Medium',
+    color: '#1E293B',
+    fontWeight: '600',
     fontSize: 16,
-    marginLeft: 12,
-  },
-  adminBadge: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.2)',
   },
   adminText: {
-    color: '#a78bfa',
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 12,
+    color: '#7C3AED',
+    fontWeight: '500',
+    fontSize: 14,
+    marginTop: 4,
   },
-  deleteButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    padding: 16,
-    borderRadius: 12,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    gap: 16,
   },
-  deleteText: {
-    color: '#f87171',
-    fontFamily: 'Inter_600SemiBold',
+  loadingText: {
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 16,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   fab: {
     position: 'absolute',
@@ -958,11 +1064,14 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderRadius: 24,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 5,
   },
   modalCloseButton: {
     position: 'absolute',
@@ -971,15 +1080,15 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   modalTitle: {
-    color: '#f8fafc',
-    fontFamily: 'Inter_700Bold',
+    color: '#1E293B',
+    fontWeight: '700',
     fontSize: 20,
     marginBottom: 12,
     textAlign: 'center',
   },
   modalText: {
-    color: '#94a3b8',
-    fontFamily: 'Inter_500Medium',
+    color: '#64748B',
+    fontWeight: '500',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -989,51 +1098,74 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: 'rgba(71, 85, 105, 0.2)',
+    backgroundColor: '#F1F5F9',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.3)',
   },
   cancelText: {
-    color: '#f8fafc',
-    fontFamily: 'Inter_600SemiBold',
+    color: '#1E293B',
+    fontWeight: '600',
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#7C3AED',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   confirmText: {
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
   },
   exportScroll: {
     maxHeight: 200,
     marginBottom: 16,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 16,
   },
   exportText: {
-    color: '#f8fafc',
-    fontFamily: 'Inter_400Regular',
+    color: '#1E293B',
+    fontWeight: '400',
     fontSize: 12,
   },
   copyButton: {
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#7C3AED',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   copyText: {
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
+  },
+  settingsContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  settingsContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingTop: 40,
+  },
+  settingsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  settingsOptionText: {
+    flex: 1,
+    color: '#1E293B',
+    fontWeight: '500',
+    fontSize: 16,
   },
 });
 
 export default GroupScreen;
-    
