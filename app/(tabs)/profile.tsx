@@ -36,7 +36,9 @@ import {
   BarChart2,
   Calendar,
   Smartphone,
-  Heart
+  Heart,
+  Award,
+  PieChart
 } from 'lucide-react-native';
 import { apiService } from '@/services/api';
 import { User as UserType } from '@/types';
@@ -46,6 +48,25 @@ import { BlurView } from 'expo-blur';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
+
+// Modern color palette
+const COLORS = {
+  primary: '#6366f1',
+  secondary: '#818cf8',
+  background: '#F5F7FB',
+  card: '#FFFFFF',
+  text: '#1E293B',
+  subtext: '#64748B',
+  positive: '#10B981',
+  negative: '#EF4444',
+  border: '#E2E8F0',
+  gradientStart: '#F0F9FF',
+  gradientEnd: '#E0F2FE',
+  stats1: '#4f46e5',
+  stats2: '#8b5cf6',
+  stats3: '#ec4899',
+  stats4: '#f59e0b',
+};
 
 export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -171,14 +192,21 @@ export default function ProfileScreen() {
 
   const renderStatCard = (icon: React.ReactNode, label: string, value: string | number, color: string) => (
     <Animated.View 
-      style={[styles.statCard, { backgroundColor: color }]}
+      style={[styles.statCard]}
       entering={FadeInDown.duration(600)}
     >
-      <View style={styles.statIconContainer}>
-        {icon}
-      </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <LinearGradient
+        colors={[color, `${color}80`]}
+        style={styles.statCardGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.statIconContainer}>
+          {icon}
+        </View>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </LinearGradient>
     </Animated.View>
   );
 
@@ -204,12 +232,12 @@ export default function ProfileScreen() {
         <Switch
           value={switchValue}
           onValueChange={isSwitch ? onPress : undefined}
-          trackColor={{ false: '#e2e8f0', true: '#4f46e5' }}
+          trackColor={{ false: '#e2e8f0', true: COLORS.primary }}
           thumbColor="#ffffff"
           style={styles.switch}
         />
       ) : (
-        <ChevronRight size={20} color="#94a3b8" />
+        <ChevronRight size={20} color={COLORS.subtext} />
       )}
     </TouchableOpacity>
   );
@@ -218,7 +246,7 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading your profile...</Text>
         </View>
       </SafeAreaView>
@@ -234,25 +262,40 @@ export default function ProfileScreen() {
       >
         {/* Profile Header */}
         <LinearGradient
-          colors={['#818cf8', '#6366f1']}
+          colors={[COLORS.primary, COLORS.secondary]}
           style={styles.profileHeader}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={handleEditProfile}
-          >
-            <Edit2 size={18} color="#fff" />
-          </TouchableOpacity>
-          
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: user?.picture || 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400' }}
-              style={styles.avatar}
-            />
+          <View style={styles.profileHeaderContent}>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={handleEditProfile}
+            >
+              <Edit2 size={18} color="#fff" />
+            </TouchableOpacity>
+            
+            <View style={styles.avatarContainer}>
+              <Image
+                source={{ uri: user?.picture || 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400' }}
+                style={styles.avatar}
+              />
+            </View>
+            
+            <Text style={styles.userName}>{user?.name || 'User Name'}</Text>
+            <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
+            
+            <View style={styles.statsSummary}>
+              <View style={styles.statSummaryItem}>
+                <UsersIcon size={18} color="#fff" />
+                <Text style={styles.statSummaryText}>{stats.totalGroups} groups</Text>
+              </View>
+              <View style={styles.statSummaryItem}>
+                <DollarSign size={18} color="#fff" />
+                <Text style={styles.statSummaryText}>₹{stats.totalExpenses.toFixed(0)} spent</Text>
+              </View>
+            </View>
           </View>
-          
-          <Text style={styles.userName}>{user?.name || 'User Name'}</Text>
-          <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
         </LinearGradient>
 
         {/* Stats Section */}
@@ -260,45 +303,47 @@ export default function ProfileScreen() {
           style={styles.statsContainer}
           entering={FadeIn.duration(500)}
         >
+          <Text style={styles.statsTitle}>Your Spending Insights</Text>
+          
           <View style={styles.statsGrid}>
             {renderStatCard(
               <DollarSign size={20} color="#fff" />,
               'Total Spent',
-              `$${stats.totalExpenses.toFixed(0)}`,
-              '#4f46e5'
+              `₹${stats.totalExpenses.toFixed(0)}`,
+              COLORS.stats1
             )}
             
             {renderStatCard(
               <UsersIcon size={20} color="#fff" />,
               'Groups',
               stats.totalGroups,
-              '#8b5cf6'
+              COLORS.stats2
             )}
             
             {renderStatCard(
               <FileText size={20} color="#fff" />,
               'Transactions',
               stats.totalTransactions,
-              '#ec4899'
+              COLORS.stats3
             )}
             
             {renderStatCard(
               <Calendar size={20} color="#fff" />,
               'This Month',
-              `$${stats.monthlySpending.toFixed(0)}`,
-              '#f59e0b'
+              `₹${stats.monthlySpending.toFixed(0)}`,
+              COLORS.stats4
             )}
           </View>
           
           <View style={styles.statsFooter}>
             <View style={styles.statsFooterItem}>
-              <BarChart2 size={16} color="#94a3b8" />
+              <BarChart2 size={16} color={COLORS.subtext} />
               <Text style={styles.statsFooterText}>
-                Avg: ${stats.averageExpense.toFixed(2)}
+                Avg: ₹{stats.averageExpense.toFixed(2)}
               </Text>
             </View>
             <View style={styles.statsFooterItem}>
-              <Star size={16} color="#94a3b8" />
+              <Award size={16} color={COLORS.subtext} />
               <Text style={styles.statsFooterText}>
                 Most Active: {stats.mostActiveGroup}
               </Text>
@@ -312,20 +357,21 @@ export default function ProfileScreen() {
           
           <BlurView intensity={30} tint="light" style={styles.settingsCard}>
             {renderSettingItem(
-              <User size={20} color="#6366f1" />,
+              <User size={20} color={COLORS.primary} />,
               "Edit Profile",
               handleEditProfile
             )}
             
             {renderSettingItem(
-              <Lock size={20} color="#6366f1" />,
+              <Lock size={20} color={COLORS.primary} />,
               "Change Password",
               handleChangePassword
             )}
             
             {renderSettingItem(
-              <CreditCard size={20} color="#6366f1" />,
-              "Payment Methods"
+              <CreditCard size={20} color={COLORS.primary} />,
+              "Payment Methods",
+              () => router.push('/profile/payment-methods')
             )}
           </BlurView>
         </View>
@@ -336,15 +382,13 @@ export default function ProfileScreen() {
           
           <BlurView intensity={30} tint="light" style={styles.settingsCard}>
             {renderSettingItem(
-              <Bell size={20} color="#6366f1" />,
+              <Bell size={20} color={COLORS.primary} />,
               "Notifications",
-              () => setNotificationsEnabled(!notificationsEnabled),
-              true,
-              notificationsEnabled
+              handleNotificationSettings
             )}
             
             {renderSettingItem(
-              <Moon size={20} color="#6366f1" />,
+              <Moon size={20} color={COLORS.primary} />,
               "Dark Mode",
               () => setDarkModeEnabled(!darkModeEnabled),
               true,
@@ -352,7 +396,7 @@ export default function ProfileScreen() {
             )}
             
             {renderSettingItem(
-              <Shield size={20} color="#6366f1" />,
+              <Shield size={20} color={COLORS.primary} />,
               "Privacy",
               handlePrivacySettings
             )}
@@ -365,19 +409,19 @@ export default function ProfileScreen() {
           
           <BlurView intensity={30} tint="light" style={styles.settingsCard}>
             {renderSettingItem(
-              <HelpCircle size={20} color="#6366f1" />,
+              <HelpCircle size={20} color={COLORS.primary} />,
               "Help Center",
               handleHelp
             )}
             
             {renderSettingItem(
-              <Download size={20} color="#6366f1" />,
+              <Download size={20} color={COLORS.primary} />,
               "Export Data",
               handleExportData
             )}
             
             {renderSettingItem(
-              <Share2 size={20} color="#6366f1" />,
+              <Share2 size={20} color={COLORS.primary} />,
               "Share App",
               handleShareApp
             )}
@@ -386,11 +430,11 @@ export default function ProfileScreen() {
 
         {/* Danger Zone */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={[styles.sectionTitle, { color: COLORS.negative }]}>Account</Text>
           
           <BlurView intensity={30} tint="light" style={styles.settingsCard}>
             {renderSettingItem(
-              <Trash2 size={20} color="#ef4444" />,
+              <Trash2 size={20} color={COLORS.negative} />,
               "Delete Account",
               handleDeleteAccount,
               false,
@@ -399,7 +443,7 @@ export default function ProfileScreen() {
             )}
             
             {renderSettingItem(
-              <LogOut size={20} color="#ef4444" />,
+              <LogOut size={20} color={COLORS.negative} />,
               "Logout",
               handleLogout,
               false,
@@ -411,9 +455,15 @@ export default function ProfileScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appName}>Amrit Sapkota</Text>
+          <View style={styles.appLogo}>
+            <PieChart size={32} color={COLORS.primary} />
+            <Text style={styles.appName}>SplitSaathi</Text>
+          </View>
           <Text style={styles.appVersion}>v1.0.0</Text>
-          <Text style={styles.appFooter}>Made with ❤️ in Nepal</Text>
+          <View style={styles.appFooter}>
+            <Heart size={16} color="#f87171" />
+            <Text style={styles.appFooterText}>Made with passion in Nepal</Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -423,7 +473,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
@@ -435,30 +485,37 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
+    gap: 20,
   },
   loadingText: {
-    marginTop: 16,
     fontSize: 16,
-    color: '#64748b',
+    color: COLORS.subtext,
     fontFamily: 'Inter-Medium',
   },
   profileHeader: {
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: 30,
     paddingHorizontal: 24,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  profileHeaderContent: {
     alignItems: 'center',
   },
   editButton: {
     position: 'absolute',
-    top: 24,
-    right: 24,
+    top: 20,
+    right: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -472,6 +529,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   avatar: {
     width: 94,
@@ -484,42 +546,82 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 4,
     fontFamily: 'Inter-Bold',
+    textAlign: 'center',
   },
   userEmail: {
     fontSize: 16,
     color: '#e0e7ff',
     fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+  },
+  statsSummary: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 24,
+  },
+  statSummaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  statSummaryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
   },
   statsContainer: {
     marginTop: -24,
     marginHorizontal: 20,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 24,
-    padding: 20,
+    padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
     zIndex: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 20,
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 16,
+    gap: 12,
   },
   statCard: {
     width: (width - 80) / 2,
-    borderRadius: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statCardGradient: {
     padding: 16,
-    marginBottom: 12,
     alignItems: 'flex-start',
+    minHeight: 120,
   },
   statIconContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -540,9 +642,10 @@ const styles = StyleSheet.create({
   statsFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 12,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: COLORS.border,
+    marginTop: 8,
   },
   statsFooterItem: {
     flexDirection: 'row',
@@ -551,7 +654,7 @@ const styles = StyleSheet.create({
   statsFooterText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.subtext,
     fontFamily: 'Inter-Medium',
   },
   section: {
@@ -560,15 +663,18 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: '700',
+    color: COLORS.text,
     marginBottom: 16,
     fontFamily: 'Inter-SemiBold',
+    paddingLeft: 8,
   },
   settingsCard: {
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   settingItem: {
     flexDirection: 'row',
@@ -576,11 +682,11 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: COLORS.border,
   },
   settingIcon: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: '#e0e7ff',
     justifyContent: 'center',
@@ -593,11 +699,11 @@ const styles = StyleSheet.create({
   settingTitle: {
     flex: 1,
     fontSize: 16,
-    color: '#334155',
+    color: COLORS.text,
     fontFamily: 'Inter-Medium',
   },
   dangerText: {
-    color: '#ef4444',
+    color: COLORS.negative,
   },
   switch: {
     transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
@@ -607,22 +713,32 @@ const styles = StyleSheet.create({
     marginTop: 32,
     paddingHorizontal: 24,
   },
+  appLogo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   appName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#6366f1',
-    marginBottom: 4,
+    color: COLORS.primary,
     fontFamily: 'Inter-Bold',
   },
   appVersion: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: COLORS.subtext,
     marginBottom: 8,
     fontFamily: 'Inter-Regular',
   },
   appFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  appFooterText: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: COLORS.subtext,
     fontFamily: 'Inter-Medium',
   },
 });
