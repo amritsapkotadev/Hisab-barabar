@@ -14,8 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ArrowRight, Users, DollarSign, Calculator, Shield, Smartphone, Star, Heart, Sparkles, TrendingUp, Globe, CircleCheck as CheckCircle, Zap, Award } from 'lucide-react-native';
+import { ArrowRight, Users, DollarSign, Calculator, Shield, Smartphone, Star, Heart, Sparkles, TrendingUp, Globe, CircleCheck as CheckCircle, Zap, Award, FileText } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 const { width, height } = Dimensions.get('window');
 
@@ -236,6 +237,29 @@ export default function WelcomeScreen() {
         />
       ))}
     </View>
+  );
+
+  const renderMonthlyExpenseCard = () => (
+    <BlurView intensity={20} tint="dark" style={styles.balanceCard}>
+      <LinearGradient
+        colors={['rgba(239, 83, 80, 0.3)', 'rgba(236, 64, 122, 0.3)']}
+        style={styles.balanceGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.balanceContent}>
+        <View style={styles.balanceHeader}>
+          <FileText size={20} color={COLORS.text} />
+          <Text style={styles.balanceTitle}>Monthly Expense</Text>
+        </View>
+        <Text style={[styles.balanceValue, { color: COLORS.negative }]}>
+          ₹{spentThisMonth.toFixed(2)}
+        </Text>
+        <Text style={[styles.balanceStatus, { color: COLORS.negative }]}>
+          This month
+        </Text>
+      </View>
+    </BlurView>
   );
 
   return (
@@ -694,5 +718,42 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  balanceCard: {
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  balanceGradient: {
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  balanceContent: {
+    alignItems: 'center',
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  balanceTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginLeft: 8,
+  },
+  balanceValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  balanceStatus: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
   },
 });
