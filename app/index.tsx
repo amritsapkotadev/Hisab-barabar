@@ -47,19 +47,8 @@ export default function IndexScreen() {
         <Text style={styles.logoEmoji}>💰</Text>
         <Text style={styles.logoText}>SplitSaathi</Text>
       </View>
-      <View style={styles.dashboardCard}>
-        <View style={styles.dashboardRow}>
-          <View style={styles.dashboardItem}>
-            <Text style={styles.dashboardLabel}>Net Balance</Text>
-            <Text style={styles.dashboardValuePositive}>₹ 2,350</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.dashboardItem}>
-            <Text style={styles.dashboardLabel}>Monthly Expense</Text>
-            <Text style={styles.dashboardValueNegative}>₹ 4,120</Text>
-          </View>
-        </View>
-      </View>
+      {/* Net Balance Dashboard Card */}
+      
       <ActivityIndicator size="large" color="#4f46e5" />
       <Text style={styles.text}>Loading SplitSaathi...</Text>
       <Text style={styles.subtext}>Made with ❤️ in Nepal 🇳🇵</Text>
@@ -104,43 +93,29 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 32,
+    padding: 24,
+    marginBottom: 18,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  dashboardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dashboardItem: {
-    flex: 1,
+    elevation: 3,
     alignItems: 'center',
   },
-  dashboardLabel: {
-    fontSize: 15,
-    color: '#6b7280',
-    marginBottom: 6,
-    fontWeight: '500',
+  dashboardHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 8,
   },
   dashboardValuePositive: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '700',
     color: '#22c55e', // green
   },
   dashboardValueNegative: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '700',
     color: '#ef4444', // red
-  },
-  divider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#f1f5f9',
-    marginHorizontal: 16,
   },
 });
