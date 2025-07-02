@@ -13,12 +13,12 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import QRScannerScreen from './scan-qr';
 import {
-  Plus, X, ArrowLeft, Users, Smile, Share2, Copy, ChevronRight, Sparkles, Camera
+  Plus, X, ArrowLeft, Users, Share2, Copy, ChevronRight, Sparkles, Key
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -46,10 +46,12 @@ export default function AddGroupScreen() {
   const [shareableLink, setShareableLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>('');
-  const [showQRScanner, setShowQRScanner] = useState(false);
   const confettiRef = useRef<any>(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [isFocused, setIsFocused] = useState(false);
+
+  const { width } = Dimensions.get('window');
+  const buttonWidth = (width - 48) / 2 - 8;
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -161,24 +163,6 @@ export default function AddGroupScreen() {
       setLoading(false);
     }
   };
-  const handleQRScan = (data: string) => {
-    try {
-      const qrData = JSON.parse(data);
-      if (qrData.groupId && qrData.inviteCode) {
-        router.push({
-          pathname: '/scan-qr',
-          params: { 
-            groupId: qrData.groupId,
-            inviteCode: qrData.inviteCode 
-          }
-        });
-      }
-    } catch (error) {
-      Alert.alert('Invalid QR Code', 'Please scan a valid group invitation QR code');
-    }
-    setShowQRScanner(false);
-  };
-  
 
   const resetForm = () => {
     setGroupName('');
@@ -188,6 +172,10 @@ export default function AddGroupScreen() {
     setCreatedGroup(null);
     setShareableLink(null);
     setError(null);
+  };
+
+  const handleJoinByCode = () => {
+    router.push('/joingroupbycode');
   };
 
   if (success && createdGroup) {
@@ -204,7 +192,7 @@ export default function AddGroupScreen() {
           />
           <View style={styles.successModalCard}>
             <LinearGradient
-              colors={['#f0f9ff', '#e0f2fe']}
+              colors={['#7C3AED', '#5B21B6']}
               style={styles.successGradient}
               start={{x: 0, y: 0}}
               end={{x: 1, y: 1}}
@@ -223,7 +211,7 @@ export default function AddGroupScreen() {
                   <View style={styles.successMembersList}>
                     {createdGroup.members.map((member: string, index: number) => (
                       <View key={index} style={styles.successMemberPill}>
-                        <Users size={14} color="#6366f1" />
+                        <Users size={14} color="#6366F1" />
                         <Text style={styles.successMemberText}>{member}</Text>
                         {member === currentUserName && (
                           <View style={styles.youBadge}>
@@ -240,7 +228,7 @@ export default function AddGroupScreen() {
               <View style={styles.successLinkBox}>
                 <Text style={styles.successLinkText} numberOfLines={1}>{shareableLink}</Text>
                 <TouchableOpacity onPress={handleCopyLink} style={styles.copyButton}>
-                  <Copy size={18} color="#6366f1" />
+                  <Copy size={18} color="#6366F1" />
                 </TouchableOpacity>
               </View>
               
@@ -249,7 +237,7 @@ export default function AddGroupScreen() {
                 onPress={handleShareLink}
                 activeOpacity={0.8}
               >
-                <Share2 size={20} color="#6366f1" />
+                <Share2 size={20} color="#6366F1" />
                 <Text style={styles.successShareBtnText}>Share Invite</Text>
               </TouchableOpacity>
               
@@ -285,14 +273,14 @@ export default function AddGroupScreen() {
         keyboardVerticalOffset={80}
       >
         <LinearGradient
-          colors={['#f0f9ff', '#e0f2fe']}
+          colors={['#7C3AED', '#5B21B6']}
           style={styles.headerGradient}
           start={{x: 0, y: 0}}
           end={{x: 1, y: 0}}
         >
           <View style={styles.topBar}>
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={24} color="#0ea5e9" />
+              <ArrowLeft size={24} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>Create Group</Text>
             <View style={{ width: 40 }} />
@@ -328,7 +316,7 @@ export default function AddGroupScreen() {
                   value={groupName}
                   onChangeText={setGroupName}
                   placeholder="e.g. Vacation, Roommates, Project"
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor="#94A3B8"
                   maxLength={32}
                   autoCapitalize="words"
                   onFocus={() => setIsFocused(true)}
@@ -356,7 +344,7 @@ export default function AddGroupScreen() {
                   <View key={idx} style={styles.chip}>
                     <Text style={styles.chipText}>{member}</Text>
                     <TouchableOpacity style={styles.chipRemove} onPress={() => removeMember(idx)}>
-                      <X size={14} color="#ef4444" />
+                      <X size={14} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -367,7 +355,7 @@ export default function AddGroupScreen() {
                     value={newMember}
                     onChangeText={setNewMember}
                     placeholder={members.length === 0 ? 'Add member' : ''}
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor="#94A3B8"
                     maxLength={18}
                     autoCapitalize="words"
                     onSubmitEditing={addMember}
@@ -379,7 +367,7 @@ export default function AddGroupScreen() {
                     activeOpacity={0.7}
                     disabled={!newMember.trim()}
                   >
-                    <Plus size={18} color={newMember.trim() ? "#0ea5e9" : "#cbd5e1"} />
+                    <Plus size={18} color={newMember.trim() ? "#7C3AED" : "#CBD5E1"} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -393,29 +381,29 @@ export default function AddGroupScreen() {
           </View>
           
           <View style={styles.tipContainer}>
-            <Sparkles size={16} color="#0ea5e9" />
+            <Sparkles size={16} color="#7C3AED" />
             <Text style={styles.tipText}>You can add more members later from group settings</Text>
           </View>
         </ScrollView>
         
         <View style={styles.bottomButtonsContainer}>
           <TouchableOpacity
-            style={styles.scanQRButton}
-            onPress={() => setShowQRScanner(true)}
+            style={[styles.joinByCodeButton, { width: buttonWidth }]}
+            onPress={handleJoinByCode}
             activeOpacity={0.8}
           >
             <LinearGradient 
-              colors={["#7e22ce", "#9333ea"]}
+              colors={["#8B5CF6", "#7C3AED"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.scanQRButtonGradient}
+              style={styles.joinByCodeButtonGradient}
             >
-              <Camera size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.scanQRButtonText}>Join by QR</Text>
+              <Key size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.joinByCodeButtonText}>Join by Code</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <Animated.View style={[styles.createButtonContainer, { transform: [{ scale: scaleAnim }] }]}> 
+          <Animated.View style={[styles.createButtonContainer, { transform: [{ scale: scaleAnim }], width: buttonWidth }]}> 
             <TouchableOpacity
               style={styles.createButton}
               onPress={handleCreateGroup}
@@ -423,7 +411,7 @@ export default function AddGroupScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient 
-                colors={["#0ea5e9", "#38bdf8"]}
+                colors={["#10B981", "#059669"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.createButtonGradient}
@@ -432,7 +420,7 @@ export default function AddGroupScreen() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <>
-                    <Sparkles size={20} color="#fff" style={{ marginRight: 8 }} />
+                    <Plus size={20} color="#fff" style={{ marginRight: 8 }} />
                     <Text style={styles.createButtonText}>Create Group</Text>
                   </>
                 )}
@@ -456,7 +444,7 @@ export default function AddGroupScreen() {
                 style={styles.emojiPickerCloseButton}
                 onPress={() => setShowEmojiPicker(false)}
               >
-                <X size={24} color="#64748b" />
+                <X size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
             
@@ -481,38 +469,6 @@ export default function AddGroupScreen() {
           </View>
         </View>
       </RNModal>
-
-      <RNModal
-        visible={showQRScanner}
-        animationType="slide"
-        onRequestClose={() => setShowQRScanner(false)}
-      >
-        <View style={styles.qrScannerContainer}>
-          <TouchableOpacity 
-            style={styles.qrScannerCloseButton}
-            onPress={() => setShowQRScanner(false)}
-          >
-            <X size={28} color="#fff" />
-          </TouchableOpacity>
-          
-          <Text style={styles.qrScannerTitle}>Scan Group QR Code</Text>
-          
-          <View style={styles.qrScannerPlaceholder}>
-            <Text style={styles.qrScannerPlaceholderText}>
-              QR Scanner would appear here
-            </Text>
-            <TouchableOpacity
-              style={styles.qrScannerTestButton}
-              onPress={() => handleQRScan(JSON.stringify({
-                groupId: "test-group-id",
-                inviteCode: "test-invite-code"
-              }))}
-            >
-              <Text style={styles.qrScannerTestButtonText}>Simulate Scan</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </RNModal>
     </SafeAreaView>
   );
 }
@@ -520,13 +476,13 @@ export default function AddGroupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#F8FAFC',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   headerGradient: {
-    paddingBottom: 16,
+    paddingBottom: 24,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
@@ -544,12 +500,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   topBarTitle: {
     fontSize: 20,
-    fontFamily: 'Inter_700Bold',
-    color: '#0c4a6e',
+    fontWeight: '700',
+    color: '#fff',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -566,25 +522,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 8,
     marginBottom: 24,
-    shadowColor: '#0284c7',
-    shadowOpacity: 0.1,
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.2,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     borderWidth: 3,
-    borderColor: '#e0f2fe',
+    borderColor: '#EDE9FE',
   },
   editEmojiBadge: {
     position: 'absolute',
     bottom: -8,
-    backgroundColor: '#0ea5e9',
+    backgroundColor: '#7C3AED',
     paddingHorizontal: 12,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 12,
   },
   editEmojiText: {
     color: '#fff',
     fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
   },
   emojiText: {
     fontSize: 48,
@@ -594,8 +550,8 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     width: '92%',
     padding: 24,
-    shadowColor: '#0284c7',
-    shadowOpacity: 0.05,
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.1,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
     marginBottom: 16,
@@ -605,37 +561,37 @@ const styles = StyleSheet.create({
   },
   floatingLabel: {
     fontSize: 14,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#0ea5e9',
+    fontWeight: '600',
+    color: '#7C3AED',
     marginBottom: 8,
     marginLeft: 4,
   },
   optionalText: {
-    color: '#94a3b8',
+    color: '#94A3B8',
     fontWeight: 'normal',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E2E8F0',
   },
   inputFocused: {
-    borderColor: '#0ea5e9',
-    backgroundColor: '#f0f9ff',
+    borderColor: '#7C3AED',
+    backgroundColor: '#F5F3FF',
   },
   input: {
     flex: 1,
     fontSize: 16,
-    fontFamily: 'Inter_500Medium',
-    color: '#0f172a',
+    fontWeight: '500',
+    color: '#1E293B',
   },
   inputError: {
-    borderColor: '#ef4444',
+    borderColor: '#EF4444',
   },
   chipRow: {
     flexDirection: 'row',
@@ -647,7 +603,7 @@ const styles = StyleSheet.create({
   addMemberContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#F1F5F9',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -655,19 +611,19 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#EDE9FE',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   currentUserChip: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#DBEAFE',
     marginBottom: 8,
   },
   chipText: {
     fontSize: 15,
-    fontFamily: 'Inter_500Medium',
-    color: '#0c4a6e',
+    fontWeight: '500',
+    color: '#5B21B6',
     marginRight: 4,
   },
   chipRemove: {
@@ -677,8 +633,8 @@ const styles = StyleSheet.create({
   chipInput: {
     minWidth: 100,
     fontSize: 15,
-    fontFamily: 'Inter_500Medium',
-    color: '#0f172a',
+    fontWeight: '500',
+    color: '#1E293B',
     paddingVertical: 0,
     paddingHorizontal: 4,
   },
@@ -687,7 +643,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   youBadge: {
-    backgroundColor: '#0ea5e9',
+    backgroundColor: '#7C3AED',
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -696,18 +652,18 @@ const styles = StyleSheet.create({
   youBadgeText: {
     color: '#fff',
     fontSize: 10,
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
   },
   errorContainer: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#FEE2E2',
     borderRadius: 12,
     padding: 12,
     marginTop: 8,
   },
   errorText: {
     fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    color: '#ef4444',
+    fontWeight: '500',
+    color: '#EF4444',
     textAlign: 'center',
   },
   bottomButtonsContainer: {
@@ -716,38 +672,37 @@ const styles = StyleSheet.create({
     right: 24,
     bottom: 32,
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
-  scanQRButton: {
-    flex: 1,
+  joinByCodeButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#7e22ce',
-    shadowOpacity: 0.2,
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
   },
-  scanQRButtonGradient: {
+  joinByCodeButtonGradient: {
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   },
-  scanQRButtonText: {
+  joinByCodeButtonText: {
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
     fontSize: 16,
   },
   createButtonContainer: {
-    flex: 1,
-  },
-  createButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#0284c7',
-    shadowOpacity: 0.2,
+    shadowColor: '#10B981',
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
+  },
+  createButton: {
+    width: '100%',
   },
   createButtonGradient: {
     paddingVertical: 18,
@@ -757,22 +712,22 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
     fontSize: 16,
   },
   tipContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#F5F3FF',
     borderRadius: 16,
     marginHorizontal: 24,
     gap: 8,
   },
   tipText: {
     fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    color: '#0c4a6e',
+    fontWeight: '500',
+    color: '#5B21B6',
     flex: 1,
   },
   // Success Modal
@@ -811,21 +766,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#e0f2fe',
+    borderColor: '#EDE9FE',
   },
   successEmoji: {
     fontSize: 40,
   },
   successTitle: {
     fontSize: 24,
-    fontFamily: 'Inter_700Bold',
-    color: '#0ea5e9',
+    fontWeight: '700',
+    color: '#fff',
     marginBottom: 4,
   },
   successGroupName: {
     fontSize: 20,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#0c4a6e',
+    fontWeight: '600',
+    color: '#fff',
   },
   successMembersContainer: {
     width: '100%',
@@ -833,8 +788,8 @@ const styles = StyleSheet.create({
   },
   successMembersTitle: {
     fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#64748b',
+    fontWeight: '600',
+    color: '#64748B',
     marginBottom: 8,
     letterSpacing: 1,
   },
@@ -846,7 +801,7 @@ const styles = StyleSheet.create({
   successMemberPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#F5F3FF',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -854,32 +809,32 @@ const styles = StyleSheet.create({
   },
   successMemberText: {
     fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    color: '#0c4a6e',
+    fontWeight: '500',
+    color: '#5B21B6',
   },
   successSubtitle: {
     fontSize: 15,
-    fontFamily: 'Inter_500Medium',
-    color: '#64748b',
+    fontWeight: '500',
+    color: '#64748B',
     textAlign: 'center',
     marginBottom: 16,
   },
   successLinkBox: {
     flexDirection: 'row',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     width: '100%',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E2E8F0',
   },
   successLinkText: {
     flex: 1,
     fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    color: '#0ea5e9',
+    fontWeight: '500',
+    color: '#7C3AED',
   },
   copyButton: {
     padding: 4,
@@ -893,12 +848,12 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e0f2fe',
+    borderColor: '#EDE9FE',
     marginBottom: 24,
   },
   successShareBtnText: {
-    color: '#0ea5e9',
-    fontFamily: 'Inter_600SemiBold',
+    color: '#7C3AED',
+    fontWeight: '600',
     fontSize: 16,
   },
   successActionsRow: {
@@ -908,7 +863,7 @@ const styles = StyleSheet.create({
   },
   successActionPrimary: {
     flex: 1,
-    backgroundColor: '#0ea5e9',
+    backgroundColor: '#7C3AED',
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -918,20 +873,20 @@ const styles = StyleSheet.create({
   },
   successActionPrimaryText: {
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    fontWeight: '600',
     fontSize: 16,
   },
   successActionSecondary: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#F1F5F9',
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
   },
   successActionSecondaryText: {
-    color: '#0ea5e9',
-    fontFamily: 'Inter_600SemiBold',
+    color: '#7C3AED',
+    fontWeight: '600',
     fontSize: 16,
   },
   // Emoji Picker
@@ -956,8 +911,8 @@ const styles = StyleSheet.create({
   },
   emojiPickerTitle: {
     fontSize: 20,
-    fontFamily: 'Inter_700Bold',
-    color: '#0c4a6e',
+    fontWeight: '700',
+    color: '#1E293B',
   },
   emojiPickerCloseButton: {
     padding: 4,
@@ -975,54 +930,11 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   emojiOptionSelected: {
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#EDE9FE',
     borderWidth: 2,
-    borderColor: '#0ea5e9',
+    borderColor: '#7C3AED',
   },
   emojiOptionText: {
     fontSize: 28,
-  },
-  // QR Scanner
-  qrScannerContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  qrScannerCloseButton: {
-    position: 'absolute',
-    top: 50,
-    left: 24,
-    zIndex: 10,
-  },
-  qrScannerTitle: {
-    position: 'absolute',
-    top: 50,
-    color: '#fff',
-    fontSize: 20,
-    fontFamily: 'Inter_700Bold',
-  },
-  qrScannerPlaceholder: {
-    width: '80%',
-    height: 300,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 16,
-  },
-  qrScannerPlaceholderText: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  qrScannerTestButton: {
-    backgroundColor: '#7e22ce',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  qrScannerTestButtonText: {
-    color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
   },
 });
