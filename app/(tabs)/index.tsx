@@ -29,24 +29,26 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isIOS = Platform.OS === 'ios';
 import { useCameraPermission, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
 import QRScannerScreen from '../scan-qr';
-// Modern color palette
+
+// Modern light blue color palette
 const COLORS = {
-  primary: '#7E57C2',
-  secondary: '#5C6BC0',
-  accent: '#EC407A',
-  background: '#0F0F1B',
-  card: 'rgba(255,255,255,0.08)',
-  glass: 'rgba(255,255,255,0.15)',
-  border: 'rgba(255,255,255,0.1)',
-  text: '#FFFFFF',
-  subtext: '#A0A0C0',
-  positive: '#66BB6A',
-  negative: '#EF5350',
-  shadow: '#000000',
-  progressBg: 'rgba(255,255,255,0.1)',
-  chip: 'rgba(255,255,255,0.2)',
-  gradientStart: '#1E1E3A',
-  gradientEnd: '#2D2D4A',
+  primary: '#4361EE',
+  secondary: '#3A0CA3',
+  accent: '#4CC9F0',
+  background: '#F8F9FA',
+  card: '#FFFFFF',
+  glass: 'rgba(255,255,255,0.7)',
+  border: '#E2E8F0',
+  text: '#1E293B',
+  subtext: '#64748B',
+  positive: '#10B981',
+  negative: '#EF4444',
+  shadow: 'rgba(0,0,0,0.05)',
+  progressBg: '#EDF2F7',
+  chip: '#E0F2FE',
+  gradientStart: '#F0F9FF',
+  gradientEnd: '#E0F2FE',
+  toggleInactive: '#CBD5E1',
 };
 
 function getNetBalance(groups: Group[], userId: string) {
@@ -149,16 +151,16 @@ export default function HomeScreen() {
     const formattedNet = Math.abs(net).toFixed(2);
     
     return (
-      <BlurView intensity={20} tint="dark" style={styles.balanceCard}>
+      <View style={styles.balanceCard}>
         <LinearGradient
-          colors={['rgba(126, 87, 194, 0.3)', 'rgba(92, 107, 192, 0.3)']}
+          colors={['rgba(67, 97, 238, 0.1)', 'rgba(58, 12, 163, 0.1)']}
           style={styles.balanceGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
         <View style={styles.balanceContent}>
           <View style={styles.balanceHeader}>
-            <Wallet size={20} color={COLORS.text} />
+            <Wallet size={20} color={COLORS.primary} />
             <Text style={styles.balanceTitle}>Net Balance</Text>
           </View>
           <Text style={[styles.balanceValue, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
@@ -168,27 +170,27 @@ export default function HomeScreen() {
             {isPositive ? 'You are owed' : 'You owe'}
           </Text>
         </View>
-      </BlurView>
+      </View>
     );
   };
 
   const renderPersonalExpenseCard = () => (
-    <BlurView intensity={20} tint="dark" style={styles.balanceCard}>
+    <View style={styles.balanceCard}>
       <LinearGradient
-        colors={['rgba(239, 83, 80, 0.3)', 'rgba(236, 64, 122, 0.3)']}
+        colors={['rgba(239, 68, 68, 0.1)', 'rgba(239, 68, 68, 0.05)']}
         style={styles.balanceGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
       <View style={styles.balanceContent}>
         <View style={styles.balanceHeader}>
-          <FileText size={20} color={COLORS.text} />
-          <Text style={styles.balanceTitle}>Personal Expense (This Month)</Text>
+          <FileText size={20} color={COLORS.negative} />
+          <Text style={styles.balanceTitle}>Personal Expenses</Text>
         </View>
-        <Text style={[styles.balanceValue, { color: COLORS.negative }]}>₹{spentThisMonth.toFixed(2)}</Text>
-        <Text style={[styles.balanceStatus, { color: COLORS.negative }]}>This month</Text>
+        <Text style={[styles.balanceValue, { color: COLORS.text }]}>₹{spentThisMonth.toFixed(2)}</Text>
+        <Text style={[styles.balanceStatus, { color: COLORS.subtext }]}>This month</Text>
       </View>
-    </BlurView>
+    </View>
   );
 
   const renderQuickActions = () => (
@@ -230,7 +232,7 @@ export default function HomeScreen() {
         onPress={() => router.push(`/group/${item.id}`)}
         activeOpacity={0.9}
       >
-        <BlurView intensity={isIOS ? 20 : 10} tint="dark" style={styles.groupCardInner}>
+        <View style={styles.groupCardInner}>
           <View style={styles.groupIcon}>
             <Users size={18} color={COLORS.primary} />
           </View>
@@ -244,7 +246,7 @@ export default function HomeScreen() {
             }]} />
             <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
           </View>
-        </BlurView>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -295,9 +297,9 @@ export default function HomeScreen() {
         onPress={() => router.push(`/group/${item.groupId}`)}
         activeOpacity={0.85}
       >
-        <BlurView intensity={20} tint="dark" style={styles.expenseCardInner}>
-          <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive : COLORS.negative }]}>
-            <FileText size={16} color="#FFF" />
+        <View style={styles.expenseCardInner}>
+          <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive + '20' : COLORS.negative + '20' }]}>
+            <FileText size={16} color={isPositive ? COLORS.positive : COLORS.negative} />
           </View>
           <View style={styles.expenseInfo}>
             <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
@@ -316,7 +318,7 @@ export default function HomeScreen() {
               })}
             </Text>
           </View>
-        </BlurView>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -408,7 +410,7 @@ export default function HomeScreen() {
         {activeTab === 'personal' ? (
           <>
             {/* Personal Budget Card */}
-            <BlurView intensity={20} tint="dark" style={styles.personalBudgetCard}>
+            <View style={styles.personalBudgetCard}>
               <LinearGradient
                 colors={[COLORS.primary, COLORS.secondary]}
                 style={styles.personalBudgetGradient}
@@ -436,7 +438,7 @@ export default function HomeScreen() {
                   <Text style={styles.personalBudgetLeft}>₹{leftThisMonth.toFixed(2)}</Text>
                 </View>
               </View>
-            </BlurView>
+            </View>
             {/* Personal Expenses List */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -565,6 +567,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     backgroundColor: COLORS.glass,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   greetingContainer: {
     marginLeft: 12,
@@ -602,7 +606,13 @@ const styles = StyleSheet.create({
     height: 160,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   balanceGradient: {
     ...StyleSheet.absoluteFillObject,
@@ -618,7 +628,7 @@ const styles = StyleSheet.create({
   },
   balanceTitle: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.subtext,
     fontFamily: 'Inter-Medium',
     marginLeft: 8,
   },
@@ -626,11 +636,13 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     fontFamily: 'Inter-Bold',
+    color: COLORS.text,
   },
   balanceStatus: {
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     marginTop: 4,
+    color: COLORS.subtext,
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -649,10 +661,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   actionLabel: {
     fontSize: 14,
-    color: COLORS.text,
+    color: COLORS.subtext,
     fontFamily: 'Inter-Medium',
   },
   section: {
@@ -691,9 +708,18 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     height: 180,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   groupCardActive: {
     transform: [{ scale: 1.02 }],
+    borderColor: COLORS.primary,
   },
   groupCardInner: {
     flex: 1,
@@ -704,11 +730,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(126, 87, 194, 0.2)',
+    backgroundColor: COLORS.chip,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(126, 87, 194, 0.4)',
   },
   groupName: {
     fontSize: 18,
@@ -740,6 +764,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     top: 0,
+    borderRadius: 3,
   },
   progressText: {
     position: 'absolute',
@@ -756,6 +781,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 20,
     overflow: 'hidden',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   expenseCardInner: {
     padding: 16,
@@ -808,7 +841,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 16,
     marginHorizontal: 24,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: COLORS.card,
   },
   emptyText: {
     fontSize: 16,
@@ -856,22 +889,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginVertical: 16,
+    marginHorizontal: 24,
+    backgroundColor: COLORS.toggleInactive,
+    borderRadius: 20,
+    padding: 4,
   },
   toggleButton: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginHorizontal: 4,
+    borderRadius: 16,
+    marginHorizontal: 2,
   },
   toggleButtonActive: {
     backgroundColor: COLORS.primary,
   },
   toggleText: {
-    color: '#A0A0C0',
+    color: COLORS.subtext,
     fontWeight: '600',
     fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
   },
   toggleTextActive: {
     color: '#fff',
@@ -907,10 +944,17 @@ const styles = StyleSheet.create({
     height: 160,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   personalBudgetGradient: {
     ...StyleSheet.absoluteFillObject,
+    opacity: 0.8,
   },
   personalBudgetContent: {
     flex: 1,
@@ -919,7 +963,7 @@ const styles = StyleSheet.create({
   },
   personalBudgetTitle: {
     fontSize: 16,
-    color: COLORS.text,
+    color: '#fff',
     fontFamily: 'Inter-Medium',
     marginBottom: 4,
   },
@@ -927,7 +971,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     fontFamily: 'Inter-Bold',
-    color: COLORS.text,
+    color: '#fff',
     marginBottom: 8,
   },
   personalBudgetRow: {
@@ -938,17 +982,17 @@ const styles = StyleSheet.create({
   },
   personalBudgetLabel: {
     fontSize: 14,
-    color: COLORS.subtext,
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: 'Inter-Regular',
   },
   personalBudgetSpent: {
     fontSize: 14,
-    color: COLORS.negative,
+    color: '#fff',
     fontFamily: 'Inter-Bold',
   },
   personalBudgetLeft: {
     fontSize: 14,
-    color: COLORS.positive,
+    color: '#fff',
     fontFamily: 'Inter-Bold',
   },
   budgetModalContainer: {
@@ -959,18 +1003,24 @@ const styles = StyleSheet.create({
   },
   budgetModalContent: {
     width: '85%',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.card,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   budgetModalTitle: {
     fontSize: 18,
     color: COLORS.text,
     fontWeight: '700',
     marginBottom: 16,
+    fontFamily: 'Inter-Bold',
   },
   budgetInput: {
     width: '100%',
@@ -980,19 +1030,26 @@ const styles = StyleSheet.create({
     padding: 12,
     color: COLORS.text,
     fontSize: 18,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: COLORS.background,
     marginBottom: 8,
     textAlign: 'center',
+    fontFamily: 'Inter-Medium',
   },
   budgetModalBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   budgetModalBtnText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: 16,
+    fontFamily: 'Inter-Bold',
   },
 });
