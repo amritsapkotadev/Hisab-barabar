@@ -172,12 +172,31 @@ export default function HomeScreen() {
     );
   };
 
+  const renderPersonalExpenseCard = () => (
+    <BlurView intensity={20} tint="dark" style={styles.balanceCard}>
+      <LinearGradient
+        colors={['rgba(239, 83, 80, 0.3)', 'rgba(236, 64, 122, 0.3)']}
+        style={styles.balanceGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.balanceContent}>
+        <View style={styles.balanceHeader}>
+          <FileText size={20} color={COLORS.text} />
+          <Text style={styles.balanceTitle}>Personal Expense (This Month)</Text>
+        </View>
+        <Text style={[styles.balanceValue, { color: COLORS.negative }]}>₹{spentThisMonth.toFixed(2)}</Text>
+        <Text style={[styles.balanceStatus, { color: COLORS.negative }]}>This month</Text>
+      </View>
+    </BlurView>
+  );
+
   const renderQuickActions = () => (
     <View style={styles.actionsContainer}>
       {[
         { icon: <Plus size={22} color="#FFF" />, label: 'Add Expense', action: () => router.push('/add-expense-advanced') },
         { icon: <Users size={22} color="#FFF" />, label: 'Add group', action: () => router.push('/add-group') },
-        { icon: <Camera size={22} color="#FFF" />, label: 'Join Group', action: () => router.push('/joingroup') },
+        { icon: <Camera size={22} color="#FFF" />, label: 'Join Group', action: () => router.push('/joingroupbycode') },
       ].map((action, index) => (
         <TouchableOpacity
           key={index}
@@ -495,6 +514,7 @@ export default function HomeScreen() {
         ) : (
           <>
             {renderNetBalanceCard()}
+            {renderPersonalExpenseCard()}
             {renderQuickActions()}
             {renderGroupsSection()}
             {renderRecentExpenses()}
