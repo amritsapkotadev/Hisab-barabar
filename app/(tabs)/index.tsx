@@ -177,7 +177,7 @@ export default function HomeScreen() {
       {[
         { icon: <Plus size={22} color="#FFF" />, label: 'Add Expense', action: () => router.push('/add-expense-advanced') },
         { icon: <Users size={22} color="#FFF" />, label: 'Add group', action: () => router.push('/add-group') },
-       
+        { icon: <Camera size={22} color="#FFF" />, label: 'Join Group', action: () => router.push('/joingroup') },
       ].map((action, index) => (
         <TouchableOpacity
           key={index}
