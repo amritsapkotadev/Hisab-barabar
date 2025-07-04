@@ -17,7 +17,7 @@ import {
   Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { 
   ArrowLeft, 
   Plus, 
@@ -36,7 +36,8 @@ import {
   Settings,
   Trash2,
   ArrowUpRight,
-  Bell
+  Bell,
+  Minus
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
@@ -67,7 +68,14 @@ const COLORS = {
 };
 
 type TabType = { id: string; label: string; icon: React.ReactElement<any, any> };
-const SegmentedControl: FC<{ tabs: TabType[]; activeTab: string; onTabPress: (id: string) => void }> = ({ tabs, activeTab, onTabPress }) => {
+
+interface SegmentedControlProps {
+  tabs: TabType[];
+  activeTab: string;
+  onTabPress: (id: string) => void;
+}
+
+const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPress }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const tabWidth = (width - 40) / tabs.length;
 
@@ -99,7 +107,9 @@ const SegmentedControl: FC<{ tabs: TabType[]; activeTab: string; onTabPress: (id
           {React.isValidElement(tab.icon)
             ? React.cloneElement(tab.icon, { size: 18 })
             : tab.icon}
-          <Text style={[styles.segmentButtonText, activeTab === tab.id ? styles.segmentButtonTextActive : undefined]}>{tab.label}</Text>
+          <Text style={[styles.segmentButtonText, activeTab === tab.id ? styles.segmentButtonTextActive : undefined]}>
+            {tab.label}
+          </Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -127,6 +137,7 @@ const MemberAvatar = ({ name, size = 40 }: { name: string; size?: number }) => {
 
 const GroupScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const navigation = useNavigation();
   const [group, setGroup] = useState<Group | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,11 +149,12 @@ const GroupScreen = () => {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDeleteMemberModal, setShowDeleteMemberModal] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [exportResult, setExportResult] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
 
-  // Fetch group data
   const fetchGroupData = async () => {
     try {
       setLoading(true);
@@ -176,13 +188,22 @@ const GroupScreen = () => {
     fetchGroupData();
   }, [id]);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (showShareModal) {
+        setShowShareModal(false);
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, showShareModal]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchGroupData();
     setRefreshing(false);
   };
 
-  // Helper functions
   const formatDate = (dateString: string): string => new Date(dateString).toLocaleDateString('en-US', { 
     month: 'short', 
     day: 'numeric' 
@@ -190,7 +211,6 @@ const GroupScreen = () => {
 
   const isSettled = group && Object.values(group.balances).every(b => Math.abs(b) < 0.01);
 
-  // Handlers
   const handleDeleteGroup = async (): Promise<void> => {
     if (!group) return;
     try {
@@ -198,6 +218,18 @@ const GroupScreen = () => {
       router.replace('/');
     } catch (err) {
       Alert.alert('Error', 'Failed to delete group');
+    }
+  };
+
+  const handleDeleteMember = async (): Promise<void> => {
+    if (!group || !selectedMember) return;
+    try {
+      await apiService.removeGroupMember(group.id, selectedMember);
+      await fetchGroupData();
+      setShowDeleteMemberModal(false);
+      Alert.alert('Success', 'Member removed successfully');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to remove member');
     }
   };
 
@@ -238,7 +270,6 @@ const GroupScreen = () => {
     }
   };
 
-  // Render functions
   const renderExpenseCard = ({ item }: { item: Expense }) => (
     <Animated.View
       style={{
@@ -304,10 +335,20 @@ const GroupScreen = () => {
           <Text style={styles.adminText}>Group Admin</Text>
         )}
       </View>
+      {group && group.createdBy !== member && (
+        <TouchableOpacity
+          onPress={() => {
+            setSelectedMember(member);
+            setShowDeleteMemberModal(true);
+          }}
+          style={styles.deleteMemberButton}
+        >
+          <Minus size={20} color="#EF4444" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 
-  // Loading and error states
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -417,15 +458,6 @@ const GroupScreen = () => {
             <Text style={styles.summaryValue}>{expenses.length}</Text>
           </View>
         </Animated.View>
-
-        {/* Track Your Expense Banner */}
-        <View style={styles.trackingBanner}>
-          <View style={styles.trackingIcon}>
-            <Bell size={20} color="#fff" />
-          </View>
-          <Text style={styles.trackingText}>Track Your Expenses</Text>
-          <ArrowUpRight size={18} color="#fff" />
-        </View>
 
         {/* Segmented Control */}
         <SegmentedControl 
@@ -537,6 +569,14 @@ const GroupScreen = () => {
         message="Are you sure? This action cannot be undone."
       />
 
+      <DeleteConfirmationModal
+        visible={showDeleteMemberModal}
+        onClose={() => setShowDeleteMemberModal(false)}
+        onConfirm={handleDeleteMember}
+        title="Remove Member"
+        message={`Are you sure you want to remove ${selectedMember} from the group?`}
+      />
+
       <Modal
         visible={showAddMemberModal}
         transparent
@@ -579,44 +619,6 @@ const GroupScreen = () => {
         </BlurView>
       </Modal>
 
-      <Modal
-        visible={showExportModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowExportModal(false)}
-      >
-        <BlurView intensity={30} style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.modalCloseButton}
-              onPress={() => setShowExportModal(false)}
-              activeOpacity={0.7}
-            >
-              <X size={24} color="#94a3b8" />
-            </TouchableOpacity>
-            
-            <Text style={styles.modalTitle}>Export Data</Text>
-            
-            <ScrollView style={styles.exportScroll}>
-              <Text selectable style={styles.exportText}>
-                {exportResult}
-              </Text>
-            </ScrollView>
-            
-            <TouchableOpacity 
-              style={styles.copyButton}
-              onPress={() => {
-                Clipboard.setStringAsync(exportResult);
-                Alert.alert('Copied!', 'Data copied to clipboard');
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.copyText}>Copy to Clipboard</Text>
-            </TouchableOpacity>
-          </View>
-        </BlurView>
-      </Modal>
-
       {/* Settings Modal */}
       <Modal
         visible={showSettings}
@@ -624,52 +626,95 @@ const GroupScreen = () => {
         animationType="slide"
         onRequestClose={() => setShowSettings(false)}
       >
-        <BlurView intensity={30} style={styles.settingsContainer}>
-          <View style={styles.settingsContent}>
-            <TouchableOpacity 
-              style={styles.modalCloseButton}
-              onPress={() => setShowSettings(false)}
-              activeOpacity={0.7}
-            >
-              <X size={24} color="#94a3b8" />
-            </TouchableOpacity>
-            
-            <Text style={styles.modalTitle}>Group Settings</Text>
-            
-            <TouchableOpacity 
-              style={styles.settingsOption}
-              onPress={() => setShowShareModal(true)}
-              activeOpacity={0.7}
-            >
-              <Share2 size={20} color="#7C3AED" />
-              <Text style={styles.settingsOptionText}>Share Group</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.settingsOption}
-              onPress={handleExport}
-              activeOpacity={0.7}
-            >
-              <Download size={20} color="#7C3AED" />
-              <Text style={styles.settingsOptionText}>Export Data</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.settingsOption}
-              onPress={() => setShowDeleteModal(true)}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={20} color="#EF4444" />
-              <Text style={[styles.settingsOptionText, { color: '#EF4444' }]}>Delete Group</Text>
-            </TouchableOpacity>
-          </View>
-        </BlurView>
+        <Pressable 
+          style={styles.settingsBackdrop}
+          onPress={() => setShowSettings(false)}
+        >
+          <BlurView intensity={30} style={styles.settingsContainer}>
+            <Pressable style={styles.settingsContent}>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={() => setShowSettings(false)}
+                activeOpacity={0.7}
+              >
+                <X size={24} color="#94a3b8" />
+              </TouchableOpacity>
+              
+              <Text style={styles.modalTitle}>Group Settings</Text>
+              
+              <View style={styles.settingsOptionsContainer}>
+                <TouchableOpacity 
+                  style={styles.settingsOption}
+                  onPress={() => {
+                    setShowSettings(false);
+                    setShowShareModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Share2 size={20} color="#7C3AED" />
+                  <Text style={styles.settingsOptionText}>Share Group</Text>
+                  <ChevronRight size={20} color="#94a3b8" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.settingsOption}
+                  onPress={() => {
+                    setShowSettings(false);
+                    handleExport();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Download size={20} color="#7C3AED" />
+                  <Text style={styles.settingsOptionText}>Export Data</Text>
+                  <ChevronRight size={20} color="#94a3b8" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.settingsOption}
+                  onPress={() => {
+                    setShowSettings(false);
+                    setShowDeleteModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Trash2 size={20} color="#EF4444" />
+                  <Text style={[styles.settingsOptionText, { color: '#EF4444' }]}>Delete Group</Text>
+                  <ChevronRight size={20} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </BlurView>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  // ... (keep all previous styles)
+
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  deleteMemberButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  // ... (rest of the styles remain the same)
+
+
+
+
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
@@ -1140,10 +1185,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  settingsContainer: {
+  settingsBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  settingsContainer: {
+    width: '100%',
   },
   settingsContent: {
     backgroundColor: '#fff',
@@ -1151,6 +1199,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     paddingTop: 40,
+  },
+  settingsOptionsContainer: {
+    marginTop: 16,
   },
   settingsOption: {
     flexDirection: 'row',
