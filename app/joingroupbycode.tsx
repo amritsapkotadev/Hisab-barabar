@@ -1,22 +1,32 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native'
 import React, { useState } from 'react'
+import { apiService } from '@/services/api';
 
 export default function JoinGroup() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!code.trim()) {
       Alert.alert('Error', 'Please enter a group code.');
       return;
     }
     setLoading(true);
-    // TODO: Replace with actual join group logic
-    setTimeout(() => {
+
+    try {
+      const response = await apiService.joinGroupWithInviteCode(code.trim().toUpperCase());
+      if (response) {
+        Alert.alert('Success', `Joined group with code: ${code}`);
+      } else {
+        Alert.alert('Error', 'Failed to join group. Please check the code and try again.');
+      }
+    } catch (error) {
+      console.error('Join group error:', error);
+      Alert.alert('Error', 'Failed to join group. Please try again.');
+    } finally {
       setLoading(false);
-      Alert.alert('Success', `Joined group with code: ${code}`);
       setCode('');
-    }, 1200);
+    }
   };
 
   return (

@@ -232,10 +232,23 @@ export const apiService = {
   },
 
   // New method for joining group via QR code
-  async joinGroupWithInviteCode(groupId: string, inviteCode: string): Promise<Group> {
+  // async joinGroupWithInviteCode(groupId: string, inviteCode: string): Promise<Group> {
+  //   try {
+  //     console.log('Joining group with invite code:', { groupId, inviteCode });
+  //     const response = await api.post(`/api/groups/${groupId}/join-with-code`, {
+  //       inviteCode
+  //     });
+  //     console.log('Join group with code response:', response.data);
+  //     return response.data.data || response.data;
+  //   } catch (error: any) {
+  //     console.error('Join group with code API call failed:', error);
+  //     throw new Error(error.response?.data?.message || 'Failed to join group with invite code');
+  //   }
+  // },
+  async joinGroupWithInviteCode(inviteCode: string): Promise<Group> {
     try {
-      console.log('Joining group with invite code:', { groupId, inviteCode });
-      const response = await api.post(`/api/groups/${groupId}/join-with-code`, {
+      console.log('Joining group with invite code:', { inviteCode });
+      const response = await api.post(`/api/groups/join`, {
         inviteCode
       });
       console.log('Join group with code response:', response.data);

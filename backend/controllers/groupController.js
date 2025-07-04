@@ -119,6 +119,8 @@ exports.joinGroupById = async (req, res) => {
 exports.joinGroup = async (req, res) => {
   try {
     const { inviteCode } = req.body;
+    const userId = req.user._id;
+    const username = req.user.name;
 
     if (!inviteCode || !inviteCode.trim()) {
       return res.status(400).json({ message: 'Invite code is required' });
@@ -131,9 +133,15 @@ exports.joinGroup = async (req, res) => {
       return res.status(404).json({ message: 'Invalid invite code' });
     }
 
-    // Check if user is already a member (if using user IDs)
-    // For now, we'll just return success
-    
+    // Check if user is already a member
+    if (group.members.includes(username)) {
+      return res.status(400).json({ message: 'You are already a member of this group' });
+    }
+
+    // Add user to group members
+    group.members.push(username); // Assuming you want to store usernames
+    await group.save();
+
     res.json({
       success: true,
       data: {
