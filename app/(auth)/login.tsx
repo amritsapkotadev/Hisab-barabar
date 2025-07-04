@@ -139,7 +139,7 @@ export default function LoginScreen() {
               <View style={styles.inputContainer}>
                 <Lock size={20} color="#94A3B8" style={styles.inputIcon} />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { paddingRight: -5 }]}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Enter your password"
@@ -304,6 +304,7 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 8,
+    marginRight: -8,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
