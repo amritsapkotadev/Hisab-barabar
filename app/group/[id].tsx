@@ -215,10 +215,10 @@ const GroupScreen = () => {
     if (!group) return;
     try {
       const res = await apiService.deleteGroup(group.id);
-      Alert.alert('Success', 'Group deleted successfully');
+      Alert.alert(res.message);
       router.replace('/(tabs)/groups');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to delete group');
+    } catch (err: string | any) {
+      Alert.alert('Error', err.response?.data?.message);
     }
   };
 
@@ -226,12 +226,12 @@ const GroupScreen = () => {
     if (!group || !selectedMember) return;
     console.log(`Removing member: ${selectedMember} from group: ${group.id}`);
     try {
-      await apiService.removeGroupMember(group.id, selectedMember);
+      const res = await apiService.removeGroupMember(group.id, selectedMember);
       await fetchGroupData();
       setShowDeleteMemberModal(false);
-      Alert.alert('Success', 'Member removed successfully');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to remove member');
+      Alert.alert(res.message);
+    } catch (err: string | any) {
+      Alert.alert('Error', err.response?.data?.message);
     }
   };
 

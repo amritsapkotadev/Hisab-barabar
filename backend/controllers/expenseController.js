@@ -85,7 +85,7 @@ exports.createExpense = async (req, res) => {
 // Create an unequal expense (for advanced splits)
 exports.createUnequalExpense = async (req, res) => {
   try {
-    const { groupId, description, amount, paidBy, splits, date, payers, splitType } = req.body;
+    const { groupId, description, amount, paidBy, splits, date, payers, splitType, type } = req.body;
 
     // Validation
     if (!groupId || !description || !amount || !date) {
@@ -217,6 +217,7 @@ exports.createUnequalExpense = async (req, res) => {
       groupId,
       date,
       createdBy: req.user._id,
+      type: type
     });
 
     const savedExpense = await expense.save();

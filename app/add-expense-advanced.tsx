@@ -252,6 +252,7 @@ export default function AddAdvancedExpenseScreen() {
         }),
         splitType,
         date,
+        type: 'group' as const,
       };
       
       await apiService.createUnequalExpense(expenseData);

@@ -328,6 +328,7 @@ export const apiService = {
     paidBy: string;
     splits: { participant: string; amount: number; percentage?: number }[];
     date: string;
+    type: 'group';
   }): Promise<Expense> {
     try {
       console.log('Creating unequal expense:', expense);
@@ -378,7 +379,7 @@ export const apiService = {
     }
   },
 
-  async deleteGroup(groupId: string): Promise<void> {
+  async deleteGroup(groupId: string): Promise<{ message: string }> {
     try {
       const response = await api.delete(`/api/groups/${groupId}`);
       return response.data;
@@ -387,7 +388,7 @@ export const apiService = {
     }
   },
 
-  async removeGroupMember(groupId: string, memberName: string): Promise<void> {
+  async removeGroupMember(groupId: string, memberName: string): Promise<{message: string}> {
     try {
       const response = await api.delete(`/api/groups/member/${groupId}`, {
         data: { memberName }
