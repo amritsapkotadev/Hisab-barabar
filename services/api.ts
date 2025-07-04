@@ -380,7 +380,19 @@ export const apiService = {
 
   async deleteGroup(groupId: string): Promise<void> {
     try {
-      await api.delete(`/api/groups/${groupId}`);
+      const response = await api.delete(`/api/groups/${groupId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async removeGroupMember(groupId: string, memberName: string): Promise<void> {
+    try {
+      const response = await api.delete(`/api/groups/member/${groupId}`, {
+        data: { memberName }
+      });
+      return response.data;
     } catch (error) {
       throw error;
     }

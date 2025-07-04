@@ -17,7 +17,7 @@ exports.createGroup = async (req, res) => {
 
     // Filter out empty members
     const validMembers = members.filter(member => member && member.trim() !== '');
-    
+
     if (validMembers.length === 0) {
       return res.status(400).json({ message: 'At least one valid member is required' });
     }
@@ -71,7 +71,7 @@ exports.joinGroupById = async (req, res) => {
 
     // Find group by ID
     const group = await Group.findById(groupId);
-    
+
     if (!group) {
       return res.status(404).json({ message: 'Group not found' });
     }
@@ -128,7 +128,7 @@ exports.joinGroup = async (req, res) => {
 
     // Find group by invite code
     const group = await Group.findOne({ inviteCode: inviteCode.trim().toUpperCase() });
-    
+
     if (!group) {
       return res.status(404).json({ message: 'Invalid invite code' });
     }
@@ -166,7 +166,7 @@ exports.deleteGroup = async (req, res) => {
 
     // Find group
     const group = await Group.findById(id);
-    
+
     if (!group) {
       return res.status(404).json({ message: 'Group not found' });
     }
@@ -219,6 +219,43 @@ exports.deleteGroup = async (req, res) => {
   }
 };
 
+// Delete member from group
+exports.deleteMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    const group = await Group.findById(id);
+
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (group.createdBy.toString() !== req.user._id.toString() && !req.user.isAdmin) {
+      return res.status(403).json({ message: 'Not authorized to delete members from this group' });
+    }
+
+    if (!group.members.includes(name)) {
+      return res.status(404).json({ message: 'Member not found in the group' });
+    }
+
+    group.members = group.members.filter(member => member.toString() !== name.toString());
+    await group.save();
+
+    res.json({
+      success: true,
+      message: 'Member removed from the group successfully',
+      updatedMembers: group.members
+    });
+  } catch (error) {
+    console.error('Delete member error:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid group ID or member ID' });
+    }
+    res.status(500).json({ message: 'Server error while deleting member from group' });
+  }
+};
+
 // Get all groups for the authenticated user
 exports.getGroups = async (req, res) => {
   try {
@@ -236,10 +273,10 @@ exports.getGroups = async (req, res) => {
         try {
           // Get expenses for this group
           const expenses = await Expense.find({ groupId: group._id });
-          
+
           // Calculate total expenses
           const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-          
+
           // Calculate balances
           const balances = {};
           group.members.forEach(member => {
@@ -248,12 +285,12 @@ exports.getGroups = async (req, res) => {
 
           expenses.forEach(expense => {
             const splitAmount = expense.amount / expense.participants.length;
-            
+
             // Add to payer's balance
             if (balances.hasOwnProperty(expense.paidBy)) {
               balances[expense.paidBy] += expense.amount;
             }
-            
+
             // Subtract split amount from each participant
             expense.participants.forEach(participant => {
               if (balances.hasOwnProperty(participant)) {
@@ -314,8 +351,8 @@ exports.getGroupById = async (req, res) => {
     }
 
     // Check if user has access to this group (either creator or member)
-    const hasAccess = group.createdBy.toString() === req.user._id.toString() || 
-                     group.members.includes(req.user.name);
+    const hasAccess = group.createdBy.toString() === req.user._id.toString() ||
+      group.members.includes(req.user.name);
 
     if (!hasAccess) {
       return res.status(403).json({ message: 'Not authorized to access this group' });
@@ -323,10 +360,10 @@ exports.getGroupById = async (req, res) => {
 
     // Get expenses for this group
     const expenses = await Expense.find({ groupId: group._id });
-    
+
     // Calculate total expenses
     const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    
+
     // Calculate balances
     const balances = {};
     group.members.forEach(member => {
@@ -335,12 +372,12 @@ exports.getGroupById = async (req, res) => {
 
     expenses.forEach(expense => {
       const splitAmount = expense.amount / expense.participants.length;
-      
+
       // Add to payer's balance
       if (balances.hasOwnProperty(expense.paidBy)) {
         balances[expense.paidBy] += expense.amount;
       }
-      
+
       // Subtract split amount from each participant
       expense.participants.forEach(participant => {
         if (balances.hasOwnProperty(participant)) {

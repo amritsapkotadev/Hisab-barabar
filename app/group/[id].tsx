@@ -214,17 +214,18 @@ const GroupScreen = () => {
   const handleDeleteGroup = async (): Promise<void> => {
     if (!group) return;
     try {
-      await apiService.deleteGroup(group.id);
-      router.replace('/');
+      const res = await apiService.deleteGroup(group.id);
+      Alert.alert('Success', 'Group deleted successfully');
+      router.replace('/(tabs)/groups');
     } catch (err) {
       Alert.alert('Error', 'Failed to delete group');
     }
   };
 
-  const handleDeleteMember = async (): Promise<void> => {
-    if (!group || !selectedMember) return;
+  const handleDeleteMember = async (memberName: string): Promise<void> => {
+    if (!group || !memberName) return;
     try {
-      await apiService.removeGroupMember(group.id, selectedMember);
+      await apiService.removeGroupMember(group.id, memberName);
       await fetchGroupData();
       setShowDeleteMemberModal(false);
       Alert.alert('Success', 'Member removed successfully');
@@ -318,7 +319,7 @@ const GroupScreen = () => {
       <Text style={[
         styles.balanceAmount,
         balance > 0 ? styles.positiveBalance : 
-        balance < 0 ? styles.negativeBalance : 
+        balance < 0 ? styles.negativeBalance :
         styles.neutralBalance
       ]}>
         {balance > 0 ? '+' : ''}₹{Math.abs(balance).toFixed(2)}
@@ -340,6 +341,7 @@ const GroupScreen = () => {
           onPress={() => {
             setSelectedMember(member);
             setShowDeleteMemberModal(true);
+            handleDeleteMember(member);
           }}
           style={styles.deleteMemberButton}
         >
@@ -678,7 +680,7 @@ const GroupScreen = () => {
                   activeOpacity={0.7}
                 >
                   <Trash2 size={20} color="#EF4444" />
-                  <Text style={[styles.settingsOptionText, { color: '#EF4444' }]}>Delete Group</Text>
+                  <Text style={[styles.settingsOptionText, { color: '#EF4444' }]} onPress={handleDeleteGroup}>Delete Group</Text>
                   <ChevronRight size={20} color="#94a3b8" />
                 </TouchableOpacity>
               </View>
