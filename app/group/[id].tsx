@@ -333,11 +333,11 @@ const GroupScreen = () => {
       <MemberAvatar name={member} size={44} />
       <View style={styles.memberInfo}>
         <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
-        {(group && group.createdBy === member) && (
+        {(group && group.members[0] === member) && (
           <Text style={styles.adminText}>Group Admin</Text>
         )}
       </View>
-      {(group && group.createdBy !== member) && (
+      {(group && group.members[0] !== member) && (
         <TouchableOpacity
           onPress={() => {
             setSelectedMember(member);

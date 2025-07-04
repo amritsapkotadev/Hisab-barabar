@@ -26,6 +26,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import { apiService } from '@/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EMOJIS = [
   '🎉', '👫', '✈️', '🏖️', '🍽️', '🏠', '🎂', '🛒', '🧑‍🤝‍🧑', 
