@@ -705,6 +705,8 @@ const styles = StyleSheet.create({
   groupCard: {
     width: SCREEN_WIDTH * 0.7,
     marginRight: 16,
+    marginTop: 2,
+    marginBottom: 2,
     borderRadius: 24,
     overflow: 'hidden',
     height: 180,

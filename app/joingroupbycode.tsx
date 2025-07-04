@@ -1,5 +1,6 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native'
 import React, { useState } from 'react'
+import { router } from 'expo-router';
 import { apiService } from '@/services/api';
 
 export default function JoinGroup() {
@@ -16,6 +17,7 @@ export default function JoinGroup() {
     try {
       const response = await apiService.joinGroupWithInviteCode(code.trim().toUpperCase());
       if (response) {
+        router.replace('/(tabs)/groups');
         Alert.alert('Success', `Joined group with code: ${code}`);
       } else {
         Alert.alert('Error', 'Failed to join group. Please check the code and try again.');

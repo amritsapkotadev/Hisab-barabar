@@ -34,7 +34,7 @@ exports.createGroup = async (req, res) => {
     const savedGroup = await group.save();
 
     // Generate invite link with environment variable domain
-    const APP_DOMAIN = process.env.APP_DOMAIN || 'splitsaathi.up.railway.app';
+    const APP_DOMAIN = process.env.APP_DOMAIN || 'hisab-barabar.up.railway.app';
     const inviteLink = `https://${APP_DOMAIN}/join/${savedGroup._id}`;
 
     res.status(201).json({
