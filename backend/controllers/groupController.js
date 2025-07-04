@@ -223,7 +223,7 @@ exports.deleteGroup = async (req, res) => {
 exports.deleteMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name } = req.body;
+    const { memberName } = req.body;
 
     const group = await Group.findById(id);
 
@@ -235,11 +235,11 @@ exports.deleteMember = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete members from this group' });
     }
 
-    if (!group.members.includes(name)) {
+    if (!group.members.includes(memberName)) {
       return res.status(404).json({ message: 'Member not found in the group' });
     }
 
-    group.members = group.members.filter(member => member.toString() !== name.toString());
+    group.members = group.members.filter(member => member.toString() !== memberName.toString());
     await group.save();
 
     res.json({

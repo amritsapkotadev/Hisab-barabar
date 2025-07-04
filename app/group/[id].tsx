@@ -18,15 +18,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
-import { 
-  ArrowLeft, 
-  Plus, 
-  DollarSign, 
-  Share2, 
-  Users, 
-  ChevronRight, 
-  Check, 
-  BarChart2, 
+import {
+  ArrowLeft,
+  Plus,
+  DollarSign,
+  Share2,
+  Users,
+  ChevronRight,
+  Check,
+  BarChart2,
   UserPlus,
   Download,
   X,
@@ -92,7 +92,7 @@ const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPre
     <View style={styles.segmentedContainer}>
       <Animated.View style={[
         styles.activeSegment,
-        { 
+        {
           width: tabWidth - 16,
           transform: [{ translateX }],
         }
@@ -164,7 +164,7 @@ const GroupScreen = () => {
       ]);
       setGroup(groupData);
       setExpenses(expenseData);
-      
+
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -204,9 +204,9 @@ const GroupScreen = () => {
     setRefreshing(false);
   };
 
-  const formatDate = (dateString: string): string => new Date(dateString).toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric' 
+  const formatDate = (dateString: string): string => new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
   });
 
   const isSettled = group && Object.values(group.balances).every(b => Math.abs(b) < 0.01);
@@ -222,10 +222,11 @@ const GroupScreen = () => {
     }
   };
 
-  const handleDeleteMember = async (memberName: string): Promise<void> => {
-    if (!group || !memberName) return;
+  const handleDeleteMember = async (): Promise<void> => {
+    if (!group || !selectedMember) return;
+    console.log(`Removing member: ${selectedMember} from group: ${group.id}`);
     try {
-      await apiService.removeGroupMember(group.id, memberName);
+      await apiService.removeGroupMember(group.id, selectedMember);
       await fetchGroupData();
       setShowDeleteMemberModal(false);
       Alert.alert('Success', 'Member removed successfully');
@@ -283,7 +284,7 @@ const GroupScreen = () => {
         }]
       }}
     >
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.expenseCard}
         onPress={() => router.push(`/group/${id}/expense/${item.id}`)}
         activeOpacity={0.8}
@@ -318,9 +319,9 @@ const GroupScreen = () => {
       <Text style={styles.balanceName} numberOfLines={1}>{member}</Text>
       <Text style={[
         styles.balanceAmount,
-        balance > 0 ? styles.positiveBalance : 
-        balance < 0 ? styles.negativeBalance :
-        styles.neutralBalance
+        balance > 0 ? styles.positiveBalance :
+          balance < 0 ? styles.negativeBalance :
+            styles.neutralBalance
       ]}>
         {balance > 0 ? '+' : ''}₹{Math.abs(balance).toFixed(2)}
       </Text>
@@ -332,16 +333,16 @@ const GroupScreen = () => {
       <MemberAvatar name={member} size={44} />
       <View style={styles.memberInfo}>
         <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
-        {group && group.createdBy === member && (
+        {(group && group.createdBy === member) && (
           <Text style={styles.adminText}>Group Admin</Text>
         )}
       </View>
-      {group && group.createdBy !== member && (
+      {(group && group.createdBy !== member) && (
         <TouchableOpacity
           onPress={() => {
             setSelectedMember(member);
             setShowDeleteMemberModal(true);
-            handleDeleteMember(member);
+            handleDeleteMember();
           }}
           style={styles.deleteMemberButton}
         >
@@ -367,7 +368,7 @@ const GroupScreen = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error || 'Group not found'}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.retryButton}
             onPress={fetchGroupData}
             activeOpacity={0.8}
@@ -394,20 +395,20 @@ const GroupScreen = () => {
         end={{ x: 1, y: 0 }}
         style={styles.header}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
-        
+
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerEmoji}>{group.emoji || '💰'}</Text>
           <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         </View>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.headerButton}
           onPress={() => setShowSettings(true)}
           activeOpacity={0.7}
@@ -429,12 +430,12 @@ const GroupScreen = () => {
         }
       >
         {/* Summary Cards */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.summaryContainer,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ scale: cardAnim }] 
+              transform: [{ scale: cardAnim }]
             }
           ]}
         >
@@ -462,10 +463,10 @@ const GroupScreen = () => {
         </Animated.View>
 
         {/* Segmented Control */}
-        <SegmentedControl 
-          tabs={tabs} 
-          activeTab={activeTab} 
-          onTabPress={setActiveTab} 
+        <SegmentedControl
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabPress={setActiveTab}
         />
 
         {/* Tab Content */}
@@ -504,9 +505,9 @@ const GroupScreen = () => {
                   ))}
                 </View>
               )}
-              
+
               {!isSettled && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.settleButton}
                   activeOpacity={0.8}
                   onPress={() => router.push(`/settle-up/${group.id}`)}
@@ -519,7 +520,7 @@ const GroupScreen = () => {
 
           {activeTab === 'members' && (
             <>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.addMemberButton}
                 onPress={() => setShowAddMemberModal(true)}
                 activeOpacity={0.7}
@@ -527,7 +528,7 @@ const GroupScreen = () => {
                 <UserPlus size={18} color="#7C3AED" />
                 <Text style={styles.addMemberText}>Add Member</Text>
               </TouchableOpacity>
-              
+
               <View style={styles.membersContainer}>
                 {group.members.map(member => (
                   <View key={member}>
@@ -587,29 +588,29 @@ const GroupScreen = () => {
       >
         <BlurView intensity={30} style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowAddMemberModal(false)}
               activeOpacity={0.7}
             >
               <X size={24} color="#94a3b8" />
             </TouchableOpacity>
-            
+
             <Text style={styles.modalTitle}>Join Group</Text>
             <Text style={styles.modalText}>
               You'll be added as a member to "{group.name}"
             </Text>
-            
+
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => setShowAddMemberModal(false)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={handleAddMember}
                 activeOpacity={0.7}
@@ -628,24 +629,24 @@ const GroupScreen = () => {
         animationType="slide"
         onRequestClose={() => setShowSettings(false)}
       >
-        <Pressable 
+        <Pressable
           style={styles.settingsBackdrop}
           onPress={() => setShowSettings(false)}
         >
           <BlurView intensity={30} style={styles.settingsContainer}>
             <Pressable style={styles.settingsContent}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setShowSettings(false)}
                 activeOpacity={0.7}
               >
                 <X size={24} color="#94a3b8" />
               </TouchableOpacity>
-              
+
               <Text style={styles.modalTitle}>Group Settings</Text>
-              
+
               <View style={styles.settingsOptionsContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.settingsOption}
                   onPress={() => {
                     setShowSettings(false);
@@ -657,8 +658,8 @@ const GroupScreen = () => {
                   <Text style={styles.settingsOptionText}>Share Group</Text>
                   <ChevronRight size={20} color="#94a3b8" />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.settingsOption}
                   onPress={() => {
                     setShowSettings(false);
@@ -670,8 +671,8 @@ const GroupScreen = () => {
                   <Text style={styles.settingsOptionText}>Export Data</Text>
                   <ChevronRight size={20} color="#94a3b8" />
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.settingsOption}
                   onPress={() => {
                     setShowSettings(false);

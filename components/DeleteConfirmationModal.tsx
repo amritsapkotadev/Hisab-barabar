@@ -87,8 +87,8 @@ export default function DeleteConfirmationModal({
       accessibilityViewIsModal
       accessibilityLabel="Delete Confirmation Modal"
     >
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}> 
-        <View style={styles.container} accessibilityRole="dialog" aria-modal="true">
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <View style={styles.container} accessibilityRole="alert" aria-modal={true}>
           <View style={styles.header}>
             <View style={[styles.iconContainer, isDangerous && styles.dangerIconContainer]}>
               {isDangerous ? (
