@@ -19,6 +19,7 @@ import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
+import { router } from 'expo-router';
 
 const AddExpenseScreen = () => {
   const [amount, setAmount] = useState('');
@@ -93,6 +94,7 @@ const AddExpenseScreen = () => {
       setNote('');
       setCategory('');
       Alert.alert('Success', 'Expense added successfully!');
+      router.replace('/(tabs)');
     } catch (err: any) {
       console.error('Add expense error:', err);
       Alert.alert('Error', err.message || 'Failed to add expense.');
