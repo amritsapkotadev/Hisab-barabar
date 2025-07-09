@@ -8,6 +8,8 @@ const {
   deleteExpense,
   updateExpense,
   getExpenseById,
+  createPersonalExpense,
+  getPersonalExpenses
 } = require('../controllers/expenseController');
 // router.post('/personal', createPersonalExpense);
 
@@ -19,10 +21,12 @@ router.use(protect);
 // 📥 Create Expense
 router.post('/', createExpense); // general expense route
 router.post('/add', createExpense); 
+router.post('/personal', createPersonalExpense); // general expense route
 router.post('/unequal', createUnequalExpense); // for custom splits
 
 // 📤 Read Expenses
 router.get('/', getAllExpenses); // all expenses for the user
+router.get('/personal', getPersonalExpenses); // all expenses for the user
 router.get('/group/:groupId', getExpensesByGroup); // by group
 router.get('/:id', getExpenseById); // single expense
 

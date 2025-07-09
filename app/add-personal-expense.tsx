@@ -78,7 +78,7 @@ const AddExpenseScreen = () => {
 
     setLoading(true);
     try {
-      await apiService.createExpense({
+      await apiService.createPersonalExpense({
         description: note,
         amount: Number(amount),
         date: date.toISOString(),

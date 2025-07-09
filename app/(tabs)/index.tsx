@@ -62,6 +62,7 @@ function getNetBalance(groups: Group[], userId: string) {
 export default function HomeScreen() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [perExpenses, setPerExpenses] = useState<Expense[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,14 +79,16 @@ export default function HomeScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [groupsRes, expensesRes, userRes] = await Promise.all([
+      const [groupsRes, expensesRes, userRes, personalExpenses] = await Promise.all([
         apiService.getGroups(),
         apiService.getAllExpenses(),
         apiService.getUserProfile(),
+        apiService.getPersonalExpenses(),
       ]);
       setGroups(groupsRes);
       setExpenses(expensesRes);
       setUser(userRes);
+      setPerExpenses(personalExpenses);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -110,7 +113,12 @@ export default function HomeScreen() {
   };
 
   // Filter for personal expenses
-  const personalExpenses = expenses.filter(e => (!e.groupId || (e.participants && user && e.participants.length === 1 && e.participants[0] === user.name)));
+  const personalExpenses = expenses.filter(
+    e => user && (
+      (!e.groupId && e.paidBy === user.name) ||
+      (e.participants && e.participants.includes(user.name))
+    )
+  );
 
   // Calculate spent and left for this month
   const now = new Date();

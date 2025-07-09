@@ -309,10 +309,34 @@ export const apiService = {
     }
   },
 
+  async getPersonalExpenses(): Promise<Expense[]> {
+    try {
+      console.log('Fetching personal expenses...');
+      const response = await api.get('/api/expenses/personal');
+      console.log('Personal expenses response:', response.data);
+      return response.data.data || response.data;
+    } catch (error) {
+      console.error('Get personal expenses API call failed:', error);
+      throw error;
+    }
+  },
+
   async createExpense(expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> {
     try {
       console.log('Creating expense:', expense);
       const response = await api.post('/api/expenses', expense);
+      console.log('Create expense response:', response.data);
+      return response.data.data || response.data;
+    } catch (error: any) {
+      console.error('Create expense API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to create expense');
+    }
+  },
+
+  async createPersonalExpense(expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> {
+    try {
+      console.log('Creating expense:', expense);
+      const response = await api.post('/api/expenses/personal', expense);
       console.log('Create expense response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -338,24 +362,6 @@ export const apiService = {
     } catch (error: any) {
       console.error('Create unequal expense API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to create unequal expense');
-    }
-  },
-
-  async createPersonalExpense(expense: {
-    description: string;
-    amount: number;
-    date: string;
-    paymentMethod: string;
-    category: string;
-  }): Promise<Expense> {
-    try {
-      console.log('Creating personal expense:', expense);
-      const response = await api.post('/api/expenses/personal', expense);
-      console.log('Create personal expense response:', response.data);
-      return response.data.data || response.data;
-    } catch (error: any) {
-      console.error('Create personal expense API call failed:', error);
-      throw new Error(error.response?.data?.message || 'Failed to create personal expense');
     }
   },
 

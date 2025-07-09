@@ -1,6 +1,49 @@
 const Expense = require('../models/Expense');
 const Group = require('../models/Group');
 
+exports.createPersonalExpense = async (req, res) => {
+  try {
+    const { description, amount, date, paymentMethod = 'Cash', category = 'Other', paidBy, participants } = req.body;
+    const userId = req.user?.id;
+
+    // Basic validation
+    if (!description || !amount || !date) {
+      return res.status(400).json({ message: 'Description, amount, and date are required.' });
+    }
+
+    // Additional type checks (optional, but recommended)
+    if (typeof description !== 'string' || typeof amount !== 'number' || typeof date !== 'string') {
+      return res.status(400).json({ message: 'Invalid data types for one or more fields.' });
+    }
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized. User not found in request.' });
+    }
+
+    // Create the expense
+    const expense = await Expense.create({
+      description,
+      amount,
+      date,
+      paymentMethod,
+      category,
+      user: userId,       // Link to user
+      type: 'personal',   // Mark as personal
+      createdBy: req.user._id,
+      paidBy: paidBy.trim(),
+      participants: participants.map(p => p.trim()),
+    });
+
+    console.log(`✅ Personal expense created for user ${userId}:`, expense);
+
+    res.status(201).json({ data: expense });
+  } catch (error) {
+    console.error('❌ Error creating personal expense:', error);
+    res.status(500).json({ message: 'Something went wrong while creating the personal expense.' });
+  }
+};
+
+
 // Create a new expense
 exports.createExpense = async (req, res) => {
   try {
@@ -37,8 +80,8 @@ exports.createExpense = async (req, res) => {
 
     const invalidParticipants = participants.filter(p => !validMembers.includes(p.trim()));
     if (invalidParticipants.length > 0) {
-      return res.status(400).json({ 
-        message: `Invalid participants: ${invalidParticipants.join(', ')}` 
+      return res.status(400).json({
+        message: `Invalid participants: ${invalidParticipants.join(', ')}`
       });
     }
 
@@ -127,24 +170,24 @@ exports.createUnequalExpense = async (req, res) => {
     // Validate payers if provided
     let finalPaidBy = paidBy;
     let finalPayers = [];
-    
+
     if (payers && Array.isArray(payers) && payers.length > 0) {
       // Multi-payer expense
       const validMembers = group.members;
-      
+
       // Validate all payers are group members
       const invalidPayers = payers.filter(payer => !validMembers.includes(payer.name.trim()));
       if (invalidPayers.length > 0) {
-        return res.status(400).json({ 
-          message: `Invalid payers: ${invalidPayers.map(p => p.name).join(', ')}` 
+        return res.status(400).json({
+          message: `Invalid payers: ${invalidPayers.map(p => p.name).join(', ')}`
         });
       }
 
       // Validate total paid amount equals expense amount
       const totalPaid = payers.reduce((sum, payer) => sum + payer.amountPaid, 0);
       if (Math.abs(totalPaid - amount) > 0.01) {
-        return res.status(400).json({ 
-          message: `Total paid amount (${totalPaid}) must equal expense amount (${amount})` 
+        return res.status(400).json({
+          message: `Total paid amount (${totalPaid}) must equal expense amount (${amount})`
         });
       }
 
@@ -158,12 +201,12 @@ exports.createUnequalExpense = async (req, res) => {
       if (!paidBy) {
         return res.status(400).json({ message: 'Payer is required' });
       }
-      
+
       const validMembers = group.members;
       if (!validMembers.includes(paidBy.trim())) {
         return res.status(400).json({ message: 'Payer must be a group member' });
       }
-      
+
       finalPaidBy = paidBy.trim();
       finalPayers = [{ name: finalPaidBy, amountPaid: amount }];
     }
@@ -171,23 +214,23 @@ exports.createUnequalExpense = async (req, res) => {
     // Validate splits if provided
     let finalSplits = [];
     let finalParticipants = [];
-    
+
     if (splits && Array.isArray(splits) && splits.length > 0) {
       const validMembers = group.members;
-      
+
       // Validate all participants are group members
       const invalidParticipants = splits.filter(split => !validMembers.includes(split.participant.trim()));
       if (invalidParticipants.length > 0) {
-        return res.status(400).json({ 
-          message: `Invalid participants in splits: ${invalidParticipants.map(p => p.participant).join(', ')}` 
+        return res.status(400).json({
+          message: `Invalid participants in splits: ${invalidParticipants.map(p => p.participant).join(', ')}`
         });
       }
 
       // Validate total split amount equals expense amount
       const totalSplit = splits.reduce((sum, split) => sum + split.amount, 0);
       if (Math.abs(totalSplit - amount) > 0.01) {
-        return res.status(400).json({ 
-          message: `Total split amount (${totalSplit}) must equal expense amount (${amount})` 
+        return res.status(400).json({
+          message: `Total split amount (${totalSplit}) must equal expense amount (${amount})`
         });
       }
 
@@ -196,7 +239,7 @@ exports.createUnequalExpense = async (req, res) => {
         amount: split.amount,
         percentage: split.percentage
       }));
-      
+
       finalParticipants = splits.map(split => split.participant.trim());
     } else {
       return res.status(400).json({ message: 'Splits are required for advanced expenses' });
@@ -251,6 +294,35 @@ exports.createUnequalExpense = async (req, res) => {
   }
 };
 
+exports.getPersonalExpenses = async (req, res) => {
+  try {
+    const userId = req.user._id;  // Get the authenticated user's ID
+    const expenses = await Expense.find({ user: userId, type: 'personal' }).sort({ createdAt: -1 });
+    // Transform expenses to match frontend interface
+    const transformedExpenses = expenses.map(expense => ({
+      id: expense._id,
+      description: expense.description,
+      amount: expense.amount,
+      date: expense.date,
+      createdAt: expense.createdAt,
+      paidBy: expense.paidBy,
+      participants: expense.participants,
+      splitType: expense.splitType,
+      groupId: expense.groupId,  // Include groupId if needed
+    }));
+    res.json({
+      success: true,
+      data: transformedExpenses
+    });
+  } catch (error) {
+    console.error('Get personal expenses error:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+    res.status(500).json({ message: 'Server error while fetching personal expenses' });
+  }
+};
+
 // Get expenses for a specific group
 exports.getExpensesByGroup = async (req, res) => {
   try {
@@ -297,18 +369,31 @@ exports.getExpensesByGroup = async (req, res) => {
   }
 };
 
-// Get all expenses for the authenticated user
+// Get all expenses for the authenticated user (including personal and group expenses)
 exports.getAllExpenses = async (req, res) => {
   try {
-    // Get all groups for the user
-    const userGroups = await Group.find({ createdBy: req.user._id });
+    // Get all groups where the user is a member
+    const userGroups = await Group.find({ members: req.user.name });
     const groupIds = userGroups.map(group => group._id);
 
-    // Get all expenses for these groups
-    const expenses = await Expense.find({ groupId: { $in: groupIds } }).sort({ createdAt: -1 });
+    // Get all group expenses where user is a participant or payer
+    const groupExpenses = await Expense.find({
+      groupId: { $in: groupIds }
+    }).sort({ createdAt: -1 });
+
+    // Get all personal expenses for the user
+    const personalExpenses = await Expense.find({
+      user: req.user._id,
+      type: 'personal'
+    }).sort({ createdAt: -1 });
+
+    // Combine and sort all expenses by createdAt descending
+    const allExpenses = [...groupExpenses, ...personalExpenses].sort(
+      (a, b) => b.createdAt - a.createdAt
+    );
 
     // Transform expenses to match frontend interface
-    const transformedExpenses = expenses.map(expense => ({
+    const transformedExpenses = allExpenses.map(expense => ({
       id: expense._id,
       groupId: expense.groupId,
       description: expense.description,
@@ -320,6 +405,7 @@ exports.getAllExpenses = async (req, res) => {
       splitType: expense.splitType,
       date: expense.date,
       createdAt: expense.createdAt,
+      type: expense.type
     }));
 
     res.json({
