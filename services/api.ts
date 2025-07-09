@@ -265,7 +265,7 @@ export const apiService = {
       console.log('Fetching group invite details:', groupId);
       const response = await api.get(`/api/groups/${groupId}/invite-details`);
       console.log('Group invite details:', response.data);
-      
+
       // Generate QR code data string
       const qrCodeData = JSON.stringify({
         groupId,
@@ -394,7 +394,7 @@ export const apiService = {
     }
   },
 
-  async removeGroupMember(groupId: string, memberName: string): Promise<{message: string}> {
+  async removeGroupMember(groupId: string, memberName: string): Promise<{ message: string }> {
     try {
       const response = await api.delete(`/api/groups/member/${groupId}`, {
         data: { memberName }

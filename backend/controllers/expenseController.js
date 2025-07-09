@@ -297,7 +297,7 @@ exports.createUnequalExpense = async (req, res) => {
 exports.getPersonalExpenses = async (req, res) => {
   try {
     const userId = req.user._id;  // Get the authenticated user's ID
-    const expenses = await Expense.find({ user: userId, type: 'personal' }).sort({ createdAt: -1 });
+    const expenses = await Expense.find({ createdBy: userId, type: 'personal' }).sort({ createdAt: -1 });
     // Transform expenses to match frontend interface
     const transformedExpenses = expenses.map(expense => ({
       id: expense._id,

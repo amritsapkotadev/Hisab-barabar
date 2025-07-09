@@ -87,6 +87,7 @@ const AddExpenseScreen = () => {
         participants: [user.name],
         paymentMethod,
         category,
+        createdBy: user.id,
       });
       setAmount('');
       setNote('');

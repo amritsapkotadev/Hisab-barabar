@@ -79,7 +79,7 @@ export default function HomeScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [groupsRes, expensesRes, userRes, personalExpenses] = await Promise.all([
+      const [groupsRes, expensesRes, userRes, personalExpensesRes] = await Promise.all([
         apiService.getGroups(),
         apiService.getAllExpenses(),
         apiService.getUserProfile(),
@@ -88,7 +88,7 @@ export default function HomeScreen() {
       setGroups(groupsRes);
       setExpenses(expensesRes);
       setUser(userRes);
-      setPerExpenses(personalExpenses);
+      setPerExpenses(personalExpensesRes);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -113,17 +113,17 @@ export default function HomeScreen() {
   };
 
   // Filter for personal expenses
-  const personalExpenses = expenses.filter(
-    e => user && (
-      (!e.groupId && e.paidBy === user.name) ||
-      (e.participants && e.participants.includes(user.name))
-    )
-  );
+  // const personalExpenses = expenses.filter(
+  //   e => user && (
+  //     (!e.groupId && e.paidBy === user.name) ||
+  //     (e.participants && e.participants.includes(user.name))
+  //   )
+  // );
 
   // Calculate spent and left for this month
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const spentThisMonth = personalExpenses
+  const spentThisMonth = perExpenses
     .filter(e => new Date(e.date || e.createdAt) >= startOfMonth)
     .reduce((sum, e) => sum + e.amount, 0);
   const leftThisMonth = Math.max(0, personalBudget - spentThisMonth);
@@ -182,24 +182,24 @@ export default function HomeScreen() {
     );
   };
 
-  const renderPersonalExpenseCard = () => (
-    <View style={styles.balanceCard}>
-      <LinearGradient
-        colors={['rgba(239, 68, 68, 0.1)', 'rgba(239, 68, 68, 0.05)']}
-        style={styles.balanceGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-      <View style={styles.balanceContent}>
-        <View style={styles.balanceHeader}>
-          <FileText size={20} color={COLORS.negative} />
-          <Text style={styles.balanceTitle}>Personal Expenses</Text>
-        </View>
-        <Text style={[styles.balanceValue, { color: COLORS.text }]}>₹{spentThisMonth.toFixed(2)}</Text>
-        <Text style={[styles.balanceStatus, { color: COLORS.subtext }]}>This month</Text>
-      </View>
-    </View>
-  );
+  // const renderPersonalExpenseCard = () => (
+  //   <View style={styles.balanceCard}>
+  //     <LinearGradient
+  //       colors={['rgba(239, 68, 68, 0.1)', 'rgba(239, 68, 68, 0.05)']}
+  //       style={styles.balanceGradient}
+  //       start={{ x: 0, y: 0 }}
+  //       end={{ x: 1, y: 1 }}
+  //     />
+  //     <View style={styles.balanceContent}>
+  //       <View style={styles.balanceHeader}>
+  //         <FileText size={20} color={COLORS.negative} />
+  //         <Text style={styles.balanceTitle}>Personal Expenses</Text>
+  //       </View>
+  //       <Text style={[styles.balanceValue, { color: COLORS.text }]}>₹{spentThisMonth.toFixed(2)}</Text>
+  //       <Text style={[styles.balanceStatus, { color: COLORS.subtext }]}>This month</Text>
+  //     </View>
+  //   </View>
+  // );
 
   const renderQuickActions = () => (
     <View style={styles.actionsContainer}>
@@ -452,14 +452,14 @@ export default function HomeScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Personal Expenses</Text>
               </View>
-              {personalExpenses.length === 0 ? (
+              {perExpenses.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No personal expenses yet</Text>
                   <Text style={styles.emptySubtext}>Add a personal expense to see it here</Text>
                 </View>
               ) : (
                 <FlatList
-                  data={personalExpenses}
+                  data={perExpenses}
                   renderItem={renderExpenseItem}
                   keyExtractor={e => e.id}
                   scrollEnabled={false}
@@ -524,7 +524,7 @@ export default function HomeScreen() {
         ) : (
           <>
             {renderNetBalanceCard()}
-            {renderPersonalExpenseCard()}
+            {/* {renderPersonalExpenseCard()} */}
             {renderQuickActions()}
             {renderGroupsSection()}
             {renderRecentExpenses()}
