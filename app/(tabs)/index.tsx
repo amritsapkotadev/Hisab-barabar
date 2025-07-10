@@ -31,6 +31,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isIOS = Platform.OS === 'ios';
 import { useCameraPermission, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
 import QRScannerScreen from '../scan-qr';
+import { initPushNotifications } from '@/config/PushNotifications';
 
 // Modern light blue color palette
 const COLORS = {
@@ -112,6 +113,10 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  useEffect(() => {
+    initPushNotifications();
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
