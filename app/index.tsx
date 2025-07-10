@@ -48,7 +48,7 @@ export default function IndexScreen() {
         <Text style={styles.logoText}>SplitSaathi</Text>
       </View>
       {/* Net Balance Dashboard Card */}
-      
+
       <ActivityIndicator size="large" color="#4f46e5" />
       <Text style={styles.text}>Loading SplitSaathi...</Text>
       <Text style={styles.subtext}>Made with ❤️ in Nepal 🇳🇵</Text>
