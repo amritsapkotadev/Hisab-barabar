@@ -19,12 +19,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight, Edit3 } from 'lucide-react-native';
+import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight, Edit3, Trash2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { apiService } from '@/services/api';
 import type { Group, Expense, User } from '@/types';
 import AddExpenseScreen from '../add-personal-expense'; 
+import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isIOS = Platform.OS === 'ios';
 import { useCameraPermission, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
@@ -74,6 +75,9 @@ export default function HomeScreen() {
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [budgetInput, setBudgetInput] = useState('');
   const inputRef = useRef<TextInput>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -110,6 +114,21 @@ export default function HomeScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchAll();
+  };
+
+  const handleDeleteExpense = async () => {
+    if (!selectedExpense) return;
+    setDeleting(true);
+    try {
+      await apiService.deleteExpense(selectedExpense.id);
+      setPerExpenses(perExpenses.filter(e => e.id !== selectedExpense.id));
+      setSelectedExpense(null);
+    } catch (err) {
+      // Optionally show error
+    } finally {
+      setDeleting(false);
+      setDeleteModalVisible(false);
+    }
   };
 
   // Filter for personal expenses
@@ -204,9 +223,9 @@ export default function HomeScreen() {
   const renderQuickActions = () => (
     <View style={styles.actionsContainer}>
       {[
-        { icon: <Plus size={22} color="#FFF" />, label: 'Add Expense', action: () => router.push('/add-expense-advanced') },
-        { icon: <Users size={22} color="#FFF" />, label: 'Add group', action: () => router.push('/add-group') },
-        { icon: <Camera size={22} color="#FFF" />, label: 'Join Group', action: () => router.push('/joingroupbycode') },
+        { icon: <Plus size={32} color="#FFF" />, label: 'Add Expense', action: () => router.push('/add-expense-advanced') },
+        { icon: <Users size={32} color="#FFF" />, label: 'Add group', action: () => router.push('/add-group') },
+        { icon: <Camera size={32} color="#FFF" />, label: 'Join Group', action: () => router.push('/joingroupbycode') },
       ].map((action, index) => (
         <TouchableOpacity
           key={index}
@@ -298,36 +317,52 @@ export default function HomeScreen() {
   const renderExpenseItem = ({ item }: { item: Expense }) => {
     const group = groups.find((g) => g.id === item.groupId);
     const isPositive = user && item.paidBy === user.name;
-    
+    const isPersonal = !item.groupId; // Personal expenses have no groupId
     return (
-      <TouchableOpacity
-        style={styles.expenseCard}
-        onPress={() => router.push(`/group/${item.groupId}`)}
-        activeOpacity={0.85}
-      >
-        <View style={styles.expenseCardInner}>
-          <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive + '20' : COLORS.negative + '20' }]}>
-            <FileText size={16} color={isPositive ? COLORS.positive : COLORS.negative} />
+      <View style={styles.expenseCard}>
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          onPress={() => item.groupId ? router.push(`/group/${item.groupId}`) : null}
+          activeOpacity={0.85}
+          disabled={!item.groupId}
+        >
+          <View style={styles.expenseCardInner}>
+            <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive + '20' : COLORS.negative + '20' }]}> 
+              <FileText size={16} color={isPositive ? COLORS.positive : COLORS.negative} />
+            </View>
+            <View style={styles.expenseInfo}>
+              <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
+              <Text style={styles.expenseGroup} numberOfLines={1}>
+                {group ? group.name : isPersonal ? 'Personal' : 'Unknown Group'}
+              </Text>
+            </View>
+            <View style={styles.expenseAmountContainer}>
+              <Text style={[styles.expenseAmount, { color: isPositive ? COLORS.positive : COLORS.negative }]}>₹{item.amount.toFixed(2)}</Text>
+              <Text style={styles.expenseDate}>
+                {new Date(item.date || item.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+              </Text>
+            </View>
+            {isPersonal && (
+              <View style={styles.expenseActions}>
+                <TouchableOpacity
+                  style={styles.actionIconSmall}
+                  onPress={() => router.push({ pathname: '/add-personal-expense', params: { expenseId: item.id } })}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Edit3 size={18} color={COLORS.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionIconSmall}
+                  onPress={() => { setSelectedExpense(item); setDeleteModalVisible(true); }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Trash2 size={18} color={COLORS.negative} />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-          <View style={styles.expenseInfo}>
-            <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
-            <Text style={styles.expenseGroup} numberOfLines={1}>
-              {group ? group.name : 'Unknown Group'}
-            </Text>
-          </View>
-          <View style={styles.expenseAmountContainer}>
-            <Text style={[styles.expenseAmount, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-              ₹{item.amount.toFixed(2)}
-            </Text>
-            <Text style={styles.expenseDate}>
-              {new Date(item.date || item.createdAt).toLocaleDateString('en-IN', { 
-                month: 'short', 
-                day: 'numeric' 
-              })}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -531,6 +566,15 @@ export default function HomeScreen() {
           </>
         )}
       </Animated.ScrollView>
+      <DeleteConfirmationModal
+        visible={deleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        onConfirm={handleDeleteExpense}
+        title="Delete Expense"
+        message="Are you sure you want to delete this personal expense? This action cannot be undone."
+        confirmText="Delete"
+        isDangerous
+      />
     </SafeAreaView>
   );
 }
@@ -663,8 +707,8 @@ const styles = StyleSheet.create({
     width: '30%',
   },
   actionIcon: {
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1061,5 +1105,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     fontFamily: 'Inter-Bold',
+  },
+  expenseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  actionIcon: {
+    marginHorizontal: 4,
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
+  actionIconSmall: {
+    marginHorizontal: 4,
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
   },
 });
