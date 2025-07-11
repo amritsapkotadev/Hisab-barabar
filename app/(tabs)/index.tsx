@@ -30,7 +30,7 @@ import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isIOS = Platform.OS === 'ios';
 import { useCameraPermission, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
-import QRScannerScreen from '../scan-qr';
+// import QRScannerScreen from '../scan-qr';
 import { initPushNotifications } from '@/config/PushNotifications';
 
 // Modern light blue color palette
@@ -1135,12 +1135,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
-  },
-  actionIcon: {
-    marginHorizontal: 4,
-    padding: 4,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
   },
   actionIconSmall: {
     marginHorizontal: 4,

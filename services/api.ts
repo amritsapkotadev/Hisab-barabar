@@ -345,7 +345,7 @@ export const apiService = {
     }
   },
 
-  async createPersonalExpense(expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> {
+  async createPersonalExpense(expense: Omit<Expense, 'id' | 'createdAt' | 'groupId'>): Promise<Expense> {
     try {
       console.log('Creating expense:', expense);
       const response = await api.post('/api/expenses/personal', expense);

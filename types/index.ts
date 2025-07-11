@@ -25,6 +25,10 @@ export interface Expense {
   splitType?: 'equal' | 'unequal' | 'percentage' | 'shares';
   date: string;
   createdAt: string;
+  type: 'personal' | 'group';
+  paymentMethod: string;
+  category: string;
+  createdBy: string;
 }
 
 export interface User {
