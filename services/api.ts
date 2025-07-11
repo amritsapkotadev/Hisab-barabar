@@ -359,7 +359,6 @@ export const apiService = {
 
   async updatePersonalExpense(expenseId: string, updates: Partial<Expense>): Promise<Expense> {
     try {
-      console.log('Updating personal expense:', { expenseId, updates });
       const response = await api.put(`/api/expenses/personal/${expenseId}`, updates);
       console.log('Update personal expense response:', response.data);
       return response.data.data || response.data;
