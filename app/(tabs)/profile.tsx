@@ -196,7 +196,7 @@ export default function ProfileScreen() {
       entering={FadeInDown.duration(600)}
     >
       <LinearGradient
-        colors={[color, `${color}80`]}
+        colors={[color, color]}
         style={styles.statCardGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -557,6 +557,7 @@ const styles = StyleSheet.create({
   statsSummary: {
     flexDirection: 'row',
     marginTop: 16,
+    marginBottom: 16,
     gap: 24,
   },
   statSummaryItem: {
@@ -604,7 +605,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statCard: {
-    width: (width - 80) / 2,
+    width: (width - 102) / 2,
     borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
