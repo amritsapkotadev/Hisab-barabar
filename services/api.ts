@@ -1,6 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Group, Expense, User } from '@/types';
+import { Group, Expense, User, BudgetResponse } from '@/types';
 import { GoogleUser } from './googleAuth';
 
 // API Configuration - Use environment variable or fallback to Railway domain
@@ -177,6 +177,18 @@ export const apiService = {
     return !!authToken;
   },
 
+  // Personal budget
+  async setPersonalBudget(budget: number): Promise<BudgetResponse> {
+    try {
+      const response = await api.post('/users/budget', { budget });
+      console.log('Set budget response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Set personal budget API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to set personal budget');
+    }
+  },
+
   // Groups
   async getGroups(): Promise<Group[]> {
     try {
@@ -345,6 +357,18 @@ export const apiService = {
     }
   },
 
+  async updatePersonalExpense(expenseId: string, updates: Partial<Expense>): Promise<Expense> {
+    try {
+      console.log('Updating personal expense:', { expenseId, updates });
+      const response = await api.put(`/api/expenses/personal/${expenseId}`, updates);
+      console.log('Update personal expense response:', response.data);
+      return response.data.data || response.data;
+    } catch (error: any) {
+      console.error('Update personal expense API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to update personal expense');
+    }
+  },
+
   async createUnequalExpense(expense: {
     groupId: string;
     description: string;
@@ -372,6 +396,16 @@ export const apiService = {
     } catch (error: any) {
       console.error('Delete expense API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete expense');
+    }
+  },
+
+  async deletePersonalExpense(expenseId: string): Promise<void> {
+    try {
+      console.log('Deleting personal expense:', expenseId);
+      await api.delete(`/api/expenses/personal/${expenseId}`);
+    } catch (error: any) {
+      console.error('Delete personal expense API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to delete personal expense');
     }
   },
 

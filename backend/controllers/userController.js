@@ -250,11 +250,48 @@ exports.getUserProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         picture: user.picture,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        budget: user.budget
       }
     });
   } catch (error) {
     console.error('Get user profile error:', error);
     res.status(500).json({ message: 'Server error while fetching profile' });
+  }
+};
+
+exports.setBudget = async (req, res) => {
+  try {
+    const { budget } = req.body;
+
+    // Validate budget
+    if (budget === undefined || budget < 0) {
+      return res.status(400).json({ message: 'Budget must be a non-negative number' });
+    }
+
+    // Update user's budget
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { budget: budget },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        budget: user.budget
+      },
+      message: 'Budget updated successfully'
+    });
+  } catch (error) {
+    console.error('Set budget error:', error);
+    res.status(500).json({ message: 'Server error while setting budget' });
   }
 };

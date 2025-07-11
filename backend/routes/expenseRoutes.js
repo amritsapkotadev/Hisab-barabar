@@ -9,7 +9,9 @@ const {
   updateExpense,
   getExpenseById,
   createPersonalExpense,
-  getPersonalExpenses
+  getPersonalExpenses,
+  deletePersonalExpense,
+  updatePersonalExpense
 } = require('../controllers/expenseController');
 // router.post('/personal', createPersonalExpense);
 
@@ -32,8 +34,10 @@ router.get('/:id', getExpenseById); // single expense
 
 // 🔁 Update Expense
 router.put('/:id', updateExpense);
+router.put('/personal/:id', updatePersonalExpense);
 
 // ❌ Delete Expense
 router.delete('/:id', deleteExpense);
+router.delete('/personal/:id', deletePersonalExpense);
 
 module.exports = router;

@@ -11,6 +11,11 @@ const userSchema = new mongoose.Schema({
   },
   googleId: { type: String, unique: true, sparse: true },
   picture: { type: String },
+  budget: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

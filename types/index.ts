@@ -33,6 +33,13 @@ export interface User {
   email: string;
   googleId?: string;
   picture?: string;
+  budget?: number;
+}
+
+export interface BudgetResponse {
+  success: boolean;
+  budget: number;
+  message?: string;
 }
 
 export interface ApiResponse<T> {

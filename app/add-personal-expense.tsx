@@ -19,7 +19,7 @@ import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 const AddExpenseScreen = () => {
   const [amount, setAmount] = useState('');
@@ -31,7 +31,25 @@ const AddExpenseScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [animation] = useState(new Animated.Value(0));
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<{ id: string; name: string } | null>(null);
+
+  const params = useLocalSearchParams();
+  const isEditMode = !!params.expenseId;
+
+ useEffect(() => {
+  if (isEditMode) {
+    setAmount(Array.isArray(params.amount) ? params.amount[0] : (params.amount || ''));
+    setNote(Array.isArray(params.description) ? params.description[0] : (params.description || ''));
+    setCategory(Array.isArray(params.category) ? params.category[0] : (params.category || 'Food'));
+    setPaymentMethod(Array.isArray(params.paymentMethod) ? params.paymentMethod[0] : (params.paymentMethod || 'Cash'));
+    
+    setDate(
+      params.date
+        ? new Date(Array.isArray(params.date) ? params.date[0] : params.date)
+        : new Date()
+    );
+  }
+}, []);
 
   const categories = [
     { id: '1', name: 'Food', icon: 'fast-food', color: '#FF6B6B' },
@@ -79,22 +97,41 @@ const AddExpenseScreen = () => {
 
     setLoading(true);
     try {
-      await apiService.createPersonalExpense({
-        description: note,
-        amount: Number(amount),
-        date: date.toISOString(),
-        type: 'personal',
-        paidBy: user.name,
-        participants: [user.name],
-        paymentMethod,
-        category,
-        createdBy: user.id,
-      });
+      if (isEditMode) {
+        await apiService.updatePersonalExpense(
+          params.expenseId as string,
+          {
+            description: note,
+            amount: Number(amount),
+            date: date.toISOString(),
+            type: 'personal',
+            paidBy: user.name,
+            participants: [user.name],
+            paymentMethod,
+            category,
+          }
+        );
+        Alert.alert('Success', 'Expense updated successfully!');
+        router.replace('/(tabs)');
+      }
+      else {
+        await apiService.createPersonalExpense({
+          description: note,
+          amount: Number(amount),
+          date: date.toISOString(),
+          type: 'personal',
+          paidBy: user.name,
+          participants: [user.name],
+          paymentMethod,
+          category,
+          createdBy: user.id,
+        });
+        Alert.alert('Success', 'Expense added successfully!');
+        router.replace('/(tabs)');
+      }
       setAmount('');
       setNote('');
       setCategory('');
-      Alert.alert('Success', 'Expense added successfully!');
-      router.replace('/(tabs)');
     } catch (err: any) {
       console.error('Add expense error:', err);
       Alert.alert('Error', err.message || 'Failed to add expense.');
@@ -124,7 +161,7 @@ const AddExpenseScreen = () => {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Track Your Expense</Text>
+        <Text style={styles.title}>{isEditMode ? 'Edit Expense' : 'Add New Expense'}</Text>
 
         {/* Amount Input */}
         <Animated.View style={[styles.card, animatedStyle]}>
@@ -257,7 +294,7 @@ const AddExpenseScreen = () => {
             end={{ x: 1, y: 0 }}
           >
             <Ionicons name="add" size={24} color="white" />
-            <Text style={styles.addButtonText}>{loading ? 'Adding...' : 'Add Expense'}</Text>
+            <Text style={styles.addButtonText}>{loading ? 'Processing...' : isEditMode ? 'Update Expense' : 'Add Expense'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>

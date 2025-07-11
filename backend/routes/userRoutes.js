@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getUserProfile, googleLogin, googleRegister } = require('../controllers/userController');
+const { registerUser, loginUser, getUserProfile, googleLogin, googleRegister, setBudget } = require('../controllers/userController');
 const protect = require('../middleware/authMiddleware');
 
 // Public routes
 router.post('/register', registerUser);  // POST /users/register
 router.post('/login', loginUser);        // POST /users/login
+
+//Setting budget routes
+router.post('/budget', protect, setBudget);        // POST /users/budget
 
 // Google authentication routes
 router.post('/google-login', googleLogin);     // POST /users/google-login

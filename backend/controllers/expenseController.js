@@ -445,6 +445,72 @@ exports.deleteExpense = async (req, res) => {
   }
 };
 
+exports.deletePersonalExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const expense = await Expense.findById(id);
+    if (!expense) {
+      return res.status(404).json({ message: 'Expense not found' });
+    }
+    if (expense.type !== 'personal' || expense.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to delete this personal expense' });
+    }
+    await Expense.findByIdAndDelete(id);
+    res.json({ success: true, message: 'Personal expense deleted successfully' });
+  } catch (error) {
+    console.error('Delete personal expense error:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid expense ID' });
+    }
+    res.status(500).json({ message: 'Server error while deleting personal expense' });
+  }
+};
+
+exports.updatePersonalExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description, amount, date } = req.body;
+    const expense = await Expense.findByIdAndUpdate(id,
+      {description, amount, date },{
+      new: true,
+      runValidators: true
+    });
+    if (!expense) {
+      return res.status(404).json({ message: 'Expense not found' });
+    }
+    // Check if the expense is personal and belongs to the authenticated user
+    if (expense.type !== 'personal' || expense.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to update this personal expense' });
+    }
+    // Validate required fields
+    if (!expense.description || !expense.amount || !expense.date) {
+      return res.status(400).json({ message: 'Description, amount, and date are required' });
+    }
+    // Validate amount
+    if (typeof expense.amount !== 'number' || isNaN(expense.amount) || expense.amount <= 0) {
+      return res.status(400).json({ message: 'Amount must be a valid number greater than 0' });
+    }
+    // Transform expense to match frontend interface
+    const transformedExpense = {
+      id: expense._id,
+      description: expense.description,
+      amount: expense.amount,
+      date: expense.date,
+      createdAt: expense.createdAt,
+      paidBy: expense.paidBy,
+      participants: expense.participants,
+      splitType: expense.splitType,
+    };
+    res.json({ success: true, data: transformedExpense });
+  } catch (error) {
+    console.error('Update personal expense error:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid expense ID' });
+    }
+    res.status(500).json({ message: 'Server error while updating personal expense' });
+  }
+};
+
 // Update an expense by ID
 exports.updateExpense = async (req, res) => {
   try {

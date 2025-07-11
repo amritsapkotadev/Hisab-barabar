@@ -16,6 +16,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -24,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { apiService } from '@/services/api';
 import type { Group, Expense, User } from '@/types';
-import AddExpenseScreen from '../add-personal-expense'; 
+import AddExpenseScreen from '../add-personal-expense';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isIOS = Platform.OS === 'ios';
@@ -93,6 +94,7 @@ export default function HomeScreen() {
       setExpenses(expensesRes);
       setUser(userRes);
       setPerExpenses(personalExpensesRes);
+      setPersonalBudget(userRes.budget || 0);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -116,15 +118,26 @@ export default function HomeScreen() {
     fetchAll();
   };
 
+  const handleSetBudget = async () => {
+    const res = await apiService.setPersonalBudget(Number(budgetInput));
+    setShowBudgetModal(false);
+    setBudgetInput('');
+    if (res.success) {
+      fetchAll();
+    } else {
+      Alert.alert('Error', res.message || 'Failed to update budget');
+    }
+  };
+
   const handleDeleteExpense = async () => {
     if (!selectedExpense) return;
     setDeleting(true);
     try {
-      await apiService.deleteExpense(selectedExpense.id);
+      await apiService.deletePersonalExpense(selectedExpense.id);
       setPerExpenses(perExpenses.filter(e => e.id !== selectedExpense.id));
       setSelectedExpense(null);
     } catch (err) {
-      // Optionally show error
+      Alert.alert('Error', 'Failed to delete expense. Please try again later.');
     } finally {
       setDeleting(false);
       setDeleteModalVisible(false);
@@ -161,7 +174,7 @@ export default function HomeScreen() {
             <Text style={styles.userName}>{user ? user.name.split(' ')[0] : 'User'}</Text>
           </View>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.notificationButton}
           onPress={() => router.push('/profile/notifications')}
         >
@@ -176,7 +189,7 @@ export default function HomeScreen() {
     const net = user ? getNetBalance(groups, user.id) : 0;
     const isPositive = net >= 0;
     const formattedNet = Math.abs(net).toFixed(2);
-    
+
     return (
       <View style={styles.balanceCard}>
         <LinearGradient
@@ -252,7 +265,7 @@ export default function HomeScreen() {
     const limit = item.limit || Math.max(1000, spent * 1.5);
     const progress = Math.min(spent / limit, 1);
     const isActive = index === activeGroupIdx;
-    
+
     return (
       <TouchableOpacity
         style={[styles.groupCard, isActive && styles.groupCardActive]}
@@ -267,9 +280,9 @@ export default function HomeScreen() {
           <Text style={styles.groupMembers}>{item.members.length} members</Text>
           <View style={styles.progressContainer}>
             <View style={styles.progressBackground} />
-            <View style={[styles.progressFill, { 
+            <View style={[styles.progressFill, {
               width: `${progress * 100}%`,
-              backgroundColor: progress < 0.7 ? COLORS.positive : COLORS.negative 
+              backgroundColor: progress < 0.7 ? COLORS.positive : COLORS.negative
             }]} />
             <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
           </View>
@@ -282,7 +295,7 @@ export default function HomeScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Your Groups</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.seeAllButton}
           onPress={() => router.push('/(tabs)/groups')}
         >
@@ -327,7 +340,7 @@ export default function HomeScreen() {
           disabled={!item.groupId}
         >
           <View style={styles.expenseCardInner}>
-            <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive + '20' : COLORS.negative + '20' }]}> 
+            <View style={[styles.expenseIcon, { backgroundColor: isPositive ? COLORS.positive + '20' : COLORS.negative + '20' }]}>
               <FileText size={16} color={isPositive ? COLORS.positive : COLORS.negative} />
             </View>
             <View style={styles.expenseInfo}>
@@ -346,7 +359,12 @@ export default function HomeScreen() {
               <View style={styles.expenseActions}>
                 <TouchableOpacity
                   style={styles.actionIconSmall}
-                  onPress={() => router.push({ pathname: '/add-personal-expense', params: { expenseId: item.id } })}
+                  onPress={() => router.push({ pathname: '/add-personal-expense', params: { 
+                    expenseId: item.id,
+                    amount: item.amount,
+                    description: item.description,
+                    date: item.date,
+                   } })}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Edit3 size={18} color={COLORS.primary} />
@@ -370,7 +388,7 @@ export default function HomeScreen() {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Expenses</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.seeAllButton}
           onPress={() => router.push('/(tabs)/transactions')}
         >
@@ -423,10 +441,10 @@ export default function HomeScreen() {
       <Animated.ScrollView
         style={{ opacity: fadeAnim }}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh} 
-            colors={[COLORS.primary]} 
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
             tintColor={COLORS.primary}
             progressBackgroundColor={COLORS.background}
           />
@@ -464,14 +482,14 @@ export default function HomeScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={styles.personalBudgetTitle}>Monthly Budget</Text>
                   <TouchableOpacity onPress={() => {
-                    setBudgetInput(personalBudget ? String(personalBudget) : '');
+                    setBudgetInput('');
                     setShowBudgetModal(true);
                     setTimeout(() => inputRef.current?.focus(), 200);
                   }}>
                     <Edit3 size={18} color="#fff" />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.personalBudgetValue}>₹{personalBudget ? personalBudget.toFixed(2) : '--'}</Text>
+                <Text style={styles.personalBudgetValue}>₹{user?.budget ? user?.budget.toFixed(2) : '--'}</Text>
                 <View style={styles.personalBudgetRow}>
                   <Text style={styles.personalBudgetLabel}>Spent this month:</Text>
                   <Text style={styles.personalBudgetSpent}>₹{spentThisMonth.toFixed(2)}</Text>
@@ -532,6 +550,7 @@ export default function HomeScreen() {
                     onChangeText={setBudgetInput}
                     onSubmitEditing={() => {
                       setPersonalBudget(Number(budgetInput) || 0);
+                      setBudgetInput('');
                       setShowBudgetModal(false);
                     }}
                   />
@@ -547,6 +566,7 @@ export default function HomeScreen() {
                       onPress={() => {
                         setPersonalBudget(Number(budgetInput) || 0);
                         setShowBudgetModal(false);
+                        handleSetBudget();
                       }}
                     >
                       <Text style={styles.budgetModalBtnText}>Save</Text>
