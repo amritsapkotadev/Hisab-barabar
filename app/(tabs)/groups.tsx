@@ -143,9 +143,6 @@ export default function GroupsScreen() {
             </View>
             <View style={styles.groupInfo}>
               <Text style={styles.groupName} numberOfLines={1}>{item.name}</Text>
-              <Text style={styles.groupDescription} numberOfLines={1}>
-                {item.description || 'No description provided'}
-              </Text>
             </View>
             <ChevronRight size={20} color={COLORS.subtext} />
           </View>
@@ -204,8 +201,17 @@ export default function GroupsScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={styles.title}>Your Groups</Text>
-        <Text style={styles.subtitle}>Track and manage shared expenses</Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <ChevronRight size={20} color={COLORS.text} style={styles.backIcon} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Your Groups</Text>
+        </View>
+        <Text style={styles.subtitle}>Manage expenses, split bills, and settle up with friends</Text>
       </View>
 
       {error ? (
@@ -308,16 +314,39 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  backButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  backIcon: {
+    transform: [{ rotate: '180deg' }],
+  },
+
   title: {
     fontSize: 32,
     fontWeight: '800',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
     letterSpacing: -0.5,
+marginLeft:20,
   },
   subtitle: {
     fontSize: 16,
-    color: COLORS.subtext,
+    color: 'black',
     marginTop: 4,
     fontFamily: 'Inter-Regular',
   },
@@ -446,21 +475,15 @@ const styles = StyleSheet.create({
   },
   groupInfo: {
     flex: 1,
-    marginRight: 12,
+    marginLeft: 16,
   },
   groupName: {
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
-    marginBottom: 4,
   },
-  groupDescription: {
-    fontSize: 14,
-    color: COLORS.subtext,
-    fontFamily: 'Inter-Regular',
-    lineHeight: 20,
-  },
+
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
