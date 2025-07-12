@@ -409,12 +409,12 @@ export default function ProfileScreen() {
               handleChangePassword
             )}
             
-            {renderSettingItem(
+            {/* {renderSettingItem(
               <CreditCard size={20} color={COLORS.primary} />,
               "Payment Methods",
               "Manage your payment options",
               () => router.push('/profile/payment-methods')
-            )}
+            )} */}
           </View>
         </Animated.View>
 
@@ -457,12 +457,12 @@ export default function ProfileScreen() {
               handleHelp
             )}
             
-            {renderSettingItem(
+            {/* {renderSettingItem(
               <Download size={20} color={COLORS.primary} />,
               "Export Data",
               "Download your data",
               handleExportData
-            )}
+            )} */}
             
             {renderSettingItem(
               <Share2 size={20} color={COLORS.primary} />,
@@ -507,7 +507,7 @@ export default function ProfileScreen() {
         >
           <View style={styles.appLogo}>
             <PieChart size={28} color={COLORS.primary} />
-            <Text style={styles.appName}>SplitSaathi</Text>
+            <Text style={styles.appName}>Hisab barabar</Text>
           </View>
           <Text style={styles.appVersion}>v1.0.0</Text>
           <View style={styles.appFooterContent}>

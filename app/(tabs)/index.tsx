@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight, Edit3, Trash2 } from 'lucide-react-native';
+import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight, Edit3, Trash2, TrendingUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { apiService } from '@/services/api';
@@ -72,6 +72,7 @@ export default function HomeScreen() {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<'personal' | 'shared'>('shared');
+  const toggleAnim = useRef(new Animated.Value(0)).current;
   const [personalBudget, setPersonalBudget] = useState<number>(0);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [budgetInput, setBudgetInput] = useState('');
@@ -161,18 +162,19 @@ export default function HomeScreen() {
   const leftThisMonth = Math.max(0, personalBudget - spentThisMonth);
 
   // --- UI Components ---
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   const renderAppBar = () => (
     <View style={styles.appBar}>
       <View style={styles.appBarContent}>
-        <View style={styles.avatarContainer}>
-          <Image
-            source={user?.picture ? { uri: user.picture } : require('@/assets/images/icon.png')}
-            style={styles.avatar}
-          />
-          <View style={styles.greetingContainer}>
-            <Text style={styles.greeting}>Welcome back</Text>
-            <Text style={styles.userName}>{user ? user.name.split(' ')[0] : 'User'}</Text>
-          </View>
+        <View style={styles.greetingContainer}>
+          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <Text style={styles.userName}>{user ? user.name.split(' ')[0] : 'User'}</Text>
         </View>
         <TouchableOpacity
           style={styles.notificationButton}
@@ -453,24 +455,53 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {renderAppBar()}
-        {/* Toggle Switch under welcome text */}
+        {/* Enhanced Toggle Switch */}
         <View style={styles.toggleContainer}>
+          <Animated.View 
+            style={[
+              styles.toggleSlider,
+              {
+                transform: [{
+                  translateX: toggleAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [2, SCREEN_WIDTH * 0.5 - 2]
+                  })
+                }]
+              }
+            ]} 
+          />
           <TouchableOpacity
-            style={[styles.toggleButton, activeTab === 'personal' && styles.toggleButtonActive]}
-            onPress={() => setActiveTab('personal')}
+            style={[styles.toggleButton]}
+            onPress={() => {
+              setActiveTab('personal');
+              Animated.spring(toggleAnim, {
+                toValue: 0,
+                useNativeDriver: true,
+                tension: 100,
+                friction: 8
+              }).start();
+            }}
           >
             <Text style={[styles.toggleText, activeTab === 'personal' && styles.toggleTextActive]}>Personal</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleButton, activeTab === 'shared' && styles.toggleButtonActive]}
-            onPress={() => setActiveTab('shared')}
+            style={[styles.toggleButton]}
+            onPress={() => {
+              setActiveTab('shared');
+              Animated.spring(toggleAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                tension: 100,
+                friction: 8
+              }).start();
+            }}
           >
             <Text style={[styles.toggleText, activeTab === 'shared' && styles.toggleTextActive]}>Shared</Text>
           </TouchableOpacity>
         </View>
         {activeTab === 'personal' ? (
           <>
-            {/* Personal Budget Card */}
+            {/* Enhanced Personal Budget Dashboard */}
             <View style={styles.personalBudgetCard}>
               <LinearGradient
                 colors={[COLORS.primary, COLORS.secondary]}
@@ -479,29 +510,86 @@ export default function HomeScreen() {
                 end={{ x: 1, y: 1 }}
               />
               <View style={styles.personalBudgetContent}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={styles.personalBudgetTitle}>Monthly Budget</Text>
-                  <TouchableOpacity onPress={() => {
-                    setBudgetInput('');
-                    setShowBudgetModal(true);
-                    setTimeout(() => inputRef.current?.focus(), 200);
-                  }}>
-                    <Edit3 size={18} color="#fff" />
+                <View style={styles.personalBudgetHeader}>
+                  <View>
+                    <Text style={styles.personalBudgetTitle}>Monthly Budget</Text>
+                    <Text style={styles.personalBudgetValue}>₹{user?.budget ? user?.budget.toFixed(2) : '0.00'}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.editBudgetButton}
+                    onPress={() => {
+                      setBudgetInput('');
+                      setShowBudgetModal(true);
+                      setTimeout(() => inputRef.current?.focus(), 200);
+                    }}
+                  >
+                    <Edit3 size={16} color="#fff" />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.personalBudgetValue}>₹{user?.budget ? user?.budget.toFixed(2) : '--'}</Text>
-                <View style={styles.personalBudgetRow}>
-                  <Text style={styles.personalBudgetLabel}>Spent this month:</Text>
-                  <Text style={styles.personalBudgetSpent}>₹{spentThisMonth.toFixed(2)}</Text>
-                </View>
-                <View style={styles.personalBudgetRow}>
-                  <Text style={styles.personalBudgetLabel}>Left:</Text>
-                  <Text style={styles.personalBudgetLeft}>₹{leftThisMonth.toFixed(2)}</Text>
+                
+                <View style={styles.budgetProgressContainer}>
+                  <View style={styles.budgetProgressHeader}>
+                    <Text style={styles.budgetProgressLabel}>Spent this month</Text>
+                    <Text style={styles.budgetProgressValue}>₹{spentThisMonth.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.budgetProgressBar}>
+                    <View style={styles.budgetProgressBackground} />
+                    <View 
+                      style={[
+                        styles.budgetProgressFill, 
+                        { 
+                          width: `${Math.min((spentThisMonth / (user?.budget || 1)) * 100, 100)}%`,
+                          backgroundColor: (spentThisMonth / (user?.budget || 1)) > 0.8 ? COLORS.negative : COLORS.positive
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <View style={styles.budgetProgressFooter}>
+                    <Text style={styles.budgetProgressLabel}>Left this month</Text>
+                    <Text style={styles.budgetProgressValue}>₹{leftThisMonth.toFixed(2)}</Text>
+                  </View>
                 </View>
               </View>
             </View>
+            
+            {/* Enhanced Budget Overview */}
+            <View style={styles.budgetOverviewContainer}>
+              <View style={styles.budgetOverviewHeader}>
+                <Text style={styles.budgetOverviewTitle}>Budget Overview</Text>
+                <Text style={styles.budgetOverviewSubtitle}>This month's spending</Text>
+              </View>
+              
+              <View style={styles.budgetOverviewGrid}>
+                <View style={styles.budgetOverviewItem}>
+                  <View style={[styles.budgetItemIcon, { backgroundColor: `${COLORS.primary}15` }]}>
+                    <Wallet size={18} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.budgetItemLabel}>Total Budget</Text>
+                  <Text style={[styles.budgetItemValue, { color: COLORS.primary }]}>₹{user?.budget ? user?.budget.toFixed(2) : '0.00'}</Text>
+                </View>
+                
+                <View style={styles.budgetOverviewItem}>
+                  <View style={[styles.budgetItemIcon, { backgroundColor: `${COLORS.negative}15` }]}>
+                    <FileText size={18} color={COLORS.negative} />
+                  </View>
+                  <Text style={styles.budgetItemLabel}>Spent</Text>
+                  <Text style={[styles.budgetItemValue, { color: COLORS.negative }]}>₹{spentThisMonth.toFixed(2)}</Text>
+                </View>
+                
+                <View style={styles.budgetOverviewItem}>
+                  <View style={[styles.budgetItemIcon, { backgroundColor: leftThisMonth > 0 ? `${COLORS.positive}15` : `${COLORS.negative}15` }]}>
+                    <TrendingUp size={18} color={leftThisMonth > 0 ? COLORS.positive : COLORS.negative} />
+                  </View>
+                  <Text style={styles.budgetItemLabel}>Remaining</Text>
+                  <Text style={[styles.budgetItemValue, { color: leftThisMonth > 0 ? COLORS.positive : COLORS.negative }]}>
+                    ₹{leftThisMonth.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            
             {/* Personal Expenses List */}
-            <View style={styles.section}>
+            <View style={[styles.section, { marginTop: 16 }]}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Personal Expenses</Text>
               </View>
@@ -630,20 +718,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  avatarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.glass,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
+
   greetingContainer: {
-    marginLeft: 12,
+    flex: 1,
   },
   greeting: {
     fontSize: 14,
@@ -966,14 +1043,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     backgroundColor: COLORS.toggleInactive,
     borderRadius: 20,
-    padding: 4,
+    padding: 2,
+    position: 'relative',
+    height: 44,
   },
   toggleButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 16,
-    marginHorizontal: 2,
+    justifyContent: 'center',
+    borderRadius: 18,
+    marginHorizontal: 1,
+    zIndex: 1,
   },
   toggleButtonActive: {
     backgroundColor: COLORS.primary,
@@ -981,7 +1062,7 @@ const styles = StyleSheet.create({
   toggleText: {
     color: COLORS.subtext,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Inter-SemiBold',
   },
   toggleTextActive: {
@@ -1136,5 +1217,131 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 16,
     backgroundColor: '#F1F5F9',
+  },
+  toggleSlider: {
+    position: 'absolute',
+    width: '50%',
+    height: '90%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 18,
+    top: '5%',
+    left: 0,
+    zIndex: 0,
+  },
+  personalBudgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  editBudgetButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  budgetProgressContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  budgetProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  budgetProgressLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontFamily: 'Inter-Regular',
+  },
+  budgetProgressValue: {
+    fontSize: 16,
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  budgetProgressBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  budgetProgressBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  budgetProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  budgetProgressFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  budgetOverviewContainer: {
+    marginHorizontal: 24,
+    marginBottom: 32,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  budgetOverviewHeader: {
+    marginBottom: 20,
+  },
+  budgetOverviewTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    marginBottom: 4,
+  },
+  budgetOverviewSubtitle: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    fontFamily: 'Inter-Regular',
+  },
+  budgetOverviewGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  budgetOverviewItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  budgetItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.chip,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  budgetItemLabel: {
+    fontSize: 12,
+    color: COLORS.subtext,
+    fontFamily: 'Inter-Medium',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  budgetItemValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
   },
 });

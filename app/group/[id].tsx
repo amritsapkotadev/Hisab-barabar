@@ -694,7 +694,6 @@ const GroupScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  // ... (keep all previous styles)
 
   memberItem: {
     flexDirection: 'row',
