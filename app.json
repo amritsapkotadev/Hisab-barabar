@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SplitSaathi",
-    "slug": "splitsaathi",
+    "slug": "hisab-barabar",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -13,9 +13,13 @@
       "bundleIdentifier": "com.splitsaathi.app",
       "associatedDomains": [
         "applinks:splitsaathi.up.railway.app"
-      ]
+      ],
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera"
+      }
     },
     "android": {
+      "googleServicesFile": "./android/app/google-services.json",
       "package": "com.splitsaathi.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
@@ -46,6 +50,9 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -62,7 +69,8 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "react-native-vision-camera"
+      "react-native-vision-camera",
+      "@react-native-firebase/app"
     ],
     "experiments": {
       "typedRoutes": true
@@ -70,7 +78,11 @@
     "extra": {
       "router": {
         "origin": "https://splitsaathi.up.railway.app"
+      },
+      "eas": {
+        "projectId": "e856cf73-a3f0-464a-85d5-4f45bde7ca5d"
       }
-    }
+    },
+    "owner": "amritsapkota"
   }
 }
