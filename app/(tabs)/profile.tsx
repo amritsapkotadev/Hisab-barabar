@@ -152,8 +152,8 @@ export default function ProfileScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Share.share({
-        message: 'Check out SplitSaathi - the best app for splitting expenses with friends!',
-        title: 'Share SplitSaathi'
+        message: 'Check out Hisab Barabar - the best app for splitting expenses with friends! and adding personal expenses!',
+        title: 'Hisab Barabar'
       });
     } catch (error) {
       console.error('Sharing failed', error);
