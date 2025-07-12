@@ -39,11 +39,11 @@ export default function IndexScreen() {
 
     const getDeviceToken = async () => {
       await messaging().registerDeviceForRemoteMessages();
-      const token = await messaging().getToken();
-      if (token) {
-        console.log('Device Token:', token);
-        await AsyncStorage.setItem('fcmToken', token);
-        return token;
+      const fcmToken = await messaging().getToken();
+      if (fcmToken) {
+        console.log('Device Token:', fcmToken);
+        await AsyncStorage.setItem('fcmToken', fcmToken);
+        return fcmToken;
       } else {
         console.log('No device token found.');
         return null;
