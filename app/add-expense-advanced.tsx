@@ -634,6 +634,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    marginTop:20,
+
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -649,6 +651,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
+    marginLeft:50,
     fontWeight: '700',
     color: '#1e293b',
     fontFamily: 'Inter-Bold',
