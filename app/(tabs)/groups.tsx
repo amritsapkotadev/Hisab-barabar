@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 const { width } = Dimensions.get('window');
 const CARD_PADDING = 24;
 
-// Modern color palette with enhanced contrast
+// Enhanced color palette with better contrast and modern tones
 const COLORS = {
   primary: '#6366F1',      // Vibrant indigo
   primaryLight: '#818CF8',
@@ -31,14 +31,14 @@ const COLORS = {
   card: '#FFFFFF',         // Pure white cards
   text: '#1F2937',         // Rich dark text
   subtext: '#6B7280',      // Medium gray
-  positive: '#059669',     // Deep emerald
-  negative: '#DC2626',     // Rich red
-  warning: '#D97706',      // Deep amber
+  positive: '#10B981',     // Brighter emerald
+  negative: '#EF4444',     // Brighter red
+  warning: '#F59E0B',      // Vibrant amber
   border: '#F3F4F6',       // Soft border
   gradientStart: '#6366F1', // Indigo
-  gradientEnd: '#4F46E5',  // Violet
-  shadow: 'rgba(0,0,0,0.04)',
-  iconBackgrounds: ['#6366F1', '#4F46E5', '#059669', '#D97706', '#DC2626', '#8B5CF6'],
+  gradientEnd: '#8B5CF6',  // Brighter purple for gradient
+  shadow: 'rgba(0,0,0,0.05)',
+  iconBackgrounds: ['#6366F1', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'],
   glass: 'rgba(255,255,255,0.8)',
   glassBorder: 'rgba(255,255,255,0.2)',
 };
@@ -63,7 +63,7 @@ export default function GroupsScreen() {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.05,
+          toValue: 1.08,
           duration: 1000,
           useNativeDriver: true,
         }),
@@ -118,7 +118,7 @@ export default function GroupsScreen() {
     }, [])
   );
 
-    const renderGroupCard = ({ item, index }: { item: Group; index: number }) => {
+  const renderGroupCard = ({ item, index }: { item: Group; index: number }) => {
     const netAmount = Object.values(item.balances).reduce((sum, balance) => sum + balance, 0);
     const isPositive = netAmount > 0;
     const isNegative = netAmount < 0;
@@ -143,6 +143,12 @@ export default function GroupsScreen() {
                   inputRange: [0, 1],
                   outputRange: [60, 0]
                 }) 
+              },
+              {
+                scale: fadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.95, 1]
+                })
               }
             ]
           }
@@ -151,10 +157,10 @@ export default function GroupsScreen() {
         <TouchableOpacity
           style={styles.groupCard}
           onPress={() => router.push(`/group/${item.id}`)}
-          activeOpacity={0.95}
+          activeOpacity={0.92}
         >
           <LinearGradient
-            colors={[`${iconColor}08`, `${iconColor}03`]}
+            colors={[`${iconColor}0A`, `${iconColor}03`]}
             style={styles.cardGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -173,7 +179,7 @@ export default function GroupsScreen() {
                   <Text style={styles.groupInitial}>{item.name.charAt(0)}</Text>
                   {isActive && (
                     <View style={styles.activeIndicator}>
-                      <Crown size={10} color="#fff" />
+                      <Crown size={14} color="#fff" />
                     </View>
                   )}
                 </View>
@@ -193,9 +199,9 @@ export default function GroupsScreen() {
             <View style={styles.cardFooter}>
               <View style={[
                 styles.statusBadge,
-                isPositive && { backgroundColor: `${COLORS.positive}12` },
-                isNegative && { backgroundColor: `${COLORS.negative}12` },
-                !isPositive && !isNegative && { backgroundColor: `${COLORS.subtext}12` }
+                isPositive && { backgroundColor: `${COLORS.positive}15` },
+                isNegative && { backgroundColor: `${COLORS.negative}15` },
+                !isPositive && !isNegative && { backgroundColor: `${COLORS.subtext}10` }
               ]}>
                 {isPositive && <TrendingUp size={16} color={COLORS.positive} style={styles.statusIcon} />}
                 {isNegative && <TrendingDown size={16} color={COLORS.negative} style={styles.statusIcon} />}
@@ -220,6 +226,10 @@ export default function GroupsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <LinearGradient
+          colors={[COLORS.background, '#F8FAFC']}
+          style={styles.background}
+        />
         <View style={styles.header}>
           <Text style={styles.title}>Your Groups</Text>
           <Text style={styles.subtitle}>Loading your groups...</Text>
@@ -232,7 +242,7 @@ export default function GroupsScreen() {
     );
   }
 
-    return (
+  return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       <LinearGradient
@@ -256,9 +266,14 @@ export default function GroupsScreen() {
 
       {error ? (
         <View style={styles.errorContainer}>
-          <View style={styles.errorIcon}>
+          <LinearGradient
+            colors={[`${COLORS.negative}`, '#DC2626']}
+            style={styles.errorIcon}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
             <AlertCircle size={32} color="#ffffff" />
-          </View>
+          </LinearGradient>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchGroups}>
             <Text style={styles.retryButtonText}>Try Again</Text>
@@ -352,12 +367,12 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: CARD_PADDING,
     paddingTop: 24,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   headerLeft: {
     flex: 1,
@@ -365,26 +380,25 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   titleIcon: {
     marginRight: 12,
   },
   title: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
-    marginLeft:30,
-    marginTop:10,
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
-    letterSpacing: -1,
+    letterSpacing: -0.8,
   },
   subtitle: {
-    marginTop:10,
-    fontSize: 16,
-    color: 'black',
+    fontSize: 15,
+    color: COLORS.subtext,
     fontFamily: 'Inter-Medium',
-    lineHeight: 22,
+    lineHeight: 20,
+    paddingLeft: 36,
+    opacity: 0.9,
   },
   loadingContainer: {
     flex: 1,
@@ -403,21 +417,20 @@ const styles = StyleSheet.create({
     marginHorizontal: CARD_PADDING,
     marginTop: 16,
     padding: 24,
-    borderRadius: 20,
+    borderRadius: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#FEE2E2',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowRadius: 16,
+    elevation: 4,
   },
   errorIcon: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: COLORS.negative,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -434,13 +447,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingVertical: 12,
     paddingHorizontal: 32,
-    borderRadius: 14,
+    borderRadius: 16,
     marginTop: 12,
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   retryButtonText: {
     color: '#ffffff',
@@ -457,10 +470,12 @@ const styles = StyleSheet.create({
   listHeader: {
     paddingHorizontal: CARD_PADDING,
     paddingVertical: 16,
+    paddingTop: 8,
     color: COLORS.subtext,
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    opacity: 0.9,
   },
   emptyContainer: {
     flex: 1,
@@ -472,15 +487,15 @@ const styles = StyleSheet.create({
   },
   groupCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
     position: 'relative',
   },
   cardGradient: {
@@ -491,12 +506,12 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   cardContent: {
-    padding: 24,
+    padding: 20,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   leftSection: {
     flexDirection: 'row',
@@ -504,8 +519,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   groupIcon: {
-    width: 56,
-    height: 56,
+    width: 58,
+    height: 58,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
@@ -524,32 +539,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     fontFamily: 'Inter-Bold',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   activeIndicator: {
     position: 'absolute',
     top: -2,
     right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   groupInfo: {
     flex: 1,
   },
   groupName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
     marginBottom: 6,
+    letterSpacing: -0.3,
   },
   groupMeta: {
     flexDirection: 'row',
@@ -560,12 +581,13 @@ const styles = StyleSheet.create({
     color: COLORS.subtext,
     fontFamily: 'Inter-Medium',
     marginLeft: 6,
+    opacity: 0.9,
   },
   moreButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${COLORS.subtext}10`,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${COLORS.subtext}08`,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -591,18 +613,18 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     paddingHorizontal: CARD_PADDING,
-    paddingTop: width * 0.15,
+    paddingTop: width * 0.2,
   },
   emptyIllustration: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
     marginBottom: 32,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
     overflow: 'hidden',
   },
   emptyGradient: {
@@ -613,11 +635,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
     marginBottom: 12,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   emptyDescription: {
     fontSize: 16,
@@ -627,19 +650,20 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     maxWidth: 300,
     fontFamily: 'Inter-Regular',
+    opacity: 0.9,
   },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 36,
+    borderRadius: 18,
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
   createButtonText: {
     marginLeft: 10,
@@ -650,21 +674,21 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 36,
     right: CARD_PADDING,
     zIndex: 10,
   },
   fab: {
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowRadius: 20,
+    elevation: 10,
   },
   fabGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
   },
