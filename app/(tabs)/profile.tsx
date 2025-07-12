@@ -7,7 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Share,
-  Dimensions
+  Dimensions,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -21,40 +22,27 @@ import {
   DollarSign, 
   Users as UsersIcon, 
   FileText, 
-  Download, 
-  Share2,
   Trash2,
   Lock,
-  CreditCard,
-  BarChart2,
-  Calendar,
-  Heart,
-  Award,
-  PieChart,
   Edit2,
-  Settings,
-  Crown,
-  TrendingUp,
-  Zap,
-  Star,
-  Activity,
-  Target
+  PieChart,
+  Heart,
+  Calendar
 } from 'lucide-react-native';
 import { apiService } from '@/services/api';
 import { User as UserType } from '@/types';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
-// Premium Design System
+// Refined Color Palette
 const COLORS = {
-  primary: '#7C3AED',
-  primaryLight: '#A78BFA',
-  secondary: '#EC4899',
-  accent: '#06B6D4',
+  primary: '#6366F1',
+  primaryLight: '#818CF8',
+  secondary: '#8B5CF6',
+  accent: '#0EA5E9',
   success: '#10B981',
   warning: '#F59E0B',
   danger: '#EF4444',
@@ -66,14 +54,12 @@ const COLORS = {
   textTertiary: '#94A3B8',
   border: '#E2E8F0',
   borderLight: '#F1F5F9',
-  shadow: 'rgba(0, 0, 0, 0.08)',
+  shadow: 'rgba(0, 0, 0, 0.05)',
   glass: 'rgba(255, 255, 255, 0.95)',
-  gradient1: ['#7C3AED', '#A78BFA'],
-  gradient2: ['#EC4899', '#F472B6'],
-  gradient3: ['#06B6D4', '#22D3EE'],
+  gradient1: ['#6366F1', '#818CF8'],
+  gradient2: ['#8B5CF6', '#A78BFA'],
+  gradient3: ['#0EA5E9', '#38BDF8'],
   gradient4: ['#10B981', '#34D399'],
-  gradient5: ['#F59E0B', '#FBBF24'],
-  gradient6: ['#8B5CF6', '#A78BFA'],
 };
 
 export default function ProfileScreen() {
@@ -85,8 +71,6 @@ export default function ProfileScreen() {
     totalExpenses: 0,
     totalTransactions: 0,
     monthlySpending: 0,
-    averageExpense: 0,
-    mostActiveGroup: '',
   });
 
   useEffect(() => {
@@ -114,23 +98,12 @@ export default function ProfileScreen() {
       });
       
       const monthlySpending = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const averageExpense = expenses.length > 0 ? totalExpenses / expenses.length : 0;
-      
-      const groupExpenseCounts = groups.map(group => ({
-        name: group.name,
-        count: expenses.filter(expense => expense.groupId === group.id).length
-      }));
-      const mostActiveGroup = groupExpenseCounts.reduce((prev, current) => 
-        prev.count > current.count ? prev : current, { name: 'None', count: 0 }
-      );
 
       setStats({
         totalGroups: groups.length,
         totalExpenses,
         totalTransactions: expenses.length,
         monthlySpending,
-        averageExpense,
-        mostActiveGroup: mostActiveGroup.name,
       });
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -170,11 +143,6 @@ export default function ProfileScreen() {
     router.push('/profile/help');
   };
 
-  const handleExportData = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/profile/export-data');
-  };
-
   const handleDeleteAccount = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/profile/delete-account');
@@ -195,7 +163,7 @@ export default function ProfileScreen() {
   const renderStatCard = (icon: React.ReactNode, label: string, value: string | number, gradient: string[], color: string) => (
     <Animated.View 
       style={styles.statCard}
-      entering={FadeInUp.duration(800).delay(200)}
+      entering={FadeInDown.duration(800).delay(200)}
     >
       <LinearGradient
         colors={gradient}
@@ -259,50 +227,42 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Premium Header */}
+        {/* Clean Header Section */}
         <Animated.View 
           style={styles.headerSection}
           entering={FadeIn.duration(600)}
         >
-          <LinearGradient
-            colors={COLORS.gradient1}
-            style={styles.headerGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.headerContent}>
-              <View style={styles.headerTop}>
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>{user?.name || 'User Name'}</Text>
-                  <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.editButton}
-                  onPress={handleEditProfile}
-                >
-                  <Edit2 size={18} color="#fff" />
-                </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <View style={styles.userCard}>
+              <View style={styles.avatarContainer}>
+                {user?.picture ? (
+                  <Image
+                    source={{ uri: user.picture }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <User size={24} color={COLORS.primary} />
+                  </View>
+                )}
               </View>
               
-              <View style={styles.headerStats}>
-                <View style={styles.headerStatItem}>
-                  <UsersIcon size={16} color="#fff" />
-                  <Text style={styles.headerStatText}>{stats.totalGroups} Groups</Text>
-                </View>
-                <View style={styles.headerStatItem}>
-                  <DollarSign size={16} color="#fff" />
-                  <Text style={styles.headerStatText}>₹{stats.totalExpenses.toFixed(0)} Total</Text>
-                </View>
-                <View style={styles.headerStatItem}>
-                  <Activity size={16} color="#fff" />
-                  <Text style={styles.headerStatText}>{stats.totalTransactions} Transactions</Text>
-                </View>
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{user?.name || 'User Name'}</Text>
+                <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
               </View>
+              
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={handleEditProfile}
+              >
+                <Edit2 size={20} color={COLORS.primary} />
+              </TouchableOpacity>
             </View>
-          </LinearGradient>
+          </View>
         </Animated.View>
 
-        {/* Premium Stats Grid */}
+        {/* Stats Grid */}
         <Animated.View 
           style={styles.statsContainer}
           entering={FadeInDown.duration(800).delay(300)}
@@ -342,49 +302,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* Premium Insights */}
-        <Animated.View 
-          style={styles.insightsSection}
-          entering={FadeInUp.duration(800).delay(400)}
-        >
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Insights</Text>
-            <View style={styles.sectionBadge}>
-              <Star size={14} color={COLORS.warning} />
-              <Text style={styles.sectionBadgeText}>Premium</Text>
-            </View>
-          </View>
-          
-          <View style={styles.insightsCard}>
-            <View style={styles.insightItem}>
-              <View style={styles.insightIcon}>
-                <BarChart2 size={20} color={COLORS.primary} />
-              </View>
-              <View style={styles.insightContent}>
-                <Text style={styles.insightTitle}>Average Expense</Text>
-                <Text style={styles.insightValue}>₹{stats.averageExpense.toFixed(2)}</Text>
-              </View>
-              <View style={styles.insightTrend}>
-                <TrendingUp size={16} color={COLORS.success} />
-              </View>
-            </View>
-            
-            <View style={styles.insightItem}>
-              <View style={styles.insightIcon}>
-                <Crown size={20} color={COLORS.warning} />
-              </View>
-              <View style={styles.insightContent}>
-                <Text style={styles.insightTitle}>Most Active Group</Text>
-                <Text style={styles.insightValue}>{stats.mostActiveGroup}</Text>
-              </View>
-              <View style={styles.insightTrend}>
-                <Target size={16} color={COLORS.accent} />
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Premium Settings */}
+        {/* Account Settings */}
         <Animated.View 
           style={styles.settingsSection}
           entering={SlideInRight.duration(800).delay(500)}
@@ -397,9 +315,7 @@ export default function ProfileScreen() {
               <User size={20} color={COLORS.primary} />,
               "Edit Profile",
               "Update your personal information",
-              handleEditProfile,
-              false,
-              "New"
+              handleEditProfile
             )}
             
             {renderSettingItem(
@@ -408,16 +324,10 @@ export default function ProfileScreen() {
               "Update your password",
               handleChangePassword
             )}
-            
-            {/* {renderSettingItem(
-              <CreditCard size={20} color={COLORS.primary} />,
-              "Payment Methods",
-              "Manage your payment options",
-              () => router.push('/profile/payment-methods')
-            )} */}
           </View>
         </Animated.View>
 
+        {/* Preferences */}
         <Animated.View 
           style={styles.settingsSection}
           entering={SlideInRight.duration(800).delay(600)}
@@ -442,6 +352,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
+        {/* Support */}
         <Animated.View 
           style={styles.settingsSection}
           entering={SlideInRight.duration(800).delay(700)}
@@ -457,15 +368,8 @@ export default function ProfileScreen() {
               handleHelp
             )}
             
-            {/* {renderSettingItem(
-              <Download size={20} color={COLORS.primary} />,
-              "Export Data",
-              "Download your data",
-              handleExportData
-            )} */}
-            
             {renderSettingItem(
-              <Share2 size={20} color={COLORS.primary} />,
+              <UsersIcon size={20} color={COLORS.primary} />,
               "Share App",
               "Share with friends",
               handleShareApp
@@ -500,14 +404,14 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* Premium App Footer */}
+        {/* App Footer */}
         <Animated.View 
           style={styles.appFooter}
-          entering={FadeInUp.duration(800).delay(900)}
+          entering={FadeInDown.duration(800).delay(900)}
         >
           <View style={styles.appLogo}>
             <PieChart size={28} color={COLORS.primary} />
-            <Text style={styles.appName}>Hisab barabar</Text>
+            <Text style={styles.appName}>SplitSaathi</Text>
           </View>
           <Text style={styles.appVersion}>v1.0.0</Text>
           <View style={styles.appFooterContent}>
@@ -544,72 +448,68 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
   },
   headerSection: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
     marginBottom: 24,
   },
-  headerGradient: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
   headerContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  userCard: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    width: '100%',
-    marginBottom: 28,
+  avatarContainer: {
+    marginRight: 16,
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.surfaceSecondary,
+  },
+  avatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
+    color: COLORS.text,
     fontFamily: 'Inter-Bold',
+    marginBottom: 4,
   },
   userEmail: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: COLORS.textSecondary,
     fontFamily: 'Inter-Regular',
   },
   editButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  headerStats: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  headerStatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  headerStatText: {
-    color: '#fff',
-    fontSize: 13,
-    fontFamily: 'Inter-Medium',
+    borderColor: COLORS.border,
   },
   statsContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     marginBottom: 28,
   },
   statsGrid: {
@@ -623,7 +523,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 16,
     elevation: 8,
   },
@@ -653,8 +553,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     fontFamily: 'Inter-Medium',
   },
-  insightsSection: {
-    paddingHorizontal: 20,
+  settingsSection: {
+    paddingHorizontal: 24,
     marginBottom: 28,
   },
   sectionHeader: {
@@ -668,73 +568,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
-  },
-  sectionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.surfaceSecondary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  sectionBadgeText: {
-    fontSize: 12,
-    color: COLORS.warning,
-    fontFamily: 'Inter-SemiBold',
-  },
-  insightsCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  insightItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  insightIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  insightContent: {
-    flex: 1,
-  },
-  insightTitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontFamily: 'Inter-Regular',
-    marginBottom: 2,
-  },
-  insightValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    fontFamily: 'Inter-SemiBold',
-  },
-  insightTrend: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  settingsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 28,
   },
   settingsCard: {
     backgroundColor: COLORS.surface,
@@ -800,7 +633,7 @@ const styles = StyleSheet.create({
   },
   appFooter: {
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     marginTop: 20,
   },
   appLogo: {
