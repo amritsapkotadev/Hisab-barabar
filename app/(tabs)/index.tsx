@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Image,
   FlatList,
   Dimensions,
   Platform,
@@ -20,26 +19,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Bell, Camera, ChevronRight, Edit3, Trash2, TrendingUp } from 'lucide-react-native';
+import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, Camera, ChevronRight, Edit3, Trash2, TrendingUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { apiService } from '@/services/api';
 import type { Group, Expense, User } from '@/types';
-import AddExpenseScreen from '../add-personal-expense';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const isIOS = Platform.OS === 'ios';
-// import { useCameraPermission, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
-// import QRScannerScreen from '../scan-qr';
 
-// Modern light blue color palette
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const COLORS = {
   primary: '#4361EE',
   secondary: '#3A0CA3',
   accent: '#4CC9F0',
   background: '#F8F9FA',
   card: '#FFFFFF',
-  glass: 'rgba(255,255,255,0.7)',
   border: '#E2E8F0',
   text: '#1E293B',
   subtext: '#64748B',
@@ -48,9 +41,9 @@ const COLORS = {
   shadow: 'rgba(0,0,0,0.05)',
   progressBg: '#EDF2F7',
   chip: '#E0F2FE',
-  gradientStart: '#F0F9FF',
-  gradientEnd: '#E0F2FE',
   toggleInactive: '#CBD5E1',
+  greetingBg1: '#4361EE',
+  greetingBg2: '#3A0CA3',
 };
 
 function getNetBalance(groups: Group[], userId: string) {
@@ -114,6 +107,15 @@ export default function HomeScreen() {
     fetchAll();
   }, [fetchAll]);
 
+  useEffect(() => {
+    Animated.timing(toggleAnim, {
+      toValue: activeTab === 'personal' ? 0 : 1,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [activeTab]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchAll();
@@ -145,15 +147,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Filter for personal expenses
-  // const personalExpenses = expenses.filter(
-  //   e => user && (
-  //     (!e.groupId && e.paidBy === user.name) ||
-  //     (e.participants && e.participants.includes(user.name))
-  //   )
-  // );
-
-  // Calculate spent and left for this month
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const spentThisMonth = perExpenses
@@ -161,7 +154,6 @@ export default function HomeScreen() {
     .reduce((sum, e) => sum + e.amount, 0);
   const leftThisMonth = Math.max(0, personalBudget - spentThisMonth);
 
-  // --- UI Components ---
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -171,16 +163,27 @@ export default function HomeScreen() {
 
   const renderAppBar = () => (
     <View style={styles.appBar}>
-      <View style={styles.appBarContent}>
-        <View style={styles.greetingContainer}>
-          <View style={styles.greetingCard}>
+      <LinearGradient
+        colors={[COLORS.greetingBg1, COLORS.greetingBg2]}
+        style={styles.greetingCard}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.greetingContent}>
+          <View style={styles.greetingLeft}>
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.userName}>{user ? user.name.split(' ')[0] : 'User'}</Text>
-            <Text style={styles.greetingSubtext}>Ready to track your expenses?</Text>
+            <Text style={styles.greetingSubtext}>
+              Ready to track your expenses?
+            </Text>
+          </View>
+          <View style={styles.greetingRight}>
+            <View style={styles.greetingIcon}>
+              <Wallet size={28} color="#fff" />
+            </View>
           </View>
         </View>
-
-      </View>
+      </LinearGradient>
     </View>
   );
 
@@ -212,25 +215,6 @@ export default function HomeScreen() {
       </View>
     );
   };
-
-  // const renderPersonalExpenseCard = () => (
-  //   <View style={styles.balanceCard}>
-  //     <LinearGradient
-  //       colors={['rgba(239, 68, 68, 0.1)', 'rgba(239, 68, 68, 0.05)']}
-  //       style={styles.balanceGradient}
-  //       start={{ x: 0, y: 0 }}
-  //       end={{ x: 1, y: 1 }}
-  //     />
-  //     <View style={styles.balanceContent}>
-  //       <View style={styles.balanceHeader}>
-  //         <FileText size={20} color={COLORS.negative} />
-  //         <Text style={styles.balanceTitle}>Personal Expenses</Text>
-  //       </View>
-  //       <Text style={[styles.balanceValue, { color: COLORS.text }]}>₹{spentThisMonth.toFixed(2)}</Text>
-  //       <Text style={[styles.balanceStatus, { color: COLORS.subtext }]}>This month</Text>
-  //     </View>
-  //   </View>
-  // );
 
   const renderQuickActions = () => (
     <View style={styles.actionsContainer}>
@@ -329,7 +313,8 @@ export default function HomeScreen() {
   const renderExpenseItem = ({ item }: { item: Expense }) => {
     const group = groups.find((g) => g.id === item.groupId);
     const isPositive = user && item.paidBy === user.name;
-    const isPersonal = !item.groupId; // Personal expenses have no groupId
+    const isPersonal = !item.groupId;
+
     return (
       <View style={styles.expenseCard}>
         <TouchableOpacity
@@ -412,7 +397,42 @@ export default function HomeScreen() {
     </View>
   );
 
-  // --- Main Render ---
+  const renderToggle = () => (
+    <View style={styles.toggleContainer}>
+      <Animated.View 
+        style={[
+          styles.toggleSlider,
+          {
+            transform: [{
+              translateX: toggleAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, (SCREEN_WIDTH - 48) / 2]
+              })
+            }]
+          }
+        ]} 
+      />
+      <TouchableOpacity
+        style={styles.toggleButton}
+        onPress={() => setActiveTab('personal')}
+      >
+        <Text style={[
+          styles.toggleText, 
+          activeTab === 'personal' && styles.toggleTextActive
+        ]}>Personal</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.toggleButton}
+        onPress={() => setActiveTab('shared')}
+      >
+        <Text style={[
+          styles.toggleText, 
+          activeTab === 'shared' && styles.toggleTextActive
+        ]}>Shared</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -452,53 +472,10 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {renderAppBar()}
-        {/* Enhanced Toggle Switch */}
-        <View style={styles.toggleContainer}>
-          <Animated.View 
-            style={[
-              styles.toggleSlider,
-              {
-                transform: [{
-                  translateX: toggleAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [2, SCREEN_WIDTH * 0.5 - 2]
-                  })
-                }]
-              }
-            ]} 
-          />
-          <TouchableOpacity
-            style={[styles.toggleButton]}
-            onPress={() => {
-              setActiveTab('personal');
-              Animated.spring(toggleAnim, {
-                toValue: 0,
-                useNativeDriver: true,
-                tension: 100,
-                friction: 8
-              }).start();
-            }}
-          >
-            <Text style={[styles.toggleText, activeTab === 'personal' && styles.toggleTextActive]}>Personal</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton]}
-            onPress={() => {
-              setActiveTab('shared');
-              Animated.spring(toggleAnim, {
-                toValue: 1,
-                useNativeDriver: true,
-                tension: 100,
-                friction: 8
-              }).start();
-            }}
-          >
-            <Text style={[styles.toggleText, activeTab === 'shared' && styles.toggleTextActive]}>Shared</Text>
-          </TouchableOpacity>
-        </View>
+        {renderToggle()}
+        
         {activeTab === 'personal' ? (
           <>
-            {/* Enhanced Personal Budget Dashboard */}
             <View style={styles.personalBudgetCard}>
               <LinearGradient
                 colors={[COLORS.primary, COLORS.secondary]}
@@ -549,7 +526,6 @@ export default function HomeScreen() {
               </View>
             </View>
             
-            {/* Enhanced Budget Overview */}
             <View style={styles.budgetOverviewContainer}>
               <View style={styles.budgetOverviewHeader}>
                 <Text style={styles.budgetOverviewTitle}>Budget Overview</Text>
@@ -585,7 +561,6 @@ export default function HomeScreen() {
               </View>
             </View>
             
-            {/* Personal Expenses List */}
             <View style={[styles.section, { marginTop: 16 }]}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Personal Expenses</Text>
@@ -605,7 +580,6 @@ export default function HomeScreen() {
                 />
               )}
             </View>
-            {/* FAB for adding personal expense */}
             <TouchableOpacity
               style={styles.fabPersonal}
               onPress={() => router.push('/add-personal-expense')}
@@ -615,7 +589,6 @@ export default function HomeScreen() {
                 <Plus size={28} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
-            {/* Modal for editing budget */}
             <Modal
               visible={showBudgetModal}
               transparent
@@ -664,7 +637,6 @@ export default function HomeScreen() {
         ) : (
           <>
             {renderNetBalanceCard()}
-            {/* {renderPersonalExpenseCard()} */}
             {renderQuickActions()}
             {renderGroupsSection()}
             {renderRecentExpenses()}
@@ -710,60 +682,100 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 24,
   },
-  appBarContent: {
+  greetingCard: {
+    borderRadius: 24,
+    padding: 28,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  greetingContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
-  greetingContainer: {
+  greetingLeft: {
     flex: 1,
-    paddingVertical: 8,
   },
-  greetingCard: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
+  greetingRight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  greetingIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'rgba(0,0,0,0.1)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   greeting: {
-    fontSize: 18,
-    color: '#fff',
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 6,
-    opacity: 0.95,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: 'Inter-Medium',
+    marginBottom: 8,
+    letterSpacing: 0.5,
   },
   userName: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
     color: '#fff',
     fontFamily: 'Inter-Bold',
-    letterSpacing: -0.8,
-    marginBottom: 6,
+    letterSpacing: -1,
+    marginBottom: 8,
+    lineHeight: 42,
   },
   greetingSubtext: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    fontFamily: 'Inter-Medium',
-    marginTop: 2,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.8)',
+    fontFamily: 'Inter-Regular',
+    lineHeight: 20,
   },
-  notificationButton: {
-    padding: 8,
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 16,
+    marginHorizontal: 24,
+    backgroundColor: COLORS.toggleInactive,
+    borderRadius: 24,
+    padding: 0,
+    height: 48,
     position: 'relative',
   },
-  notificationBadge: {
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    zIndex: 2,
+  },
+  toggleText: {
+    color: COLORS.subtext,
+    fontWeight: '700',
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    zIndex: 3,
+  },
+  toggleTextActive: {
+    color: '#fff',
+  },
+  toggleSlider: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.accent,
-    zIndex: 10,
+    width: (SCREEN_WIDTH - 48) / 2,
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 24,
+    top: 0,
+    left: 0,
+    zIndex: 1,
   },
   balanceCard: {
     marginHorizontal: 24,
@@ -1000,6 +1012,17 @@ const styles = StyleSheet.create({
     color: COLORS.subtext,
     fontFamily: 'Inter-Regular',
   },
+  expenseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  actionIconSmall: {
+    marginHorizontal: 4,
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+  },
   emptyContainer: {
     paddingHorizontal: 24,
     paddingVertical: 32,
@@ -1053,38 +1076,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 16,
-    marginHorizontal: 24,
-    backgroundColor: COLORS.toggleInactive,
-    borderRadius: 20,
-    padding: 2,
-    position: 'relative',
-    height: 44,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    marginHorizontal: 1,
-    zIndex: 1,
-  },
-  toggleButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  toggleText: {
-    color: COLORS.subtext,
-    fontWeight: '600',
-    fontSize: 15,
-    fontFamily: 'Inter-SemiBold',
-  },
-  toggleTextActive: {
-    color: '#fff',
-  },
   fabPersonal: {
     position: 'absolute',
     right: 24,
@@ -1133,6 +1124,12 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'space-between',
   },
+  personalBudgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
   personalBudgetTitle: {
     fontSize: 16,
     color: '#fff',
@@ -1145,111 +1142,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     color: '#fff',
     marginBottom: 8,
-  },
-  personalBudgetRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  personalBudgetLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    fontFamily: 'Inter-Regular',
-  },
-  personalBudgetSpent: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  personalBudgetLeft: {
-    fontSize: 14,
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-  },
-  budgetModalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  budgetModalContent: {
-    width: '85%',
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  budgetModalTitle: {
-    fontSize: 18,
-    color: COLORS.text,
-    fontWeight: '700',
-    marginBottom: 16,
-    fontFamily: 'Inter-Bold',
-  },
-  budgetInput: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 12,
-    padding: 12,
-    color: COLORS.text,
-    fontSize: 18,
-    backgroundColor: COLORS.background,
-    marginBottom: 8,
-    textAlign: 'center',
-    fontFamily: 'Inter-Medium',
-  },
-  budgetModalBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  budgetModalBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-  },
-  expenseActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  actionIconSmall: {
-    marginHorizontal: 4,
-    padding: 4,
-    borderRadius: 16,
-    backgroundColor: '#F1F5F9',
-  },
-  toggleSlider: {
-    position: 'absolute',
-    width: '50%',
-    height: '90%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 18,
-    top: '5%',
-    left: 0,
-    zIndex: 0,
-  },
-  personalBudgetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
   },
   editBudgetButton: {
     width: 32,
@@ -1299,7 +1191,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   budgetOverviewContainer: {
     marginHorizontal: 24,
     marginBottom: 32,
@@ -1360,5 +1251,62 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
     textAlign: 'center',
+  },
+  budgetModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  budgetModalContent: {
+    width: '85%',
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  budgetModalTitle: {
+    fontSize: 18,
+    color: COLORS.text,
+    fontWeight: '700',
+    marginBottom: 16,
+    fontFamily: 'Inter-Bold',
+  },
+  budgetInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 12,
+    padding: 12,
+    color: COLORS.text,
+    fontSize: 18,
+    backgroundColor: COLORS.background,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Inter-Medium',
+  },
+  budgetModalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  budgetModalBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
   },
 });
