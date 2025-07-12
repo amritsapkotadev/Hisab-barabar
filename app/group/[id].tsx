@@ -14,7 +14,6 @@ import {
   Modal,
   Pressable,
   Platform,
-  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
@@ -35,8 +34,6 @@ import {
   FileText,
   Settings,
   Trash2,
-  ArrowUpRight,
-  Bell,
   Minus
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,25 +43,28 @@ import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import { Group, Expense } from '@/types';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import * as Clipboard from 'expo-clipboard';
 import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const statusBarHeight = Constants.statusBarHeight;
 
 const COLORS = {
-  primary: '#7c3aed',
-  secondary: '#a78bfa',
-  background: '#f8fafc',
-  card: '#fff',
-  text: '#1e293b',
-  muted: '#64748b',
-  positive: '#22c55e',
-  negative: '#ef4444',
-  border: '#e5e7eb',
-  fab: ['#a78bfa', '#7c3aed'],
-  header: '#7c3aed',
+  primary: '#6366F1',
+  secondary: '#4F46E5',
+  background: '#F9FAFB',
+  card: '#FFFFFF',
+  text: '#1F2937',
+  muted: '#6B7280',
+  positive: '#10B981',
+  negative: '#EF4444',
+  border: '#E5E7EB',
+  headerGradient: ['#6366F1', '#4F46E5'],
+  summaryCard1: '#818CF8',
+  summaryCard2: '#6366F1',
+  summaryCard3: '#4F46E5',
+  fab: ['#6366F1', '#4F46E5'],
+  chip: '#E0E7FF',
 };
 
 type TabType = { id: string; label: string; icon: React.ReactElement<any, any> };
@@ -105,7 +105,10 @@ const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPre
           activeOpacity={0.8}
         >
           {React.isValidElement(tab.icon)
-            ? React.cloneElement(tab.icon, { size: 18 })
+            ? React.cloneElement(tab.icon as React.ReactElement<any>, { 
+                size: 18,
+                color: activeTab === tab.id ? '#FFFFFF' : COLORS.muted
+              })
             : tab.icon}
           <Text style={[styles.segmentButtonText, activeTab === tab.id ? styles.segmentButtonTextActive : undefined]}>
             {tab.label}
@@ -118,7 +121,7 @@ const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPre
 
 const MemberAvatar = ({ name, size = 40 }: { name: string; size?: number }) => {
   const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
-  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#ef4444'];
+  const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#EF4444'];
   const color = colors[name.charCodeAt(0) % colors.length];
 
   return (
@@ -224,7 +227,6 @@ const GroupScreen = () => {
 
   const handleDeleteMember = async (): Promise<void> => {
     if (!group || !selectedMember) return;
-    console.log(`Removing member: ${selectedMember} from group: ${group.id}`);
     try {
       const res = await apiService.removeGroupMember(group.id, selectedMember);
       await fetchGroupData();
@@ -279,7 +281,7 @@ const GroupScreen = () => {
         transform: [{
           translateY: fadeAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [50 * (item.id.charCodeAt(0) + 1), 0],
+            outputRange: [30, 0],
           })
         }]
       }}
@@ -290,7 +292,7 @@ const GroupScreen = () => {
         activeOpacity={0.8}
       >
         <View style={styles.expenseIcon}>
-          <DollarSign size={20} color="#7C3AED" />
+          <DollarSign size={20} color={COLORS.primary} />
         </View>
         <View style={styles.expenseInfo}>
           <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
@@ -300,14 +302,14 @@ const GroupScreen = () => {
               <Text style={styles.expenseSubtitle}>{item.paidBy}</Text>
             </View>
             <View style={styles.expenseDateContainer}>
-              <Clock size={14} color="#94a3b8" />
+              <Clock size={14} color={COLORS.muted} />
               <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
             </View>
           </View>
         </View>
         <View style={styles.expenseAmountContainer}>
           <Text style={styles.expenseAmount}>₹{item.amount.toFixed(2)}</Text>
-          <ChevronRight size={18} color="#94a3b8" />
+          <ChevronRight size={18} color={COLORS.muted} />
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -342,11 +344,10 @@ const GroupScreen = () => {
           onPress={() => {
             setSelectedMember(member);
             setShowDeleteMemberModal(true);
-            handleDeleteMember();
           }}
           style={styles.deleteMemberButton}
         >
-          <Minus size={20} color="#EF4444" />
+          <Minus size={20} color={COLORS.negative} />
         </TouchableOpacity>
       )}
     </View>
@@ -356,7 +357,7 @@ const GroupScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading group...</Text>
         </View>
       </SafeAreaView>
@@ -390,7 +391,7 @@ const GroupScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#7C3AED', '#5B21B6']}
+        colors={COLORS.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
@@ -424,8 +425,8 @@ const GroupScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#7C3AED"
-            colors={['#7C3AED']}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -439,27 +440,38 @@ const GroupScreen = () => {
             }
           ]}
         >
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryIcon}>
-              <DollarSign size={20} color="#7C3AED" />
-            </View>
-            <Text style={styles.summaryLabel}>Total</Text>
-            <Text style={styles.summaryValue}>₹{group.totalExpenses.toFixed(2)}</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryIcon}>
-              <User size={20} color="#7C3AED" />
-            </View>
-            <Text style={styles.summaryLabel}>Members</Text>
-            <Text style={styles.summaryValue}>{group.members.length}</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryIcon}>
-              <FileText size={20} color="#7C3AED" />
-            </View>
-            <Text style={styles.summaryLabel}>Expenses</Text>
-            <Text style={styles.summaryValue}>{expenses.length}</Text>
-          </View>
+          <LinearGradient
+            colors={[COLORS.summaryCard1, COLORS.summaryCard2]}
+            style={styles.summaryCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <DollarSign size={24} color="#fff" />
+            <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Total</Text>
+            <Text style={[styles.summaryValue, { color: '#fff' }]}>₹{group.totalExpenses.toFixed(2)}</Text>
+          </LinearGradient>
+          
+          <LinearGradient
+            colors={[COLORS.summaryCard2, COLORS.summaryCard3]}
+            style={styles.summaryCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <User size={24} color="#fff" />
+            <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Members</Text>
+            <Text style={[styles.summaryValue, { color: '#fff' }]}>{group.members.length}</Text>
+          </LinearGradient>
+          
+          <LinearGradient
+            colors={[COLORS.summaryCard3, '#4338ca']}
+            style={styles.summaryCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <FileText size={24} color="#fff" />
+            <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Expenses</Text>
+            <Text style={[styles.summaryValue, { color: '#fff' }]}>{expenses.length}</Text>
+          </LinearGradient>
         </Animated.View>
 
         {/* Segmented Control */}
@@ -493,7 +505,7 @@ const GroupScreen = () => {
             <>
               {isSettled ? (
                 <View style={styles.settledBanner}>
-                  <Check size={16} color="#22c55e" />
+                  <Check size={16} color={COLORS.positive} />
                   <Text style={styles.settledText}>All settled up!</Text>
                 </View>
               ) : (
@@ -525,7 +537,7 @@ const GroupScreen = () => {
                 onPress={() => setShowAddMemberModal(true)}
                 activeOpacity={0.7}
               >
-                <UserPlus size={18} color="#7C3AED" />
+                <UserPlus size={18} color={COLORS.primary} />
                 <Text style={styles.addMemberText}>Add Member</Text>
               </TouchableOpacity>
 
@@ -548,7 +560,7 @@ const GroupScreen = () => {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#7C3AED', '#5B21B6']}
+          colors={COLORS.fab}
           style={styles.fabGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -593,7 +605,7 @@ const GroupScreen = () => {
               onPress={() => setShowAddMemberModal(false)}
               activeOpacity={0.7}
             >
-              <X size={24} color="#94a3b8" />
+              <X size={24} color={COLORS.muted} />
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>Join Group</Text>
@@ -635,15 +647,16 @@ const GroupScreen = () => {
         >
           <BlurView intensity={30} style={styles.settingsContainer}>
             <Pressable style={styles.settingsContent}>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowSettings(false)}
-                activeOpacity={0.7}
-              >
-                <X size={24} color="#94a3b8" />
-              </TouchableOpacity>
-
-              <Text style={styles.modalTitle}>Group Settings</Text>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Group Settings</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowSettings(false)}
+                  activeOpacity={0.7}
+                >
+                  <X size={24} color={COLORS.muted} />
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.settingsOptionsContainer}>
                 <TouchableOpacity
@@ -654,9 +667,9 @@ const GroupScreen = () => {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Share2 size={20} color="#7C3AED" />
+                  <Share2 size={20} color={COLORS.primary} />
                   <Text style={styles.settingsOptionText}>Share Group</Text>
-                  <ChevronRight size={20} color="#94a3b8" />
+                  <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -667,9 +680,9 @@ const GroupScreen = () => {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Download size={20} color="#7C3AED" />
+                  <Download size={20} color={COLORS.primary} />
                   <Text style={styles.settingsOptionText}>Export Data</Text>
-                  <ChevronRight size={20} color="#94a3b8" />
+                  <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -680,9 +693,11 @@ const GroupScreen = () => {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Trash2 size={20} color="#EF4444" />
-                  <Text style={[styles.settingsOptionText, { color: '#EF4444' }]} onPress={handleDeleteGroup}>Delete Group</Text>
-                  <ChevronRight size={20} color="#94a3b8" />
+                  <Trash2 size={20} color={COLORS.negative} />
+                  <Text style={[styles.settingsOptionText, { color: COLORS.negative }]}>
+                    Delete Group
+                  </Text>
+                  <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
               </View>
             </Pressable>
@@ -694,32 +709,9 @@ const GroupScreen = () => {
 };
 
 const styles = StyleSheet.create({
-
-  memberItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  deleteMemberButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-  },
-  // ... (rest of the styles remain the same)
-
-
-
-
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -730,6 +722,12 @@ const styles = StyleSheet.create({
     paddingTop: statusBarHeight + 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    zIndex: 10,
   },
   headerButton: {
     padding: 8,
@@ -746,6 +744,9 @@ const styles = StyleSheet.create({
   headerEmoji: {
     fontSize: 24,
     marginRight: 12,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 20,
+    padding: 4,
   },
   headerTitle: {
     fontSize: 20,
@@ -764,78 +765,49 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
-    gap: 8,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  summaryIcon: {
-    backgroundColor: '#EDE9FE',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+    gap: 10,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
   },
   summaryLabel: {
-    color: '#64748B',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 14,
+    letterSpacing: -0.2,
   },
   summaryValue: {
-    color: '#1E293B',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 18,
-  },
-  trackingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#7C3AED',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    gap: 10,
-  },
-  trackingIcon: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  trackingText: {
-    flex: 1,
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+    letterSpacing: -0.3,
+    marginTop: 4,
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 14,
     marginHorizontal: 16,
     padding: 6,
-    shadowColor: '#7C3AED',
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   activeSegment: {
     position: 'absolute',
-    backgroundColor: '#7C3AED',
-    borderRadius: 8,
-    height: '110%',
-    top: '15%',
-    left: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    height: '100%',
+    top: 0,
+    left: 6,
+    margin: 2,
   },
   segmentButton: {
     flex: 1,
@@ -845,18 +817,20 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     zIndex: 1,
+    borderRadius: 10,
   },
   segmentButtonText: {
-    color: '#94a3b8',
+    color: COLORS.muted,
     fontWeight: '600',
     fontSize: 14,
+    letterSpacing: -0.2,
   },
   segmentButtonActive: {
-    backgroundColor: '#EDE9FE',
-    borderRadius: 8,
+    backgroundColor: 'transparent',
   },
   segmentButtonTextActive: {
-    color: '#7C3AED',
+    color: '#fff',
+    fontWeight: '700',
   },
   tabContent: {
     padding: 16,
@@ -864,17 +838,19 @@ const styles = StyleSheet.create({
   expenseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
     padding: 16,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   expenseIcon: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: COLORS.chip,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -886,7 +862,7 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   expenseTitle: {
-    color: '#1E293B',
+    color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,
     marginBottom: 6,
@@ -902,7 +878,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   expenseSubtitle: {
-    color: '#64748B',
+    color: COLORS.muted,
     fontWeight: '500',
     fontSize: 14,
   },
@@ -912,7 +888,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   expenseDate: {
-    color: '#94A3B8',
+    color: COLORS.muted,
     fontWeight: '500',
     fontSize: 13,
   },
@@ -922,8 +898,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   expenseAmount: {
-    color: '#1E293B',
-    fontWeight: '700',
+    color: COLORS.text,
+    fontWeight: '800',
     fontSize: 16,
   },
   separator: {
@@ -934,16 +910,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 48,
     gap: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 24,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
   emptyTitle: {
-    color: '#1E293B',
+    color: COLORS.text,
     fontWeight: '600',
     fontSize: 18,
+    marginTop: 8,
   },
   emptySubtitle: {
-    color: '#94A3B8',
+    color: COLORS.muted,
     fontWeight: '500',
     fontSize: 14,
+    textAlign: 'center',
+    maxWidth: '80%',
   },
   balancesContainer: {
     gap: 12,
@@ -951,34 +941,36 @@ const styles = StyleSheet.create({
   balanceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
     padding: 16,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   balanceName: {
     flex: 1,
-    color: '#1E293B',
+    color: COLORS.text,
     fontWeight: '500',
     fontSize: 16,
     marginLeft: 12,
   },
   balanceAmount: {
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 16,
   },
   positiveBalance: {
-    color: '#22c55e',
+    color: COLORS.positive,
   },
   negativeBalance: {
-    color: '#ef4444',
+    color: COLORS.negative,
   },
   neutralBalance: {
-    color: '#94a3b8',
+    color: COLORS.muted,
   },
   settledBanner: {
     flexDirection: 'row',
@@ -986,41 +978,54 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#DCFCE7',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     gap: 8,
     borderWidth: 1,
     borderColor: '#BBF7D0',
+    marginBottom: 16,
   },
   settledText: {
-    color: '#16A34A',
+    color: '#15803D',
     fontWeight: '600',
+    fontSize: 15,
   },
   settleButton: {
-    backgroundColor: '#7C3AED',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    padding: 18,
+    borderRadius: 14,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
   settleButtonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 16,
   },
   addMemberButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#EDE9FE',
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#E0E7FF',
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: '#C7D2FE',
     alignSelf: 'flex-start',
     marginBottom: 16,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   addMemberText: {
-    color: '#7C3AED',
+    color: COLORS.primary,
     fontWeight: '600',
+    fontSize: 15,
   },
   membersContainer: {
     gap: 12,
@@ -1028,61 +1033,36 @@ const styles = StyleSheet.create({
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
     padding: 16,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   memberInfo: {
     flex: 1,
     marginLeft: 16,
   },
   memberName: {
-    color: '#1E293B',
+    color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,
   },
   adminText: {
-    color: '#7C3AED',
+    color: COLORS.primary,
     fontWeight: '500',
     fontSize: 14,
     marginTop: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 16,
-  },
-  errorText: {
-    color: '#EF4444',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#7C3AED',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
+    backgroundColor: '#E0E7FF',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   fab: {
     position: 'absolute',
@@ -1091,11 +1071,11 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 12,
+    elevation: 12,
   },
   fabGradient: {
     flex: 1,
@@ -1108,84 +1088,75 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   modalContent: {
     width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 28,
+    padding: 28,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
     shadowRadius: 20,
-    elevation: 5,
+    elevation: 10,
   },
   modalCloseButton: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 20,
+    right: 20,
     padding: 8,
+    backgroundColor: COLORS.background,
+    borderRadius: 20,
   },
   modalTitle: {
-    color: '#1E293B',
+    color: COLORS.text,
     fontWeight: '700',
-    fontSize: 20,
+    fontSize: 22,
     marginBottom: 12,
     textAlign: 'center',
   },
   modalText: {
-    color: '#64748B',
+    color: COLORS.muted,
     fontWeight: '500',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
+    fontSize: 16,
+    lineHeight: 24,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.background,
+    padding: 18,
+    borderRadius: 14,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   cancelText: {
-    color: '#1E293B',
+    color: COLORS.text,
     fontWeight: '600',
+    fontSize: 16,
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#7C3AED',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    padding: 18,
+    borderRadius: 14,
     alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   confirmText: {
     color: '#fff',
     fontWeight: '600',
-  },
-  exportScroll: {
-    maxHeight: 200,
-    marginBottom: 16,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 16,
-  },
-  exportText: {
-    color: '#1E293B',
-    fontWeight: '400',
-    fontSize: 12,
-  },
-  copyButton: {
-    backgroundColor: '#7C3AED',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  copyText: {
-    color: '#fff',
-    fontWeight: '600',
+    fontSize: 16,
   },
   settingsBackdrop: {
     flex: 1,
@@ -1194,30 +1165,86 @@ const styles = StyleSheet.create({
   },
   settingsContainer: {
     width: '100%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
   },
   settingsContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: COLORS.card,
     padding: 24,
-    paddingTop: 40,
+    paddingTop: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   settingsOptionsContainer: {
-    marginTop: 16,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   settingsOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     gap: 16,
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: COLORS.border,
   },
   settingsOptionText: {
     flex: 1,
-    color: '#1E293B',
+    color: COLORS.text,
+    fontWeight: '500',
+    fontSize: 17,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    color: COLORS.muted,
     fontWeight: '500',
     fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 16,
+  },
+  errorText: {
+    color: COLORS.negative,
+    fontWeight: '500',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  deleteMemberButton: {
+    padding: 8,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
 });
 
