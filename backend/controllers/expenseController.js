@@ -1,5 +1,6 @@
 const Expense = require('../models/Expense');
 const Group = require('../models/Group');
+const { firebase } = require('../firebase');
 
 exports.createPersonalExpense = async (req, res) => {
   try {
@@ -260,10 +261,27 @@ exports.createUnequalExpense = async (req, res) => {
       groupId,
       date,
       createdBy: req.user._id,
-      type: type
+      type: type,
     });
 
     const savedExpense = await expense.save();
+
+    try {
+      await firebase.messaging().send({
+        notification: {
+          title: 'New Expense Added',
+          body: `${req.user.name} has added an expense of Rs ${amount} to ${group.name}`,
+        },
+        data: {
+          groupId: group._id.toString(),
+          groupName: group.name
+        },
+        topic: `group_${groupId}`,
+      });
+      console.log('Notification sent successfully');
+    } catch (error) {
+      console.error('Error sending FCM notification:', error);
+    }
 
     // Transform expense to match frontend interface
     const transformedExpense = {
@@ -471,7 +489,7 @@ exports.updatePersonalExpense = async (req, res) => {
     const { id } = req.params;
     const { description, amount, date } = req.body;
     const expense = await Expense.findByIdAndUpdate(id,
-      {description, amount, date },{
+      { description, amount, date }, {
       new: true,
       runValidators: true
     });

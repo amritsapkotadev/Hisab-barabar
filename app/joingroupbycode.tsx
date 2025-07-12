@@ -2,6 +2,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import React, { useState } from 'react'
 import { router } from 'expo-router';
 import { apiService } from '@/services/api';
+import messaging from '@react-native-firebase/messaging';
 
 export default function JoinGroup() {
   const [code, setCode] = useState('');
@@ -19,6 +20,8 @@ export default function JoinGroup() {
       if (response) {
         router.replace('/(tabs)/groups');
         Alert.alert('Success', `Joined group with code: ${code}`);
+        await messaging().subscribeToTopic(`group_${response.id}`);
+        console.log(`Subscribed to topic: group_${response.id}`);
       } else {
         Alert.alert('Error', 'Failed to join group. Please check the code and try again.');
       }

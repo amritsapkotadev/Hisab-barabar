@@ -10,7 +10,7 @@ exports.registerUser = async (req, res) => {
     const { name, email, password, fcmToken } = req.body;
 
     // Validation
-    if (!name || !email || !password || !fcmToken) {
+    if (!name || !email || !password) {
       console.log('Registration failed: Missing fields');
       return res.status(400).json({ message: 'All fields are required' });
     }
