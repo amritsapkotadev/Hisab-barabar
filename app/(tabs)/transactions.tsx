@@ -8,6 +8,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Image,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -19,11 +21,55 @@ import {
   Filter,
   Search,
   Plus,
-  Trash2
+  Trash2,
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Users,
+  Eye,
+  Edit3,
+  MoreVertical,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle,
+  XCircle
 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Group, Expense } from '@/types';
 import { apiService } from '@/services/api';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
+import * as Haptics from 'expo-haptics';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Premium Design System
+const COLORS = {
+  primary: '#7C3AED',
+  primaryLight: '#A78BFA',
+  secondary: '#EC4899',
+  accent: '#06B6D4',
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  background: '#F8FAFC',
+  surface: '#FFFFFF',
+  surfaceSecondary: '#F1F5F9',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textTertiary: '#94A3B8',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
+  shadow: 'rgba(0, 0, 0, 0.08)',
+  glass: 'rgba(255, 255, 255, 0.95)',
+  gradient1: ['#7C3AED', '#A78BFA'] as any,
+  gradient2: ['#EC4899', '#F472B6'] as any,
+  gradient3: ['#06B6D4', '#22D3EE'] as any,
+  gradient4: ['#10B981', '#34D399'] as any,
+  gradient5: ['#F59E0B', '#FBBF24'] as any,
+  gradient6: ['#8B5CF6', '#A78BFA'] as any,
+};
+
 export default function TransactionsScreen() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
@@ -34,11 +80,16 @@ export default function TransactionsScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   const fetchData = async () => {
     try {
-      const groupsData = await apiService.getGroups();
+      const [groupsData, userData] = await Promise.all([
+        apiService.getGroups(),
+        apiService.getUserProfile()
+      ]);
       setGroups(groupsData);
+      setUser(userData);
       
       // Get all expenses from all groups
       const allExpensesData: Expense[] = [];
@@ -91,6 +142,7 @@ export default function TransactionsScreen() {
   };
 
   const handleDeleteExpense = (expense: Expense) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedExpense(expense);
     setDeleteModalVisible(true);
   };
@@ -104,7 +156,9 @@ export default function TransactionsScreen() {
       setFilteredExpenses(prev => prev.filter(e => e.id !== selectedExpense.id));
       setSelectedExpense(null);
       setDeleteModalVisible(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       alert(error.message || 'Failed to delete expense. Please try again.');
     } finally {
       setDeleting(false);
@@ -138,52 +192,104 @@ export default function TransactionsScreen() {
     return filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   };
 
-  const renderExpenseCard = ({ item }: { item: Expense }) => (
-    <TouchableOpacity
-      onPress={() => router.push(`/group/${item.groupId}/expense/${item.id}`)}
-      activeOpacity={0.85}
-    >
-      <View style={styles.expenseCard}>
+  const getAverageAmount = () => {
+    return filteredExpenses.length > 0 ? getTotalAmount() / filteredExpenses.length : 0;
+  };
+
+
+
+  const renderExpenseCard = ({ item }: { item: Expense }) => {
+    const isPaidByUser = user && item.paidBy === user.name;
+    const group = groups.find(g => g.id === item.groupId);
+    
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push(`/group/${item.groupId}/expense/${item.id}`);
+        }}
+        activeOpacity={0.85}
+        style={styles.expenseCard}
+      >
+        <LinearGradient
+          colors={isPaidByUser ? COLORS.gradient4 : COLORS.gradient1}
+          style={styles.expenseCardGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        
         <View style={styles.expenseContent}>
-          <View style={styles.expenseIcon}>
-            <User size={22} color="#2563eb" />
-          </View>
-          <View style={styles.expenseInfo}>
-            <Text style={styles.expenseDescription}>{item.description}</Text>
-            <View style={styles.expenseDetails}>
-              <View style={styles.detailItem}>
-                <User size={12} color="#6b7280" />
-                <Text style={styles.detailText}>Paid by {item.paidBy}</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Receipt size={12} color="#6b7280" />
-                <Text style={styles.detailText}>{getGroupName(item.groupId)}</Text>
-              </View>
+          <View style={styles.expenseLeft}>
+            <View style={[styles.expenseIcon, { backgroundColor: isPaidByUser ? `${COLORS.success}20` : `${COLORS.primary}20` }]}>
+              {isPaidByUser ? (
+                <CheckCircle size={20} color={COLORS.success} />
+              ) : (
+                <Receipt size={20} color={COLORS.primary} />
+              )}
             </View>
-            <View style={styles.participantsRow}>
-              <Text style={styles.participantsLabel}>
-                Split between {item.participants.length} people
+            
+            <View style={styles.expenseInfo}>
+              <Text style={styles.expenseDescription} numberOfLines={1}>
+                {item.description}
               </Text>
+              <View style={styles.expenseDetails}>
+                <View style={styles.detailItem}>
+                  <User size={12} color={COLORS.textTertiary} />
+                  <Text style={styles.detailText}>{item.paidBy}</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Users size={12} color={COLORS.textTertiary} />
+                  <Text style={styles.detailText}>{getGroupName(item.groupId)}</Text>
+                </View>
+              </View>
+              <View style={styles.participantsRow}>
+                <Text style={styles.participantsLabel}>
+                  Split between {item.participants.length} people
+                </Text>
+              </View>
             </View>
           </View>
+          
           <View style={styles.expenseRight}>
-            <Text style={styles.expenseAmount}>${item.amount.toFixed(2)}</Text>
-            <Text style={styles.expenseDate}>{formatDate(item.createdAt)}</Text>
-            <Text style={styles.expenseTime}>{formatTime(item.createdAt)}</Text>
+            <Text style={[styles.expenseAmount, { color: isPaidByUser ? COLORS.success : COLORS.primary }]}>
+              ₹{item.amount.toFixed(2)}
+            </Text>
+            <View style={styles.expenseDateTime}>
+              <View style={styles.dateTimeItem}>
+                <Calendar size={10} color={COLORS.textTertiary} />
+                <Text style={styles.dateTimeText}>{formatDate(item.createdAt)}</Text>
+              </View>
+              <View style={styles.dateTimeItem}>
+                <Clock size={10} color={COLORS.textTertiary} />
+                <Text style={styles.dateTimeText}>{formatTime(item.createdAt)}</Text>
+              </View>
+            </View>
           </View>
         </View>
+        
         <View style={styles.expenseActions}>
           <TouchableOpacity
-            style={styles.deleteButton}
+            style={styles.actionButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push(`/group/${item.groupId}/expense/${item.id}/edit`);
+            }}
+          >
+            <Edit3 size={14} color={COLORS.primary} />
+            <Text style={styles.actionButtonText}>Edit</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteActionButton]}
             onPress={() => handleDeleteExpense(item)}
           >
-            <Trash2 size={14} color="#dc2626" />
-            <Text style={styles.deleteButtonText}>Delete</Text>
+            <Trash2 size={14} color={COLORS.danger} />
+            <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Delete</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderFilterButton = (filter: 'all' | 'week' | 'month', label: string) => (
     <TouchableOpacity
@@ -191,7 +297,11 @@ export default function TransactionsScreen() {
         styles.filterButton,
         selectedFilter === filter && styles.activeFilterButton,
       ]}
-      onPress={() => setSelectedFilter(filter)}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setSelectedFilter(filter);
+      }}
+      activeOpacity={0.8}
     >
       <Text style={[
         styles.filterButtonText,
@@ -202,14 +312,57 @@ export default function TransactionsScreen() {
     </TouchableOpacity>
   );
 
+  const renderStatsCard = () => {
+    const totalAmount = getTotalAmount();
+    const averageAmount = getAverageAmount();
+    
+    return (
+      <View style={styles.statsCard}>
+        <LinearGradient
+          colors={['#7C3AED', '#8B5CF6']}
+          style={styles.statsCardGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        
+        <View style={styles.statsContent}>
+          <View style={styles.statsHeader}>
+            <View style={styles.statsIconContainer}>
+              <DollarSign size={24} color="#fff" />
+            </View>
+            <View style={styles.statsHeaderText}>
+              <Text style={styles.statsTitle}>Total Expenses</Text>
+              <Text style={styles.statsSubtitle}>
+                {filteredExpenses.length} transaction{filteredExpenses.length !== 1 ? 's' : ''}
+                {selectedFilter !== 'all' && ` in the last ${selectedFilter}`}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.statsAmounts}>
+            <View style={styles.amountItem}>
+              <Text style={styles.amountLabel}>Total</Text>
+              <Text style={styles.amountValue}>₹{totalAmount.toFixed(2)}</Text>
+            </View>
+            
+            <View style={styles.amountDivider} />
+            
+            <View style={styles.amountItem}>
+              <Text style={styles.amountLabel}>Average</Text>
+              <Text style={styles.amountValue}>₹{averageAmount.toFixed(2)}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Transactions</Text>
-        </View>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
       </SafeAreaView>
@@ -218,22 +371,40 @@ export default function TransactionsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Transactions</Text>
-      </View>
-
-      {/* Summary Card */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryIconRow}>
-          <DollarSign size={28} color="#2563eb" style={{ marginRight: 8 }} />
-          <Text style={styles.summaryLabel}>Total Expenses</Text>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      
+      {/* Premium Header */}
+      <LinearGradient
+        colors={COLORS.gradient1}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
+            activeOpacity={0.8}
+          >
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          
+          <View style={styles.headerTitle}>
+            <Text style={styles.headerTitleText}>Transactions</Text>
+            <Text style={styles.headerSubtitle}>Track your shared expenses</Text>
+          </View>
+          
+          <View style={styles.headerIcon}>
+            <Receipt size={24} color="#fff" />
+          </View>
         </View>
-        <Text style={styles.summaryAmount}>${getTotalAmount().toFixed(2)}</Text>
-        <Text style={styles.summarySubtext}>
-          {filteredExpenses.length} transaction{filteredExpenses.length !== 1 ? 's' : ''}
-          {selectedFilter !== 'all' && ` in the last ${selectedFilter}`}
-        </Text>
-      </View>
+      </LinearGradient>
+
+      {/* Stats Card */}
+      {renderStatsCard()}
 
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
@@ -252,12 +423,20 @@ export default function TransactionsScreen() {
         style={styles.transactionsList}
         contentContainerStyle={styles.transactionsContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563eb']} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+            progressBackgroundColor={COLORS.background}
+          />
         }
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Receipt size={64} color="#d1d5db" />
+            <View style={styles.emptyIconContainer}>
+              <Receipt size={48} color={COLORS.textTertiary} />
+            </View>
             <Text style={styles.emptyTitle}>No transactions found</Text>
             <Text style={styles.emptyDescription}>
               {selectedFilter === 'all' 
@@ -267,10 +446,21 @@ export default function TransactionsScreen() {
             </Text>
             <TouchableOpacity 
               style={styles.addFirstButton}
-              onPress={() => router.push('/add-expense-advanced')}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push('/add-expense-advanced');
+              }}
+              activeOpacity={0.8}
             >
-              <Plus size={16} color="#2563eb" />
-              <Text style={styles.addFirstText}>Add First Expense</Text>
+              <LinearGradient
+                colors={COLORS.gradient1}
+                style={styles.addFirstGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Plus size={18} color="#fff" />
+                <Text style={styles.addFirstText}>Add First Expense</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         )}
@@ -279,10 +469,20 @@ export default function TransactionsScreen() {
       {/* Floating Action Button */}
       <TouchableOpacity 
         style={styles.fab}
-        onPress={() => router.push('/add-expense-advanced')}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push('/add-expense-advanced');
+        }}
         activeOpacity={0.8}
       >
-        <Plus size={28} color="#fff" />
+        <LinearGradient
+          colors={COLORS.gradient1}
+          style={styles.fabGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Plus size={28} color="#fff" />
+        </LinearGradient>
       </TouchableOpacity>
 
       {/* Delete Confirmation Modal */}
@@ -306,90 +506,167 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
+    paddingTop: 20,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerContent: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#111827',
-    letterSpacing: 0.5,
+  headerTitle: {
+    flex: 1,
+    alignItems: 'center',
   },
-  summaryCard: {
-    backgroundColor: '#ffffff',
+  headerTitleText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'Inter-Regular',
+    marginTop: 2,
+  },
+  headerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  statsCard: {
     marginHorizontal: 20,
     marginTop: 20,
-    marginBottom: 10,
-    borderRadius: 18,
-    padding: 24,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 6,
-    alignItems: 'center',
+    marginBottom: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+    height: 160,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  summaryIconRow: {
+  statsCardGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  statsContent: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'space-between',
+  },
+  statsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 20,
   },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#2563eb',
+  statsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  statsHeaderText: {
+    flex: 1,
+  },
+  statsTitle: {
+    fontSize: 18,
     fontWeight: '700',
-  },
-  summaryAmount: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#059669',
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
     marginBottom: 4,
   },
-  summarySubtext: {
-    fontSize: 13,
-    color: '#6b7280',
+  statsSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'Inter-Regular',
+  },
+  statsAmounts: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  amountItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  amountLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 6,
     textAlign: 'center',
+  },
+  amountValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+  },
+  amountDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   filterContainer: {
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   filterButtons: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 20,
     padding: 4,
   },
   filterButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
     marginHorizontal: 2,
   },
   activeFilterButton: {
-    backgroundColor: '#2563eb',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   filterButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-SemiBold',
   },
   activeFilterButtonText: {
     color: '#fff',
@@ -399,169 +676,214 @@ const styles = StyleSheet.create({
   },
   transactionsContent: {
     paddingHorizontal: 20,
-    paddingBottom: 80,
+    paddingBottom: 100,
   },
   expenseCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
     marginBottom: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    overflow: 'hidden',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#e0e7ef',
+    borderColor: COLORS.borderLight,
+  },
+  expenseCardGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
   },
   expenseContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
+    padding: 20,
+  },
+  expenseLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   expenseIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#eff6ff',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 16,
   },
   expenseInfo: {
     flex: 1,
-    marginRight: 10,
   },
   expenseDescription: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    marginBottom: 6,
   },
   expenseDetails: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
     marginBottom: 2,
   },
   detailText: {
     marginLeft: 4,
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Medium',
   },
   participantsRow: {
     marginTop: 2,
   },
   participantsLabel: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Medium',
   },
   expenseRight: {
     alignItems: 'flex-end',
     minWidth: 80,
   },
   expenseAmount: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#059669',
-    marginBottom: 2,
+    fontFamily: 'Inter-Bold',
+    marginBottom: 6,
   },
-  expenseDate: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 1,
-  },
-  expenseTime: {
-    fontSize: 10,
-    color: '#9ca3af',
-  },
-  expenseActions: {
-    paddingHorizontal: 18,
-    paddingBottom: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+  expenseDateTime: {
     alignItems: 'flex-end',
   },
-  deleteButton: {
+  dateTimeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#fecaca',
+    marginBottom: 2,
   },
-  deleteButtonText: {
+  dateTimeText: {
     marginLeft: 4,
-    fontSize: 13,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Medium',
+  },
+  expenseActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  deleteActionButton: {
+    backgroundColor: '#FEF2F2',
+  },
+  actionButtonText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#dc2626',
+    color: COLORS.primary,
+    fontFamily: 'Inter-SemiBold',
   },
   fab: {
     position: 'absolute',
     right: 24,
     bottom: 32,
-    backgroundColor: '#2563eb',
     width: 60,
     height: 60,
     borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
     elevation: 8,
     zIndex: 10,
   },
+  fabGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 30,
+  },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
+    paddingHorizontal: 40,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyDescription: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 280,
-    marginBottom: 24,
+    lineHeight: 24,
+    marginBottom: 32,
   },
   addFirstButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addFirstGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
   },
   addFirstText: {
-    marginLeft: 6,
-    fontSize: 14,
+    color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
-    color: '#2563eb',
+    fontFamily: 'Inter-SemiBold',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Medium',
   },
 });
