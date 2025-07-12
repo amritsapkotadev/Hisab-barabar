@@ -30,7 +30,6 @@ export default function LoginScreen() {
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
-    // Mark that user has seen welcome screen
     AsyncStorage.setItem('hasSeenWelcome', 'true');
     
     Animated.timing(fadeAnim, {

@@ -73,12 +73,12 @@ api.interceptors.response.use(
 // API Service Functions
 export const apiService = {
   // Authentication
-  async login(email: string, password: string): Promise<{ token: string; user: User }> {
+  async login(email: string, password: string): Promise<{ token: string; user: User;}> {
     try {
       console.log('Attempting login with:', { email });
-      const response = await api.post('/users/login', { email, password });
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      const response = await api.post('/users/login', { email, password, fcmToken });
       console.log('Login response:', response.data);
-
       const { token, user } = response.data;
       authToken = token;
       await AsyncStorage.setItem('authToken', token);

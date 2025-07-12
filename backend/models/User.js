@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
       return !this.googleId;
     }
   },
+  fcmToken: { type: String, unique: true, sparse: true }, 
   googleId: { type: String, unique: true, sparse: true },
   picture: { type: String },
   budget: {

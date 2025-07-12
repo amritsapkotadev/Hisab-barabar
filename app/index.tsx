@@ -42,6 +42,7 @@ export default function IndexScreen() {
       const token = await messaging().getToken();
       if (token) {
         console.log('Device Token:', token);
+        await AsyncStorage.setItem('fcmToken', token);
         return token;
       } else {
         console.log('No device token found.');
@@ -97,7 +98,6 @@ export default function IndexScreen() {
             apiService.clearAuthToken();
           }
         }
-
         router.replace('/(auth)/login');
       } catch (error) {
         console.error('Error checking auth status:', error);

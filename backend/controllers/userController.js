@@ -6,11 +6,11 @@ const jwt = require('jsonwebtoken');
 exports.registerUser = async (req, res) => {
   try {
     console.log('Registration attempt:', { name: req.body.name, email: req.body.email });
-    
-    const { name, email, password } = req.body;
+
+    const { name, email, password, fcmToken } = req.body;
 
     // Validation
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !fcmToken) {
       console.log('Registration failed: Missing fields');
       return res.status(400).json({ message: 'All fields are required' });
     }
@@ -31,28 +31,29 @@ exports.registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    const user = await User.create({ 
-      name: name.trim(), 
-      email: email.toLowerCase().trim(), 
-      password: hashedPassword 
+    const user = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+      fcmToken: fcmToken,
     });
 
-    console.log('User created successfully:', { id: user._id, email: user.email });
+    console.log('User created successfully:', { id: user._id, email: user.email, fcmToken: user.fcmToken });
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user._id }, 
-      process.env.JWT_SECRET, 
+      { id: user._id },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
-      token, 
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email 
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
       },
       message: 'User registered successfully'
     });
@@ -66,11 +67,11 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
   try {
     console.log('Login attempt:', { email: req.body.email });
-    
-    const { email, password } = req.body;
+
+    const { email, password, fcmToken } = req.body;
 
     // Validation
-    if (!email || !password) {
+    if (!email || !password || !fcmToken) {
       console.log('Login failed: Missing credentials');
       return res.status(400).json({ message: 'Email and password are required' });
     }
@@ -91,20 +92,23 @@ exports.loginUser = async (req, res) => {
 
     console.log('Login successful:', { id: user._id, email: user.email });
 
+    user.fcmToken = fcmToken;
+    await user.save();
+
     // Generate token
     const token = jwt.sign(
-      { id: user._id }, 
-      process.env.JWT_SECRET, 
+      { id: user._id },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    res.json({ 
+    res.json({
       success: true,
-      token, 
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email 
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
       },
       message: 'Login successful'
     });
@@ -118,7 +122,7 @@ exports.loginUser = async (req, res) => {
 exports.googleLogin = async (req, res) => {
   try {
     console.log('Google login attempt:', { email: req.body.email });
-    
+
     const { googleId, email, name, picture } = req.body;
 
     // Validation
@@ -128,7 +132,7 @@ exports.googleLogin = async (req, res) => {
     }
 
     // Find user by Google ID or email
-    let user = await User.findOne({ 
+    let user = await User.findOne({
       $or: [
         { googleId: googleId },
         { email: email.toLowerCase().trim() }
@@ -151,17 +155,17 @@ exports.googleLogin = async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { id: user._id }, 
-      process.env.JWT_SECRET, 
+      { id: user._id },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    res.json({ 
+    res.json({
       success: true,
-      token, 
-      user: { 
-        id: user._id, 
-        name: user.name, 
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
         email: user.email,
         picture: user.picture
       },
@@ -177,7 +181,7 @@ exports.googleLogin = async (req, res) => {
 exports.googleRegister = async (req, res) => {
   try {
     console.log('Google registration attempt:', { email: req.body.email });
-    
+
     const { googleId, email, name, picture } = req.body;
 
     // Validation
@@ -187,22 +191,22 @@ exports.googleRegister = async (req, res) => {
     }
 
     // Check if user exists
-    const userExists = await User.findOne({ 
+    const userExists = await User.findOne({
       $or: [
         { googleId: googleId },
         { email: email.toLowerCase().trim() }
       ]
     });
-    
+
     if (userExists) {
       console.log('Google registration failed: User already exists');
       return res.status(400).json({ message: 'User already exists with this email or Google account' });
     }
 
     // Create user with Google data
-    const user = await User.create({ 
-      name: name.trim(), 
-      email: email.toLowerCase().trim(), 
+    const user = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
       googleId: googleId,
       picture: picture,
       password: 'google_auth' // Placeholder password for Google users
@@ -212,17 +216,17 @@ exports.googleRegister = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user._id }, 
-      process.env.JWT_SECRET, 
+      { id: user._id },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
-      token, 
-      user: { 
-        id: user._id, 
-        name: user.name, 
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
         email: user.email,
         picture: user.picture
       },
