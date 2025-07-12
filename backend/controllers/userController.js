@@ -71,7 +71,7 @@ exports.loginUser = async (req, res) => {
     const { email, password, fcmToken } = req.body;
 
     // Validation
-    if (!email || !password || !fcmToken) {
+    if (!email || !password) {
       console.log('Login failed: Missing credentials');
       return res.status(400).json({ message: 'Email and password are required' });
     }

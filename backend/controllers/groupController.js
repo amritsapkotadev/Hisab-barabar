@@ -1,5 +1,7 @@
+const User = require('../models/User');
 const Group = require('../models/Group');
 const Expense = require('../models/Expense');
+const { firebase } = require('../firebase');
 
 // Create a new group
 exports.createGroup = async (req, res) => {
@@ -116,7 +118,7 @@ exports.joinGroupById = async (req, res) => {
 };
 
 // Join group by invite code
-exports.joinGroup = async (req, res) => {
+exports.joinGroupByInviteCode = async (req, res) => {
   try {
     const { inviteCode } = req.body;
     const userId = req.user._id;
@@ -141,6 +143,27 @@ exports.joinGroup = async (req, res) => {
     // Add user to group members
     group.members.push(username); // Assuming you want to store usernames
     await group.save();
+
+    const user = await User.findById(group.createdBy);
+
+    try {
+      await firebase.messaging().send({
+        token: user.fcmToken,
+        notification: {
+          title: 'New Member Joined',
+          body: `${username} has joined the group ${group.name}`,
+        },
+        data: {
+          groupId: group._id.toString(),
+          groupName: group.name,
+          userId: userId.toString(),
+          userName: username,
+        }
+      });
+    console.log('Notification sent successfully');
+    } catch (error) {
+      console.error('Error sending FCM notification:', error);
+    }
 
     res.json({
       success: true,
