@@ -60,6 +60,7 @@ const COLORS = {
   gradient2: ['#8B5CF6', '#A78BFA'],
   gradient3: ['#0EA5E9', '#38BDF8'],
   gradient4: ['#10B981', '#34D399'],
+  headerGradient: ['#667EEA', '#764BA2'],
 };
 
 export default function ProfileScreen() {
@@ -232,34 +233,45 @@ export default function ProfileScreen() {
           style={styles.headerSection}
           entering={FadeIn.duration(600)}
         >
-          <View style={styles.headerContent}>
-            <View style={styles.userCard}>
-              <View style={styles.avatarContainer}>
-                {user?.picture ? (
-                  <Image
-                    source={{ uri: user.picture }}
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <User size={24} color={COLORS.primary} />
-                  </View>
-                )}
+          <LinearGradient
+            colors={COLORS.headerGradient}
+            style={styles.headerCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.headerContent}>
+              <View style={styles.userInfoContainer}>
+                <View style={styles.avatarContainer}>
+                  {user?.picture ? (
+                    <Image
+                      source={{ uri: user.picture }}
+                      style={styles.avatar}
+                    />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <User size={28} color="#fff" />
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">
+                    {user?.name || 'User Name'}
+                  </Text>
+                  <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">
+                    {user?.email || 'user@example.com'}
+                  </Text>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.editButton}
+                  onPress={handleEditProfile}
+                >
+                  <Edit2 size={18} color="#fff" />
+                </TouchableOpacity>
               </View>
-              
-              <View style={styles.userInfo}>
-                <Text style={styles.userName}>{user?.name || 'User Name'}</Text>
-                <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
-              </View>
-              
-              <TouchableOpacity 
-                style={styles.editButton}
-                onPress={handleEditProfile}
-              >
-                <Edit2 size={20} color={COLORS.primary} />
-              </TouchableOpacity>
             </View>
-          </View>
+          </LinearGradient>
         </Animated.View>
 
         {/* Stats Grid */}
@@ -411,7 +423,7 @@ export default function ProfileScreen() {
         >
           <View style={styles.appLogo}>
             <PieChart size={28} color={COLORS.primary} />
-            <Text style={styles.appName}>SplitSaathi</Text>
+            <Text style={styles.appName}>Hisab Barabar</Text>
           </View>
           <Text style={styles.appVersion}>v1.0.0</Text>
           <View style={styles.appFooterContent}>
@@ -452,19 +464,19 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     marginBottom: 24,
   },
-  headerContent: {
-    backgroundColor: COLORS.surface,
+  headerCard: {
     borderRadius: 24,
-    padding: 24,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+    overflow: 'hidden',
   },
-  userCard: {
+  headerContent: {
+    padding: 24,
+  },
+  userInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -472,41 +484,48 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.surfaceSecondary,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   avatarPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   userInfo: {
     flex: 1,
+    marginRight: 12,
   },
   userName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#fff',
     fontFamily: 'Inter-Bold',
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   userEmail: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    fontFamily: 'Inter-Regular',
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontFamily: 'Inter-Medium',
   },
   editButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceSecondary,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   statsContainer: {
     paddingHorizontal: 24,
