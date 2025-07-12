@@ -8,11 +8,13 @@ import {
   RefreshControl,
   ActivityIndicator,
   Animated,
-  Dimensions
+  Dimensions,
+  StatusBar,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { Users, TrendingUp, TrendingDown, Plus, ChevronRight, AlertCircle, UserPlus } from 'lucide-react-native';
+import { Users, TrendingUp, TrendingDown, Plus, ChevronRight, AlertCircle, UserPlus, MoreVertical, Sparkles, Crown } from 'lucide-react-native';
 import { Group } from '@/types';
 import { apiService } from '@/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,17 +27,20 @@ const COLORS = {
   primary: '#6366F1',      // Vibrant indigo
   primaryLight: '#818CF8',
   secondary: '#4F46E5',    // Deep violet
-  background: '#F9FAFB',   // Light gray background
+  background: '#FAFBFC',   // Ultra clean background
   card: '#FFFFFF',         // Pure white cards
-  text: '#1F2937',         // Dark gray text
+  text: '#1F2937',         // Rich dark text
   subtext: '#6B7280',      // Medium gray
-  positive: '#10B981',     // Emerald green
-  negative: '#EF4444',     // Bright red
-  warning: '#F59E0B',      // Amber
-  border: '#E5E7EB',       // Light border
-  gradientStart: '#8B5CF6', // Purple
-  gradientEnd: '#6366F1',  // Indigo
-  iconBackgrounds: ['#7C3AED', '#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
+  positive: '#059669',     // Deep emerald
+  negative: '#DC2626',     // Rich red
+  warning: '#D97706',      // Deep amber
+  border: '#F3F4F6',       // Soft border
+  gradientStart: '#6366F1', // Indigo
+  gradientEnd: '#4F46E5',  // Violet
+  shadow: 'rgba(0,0,0,0.04)',
+  iconBackgrounds: ['#6366F1', '#4F46E5', '#059669', '#D97706', '#DC2626', '#8B5CF6'],
+  glass: 'rgba(255,255,255,0.8)',
+  glassBorder: 'rgba(255,255,255,0.2)',
 };
 
 const getGroupColor = (name: string) => {
@@ -48,27 +53,38 @@ export default function GroupsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const fadeAnim = useState(new Animated.Value(0))[0];
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
 
   // FAB pulse animation
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.08,
-          duration: 800,
+          toValue: 1.05,
+          duration: 1000,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 800,
+          duration: 1000,
           useNativeDriver: true,
         }),
       ])
     );
     pulse.start();
     return () => pulse.stop();
+  }, []);
+
+  // Header animation
+  useEffect(() => {
+    Animated.timing(headerAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   const fetchGroups = async () => {
@@ -102,17 +118,18 @@ export default function GroupsScreen() {
     }, [])
   );
 
-  const renderGroupCard = ({ item, index }: { item: Group; index: number }) => {
+    const renderGroupCard = ({ item, index }: { item: Group; index: number }) => {
     const netAmount = Object.values(item.balances).reduce((sum, balance) => sum + balance, 0);
     const isPositive = netAmount > 0;
     const isNegative = netAmount < 0;
     const statusText = isPositive 
-      ? `You're owed $${Math.abs(netAmount).toFixed(2)}` 
+      ? `You're owed ₹${Math.abs(netAmount).toFixed(2)}` 
       : isNegative
-        ? `You owe $${Math.abs(netAmount).toFixed(2)}` 
+        ? `You owe ₹${Math.abs(netAmount).toFixed(2)}` 
         : 'Settled up';
 
     const iconColor = getGroupColor(item.name);
+    const isActive = item.members.length > 2; // Active group indicator
 
     return (
       <Animated.View 
@@ -124,7 +141,7 @@ export default function GroupsScreen() {
               { 
                 translateY: fadeAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [30, 0]
+                  outputRange: [60, 0]
                 }) 
               }
             ]
@@ -134,43 +151,64 @@ export default function GroupsScreen() {
         <TouchableOpacity
           style={styles.groupCard}
           onPress={() => router.push(`/group/${item.id}`)}
-          activeOpacity={0.9}
+          activeOpacity={0.95}
         >
-          <View style={styles.cardHeader}>
-            <View style={[styles.groupIcon, { backgroundColor: `${iconColor}20` }]}>
-              <View style={[styles.iconBackground, { backgroundColor: iconColor }]} />
-              <Text style={styles.groupInitial}>{item.name.charAt(0)}</Text>
+          <LinearGradient
+            colors={[`${iconColor}08`, `${iconColor}03`]}
+            style={styles.cardGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          
+          <View style={styles.cardContent}>
+            <View style={styles.cardHeader}>
+              <View style={styles.leftSection}>
+                <View style={[styles.groupIcon, { backgroundColor: `${iconColor}15` }]}>
+                  <LinearGradient
+                    colors={[iconColor, `${iconColor}90`]}
+                    style={styles.iconGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                  <Text style={styles.groupInitial}>{item.name.charAt(0)}</Text>
+                  {isActive && (
+                    <View style={styles.activeIndicator}>
+                      <Crown size={10} color="#fff" />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.groupInfo}>
+                  <Text style={styles.groupName} numberOfLines={1}>{item.name}</Text>
+                  <View style={styles.groupMeta}>
+                    <Users size={14} color={COLORS.subtext} />
+                    <Text style={styles.groupSubtitle}>{item.members.length} members</Text>
+                  </View>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+                <MoreVertical size={18} color={COLORS.subtext} />
+              </TouchableOpacity>
             </View>
-            <View style={styles.groupInfo}>
-              <Text style={styles.groupName} numberOfLines={1}>{item.name}</Text>
-            </View>
-            <ChevronRight size={20} color={COLORS.subtext} />
-          </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.cardFooter}>
-            <View style={styles.membersContainer}>
-              <Users size={14} color={COLORS.subtext} />
-              <Text style={styles.membersCount}>
-                {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
-              </Text>
-            </View>
-            
-            <View style={[
-              styles.statusBadge,
-              isPositive && { backgroundColor: `${COLORS.positive}15` },
-              isNegative && { backgroundColor: `${COLORS.negative}15` }
-            ]}>
-              {isPositive && <TrendingUp size={14} color={COLORS.positive} style={styles.statusIcon} />}
-              {isNegative && <TrendingDown size={14} color={COLORS.negative} style={styles.statusIcon} />}
-              <Text style={[
-                styles.statusText,
-                isPositive && { color: COLORS.positive },
-                isNegative && { color: COLORS.negative }
+            <View style={styles.cardFooter}>
+              <View style={[
+                styles.statusBadge,
+                isPositive && { backgroundColor: `${COLORS.positive}12` },
+                isNegative && { backgroundColor: `${COLORS.negative}12` },
+                !isPositive && !isNegative && { backgroundColor: `${COLORS.subtext}12` }
               ]}>
-                {statusText}
-              </Text>
+                {isPositive && <TrendingUp size={16} color={COLORS.positive} style={styles.statusIcon} />}
+                {isNegative && <TrendingDown size={16} color={COLORS.negative} style={styles.statusIcon} />}
+                {!isPositive && !isNegative && <Users size={16} color={COLORS.subtext} style={styles.statusIcon} />}
+                <Text style={[
+                  styles.statusText,
+                  isPositive && { color: COLORS.positive },
+                  isNegative && { color: COLORS.negative },
+                  !isPositive && !isNegative && { color: COLORS.subtext }
+                ]}>
+                  {statusText}
+                </Text>
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -181,6 +219,7 @@ export default function GroupsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
         <View style={styles.header}>
           <Text style={styles.title}>Your Groups</Text>
           <Text style={styles.subtitle}>Loading your groups...</Text>
@@ -193,26 +232,27 @@ export default function GroupsScreen() {
     );
   }
 
-  return (
+    return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       <LinearGradient
-        colors={['#F9FAFB', '#F3F4F6']}
+        colors={[COLORS.background, '#F8FAFC']}
         style={styles.background}
       />
       
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <ChevronRight size={20} color={COLORS.text} style={styles.backIcon} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Your Groups</Text>
+      <Animated.View style={[styles.header, { opacity: headerAnim }]}>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <View style={styles.titleContainer}>
+              <Sparkles size={24} color={COLORS.primary} style={styles.titleIcon} />
+              <Text style={styles.title}>My Groups</Text>
+            </View>
+            <Text style={styles.subtitle}>
+              {groups.length} {groups.length === 1 ? 'group' : 'groups'} • Manage expenses together
+            </Text>
+          </View>
         </View>
-        <Text style={styles.subtitle}>Manage expenses, split bills, and settle up with friends</Text>
-      </View>
+      </Animated.View>
 
       {error ? (
         <View style={styles.errorContainer}>
@@ -311,44 +351,40 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: CARD_PADDING,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 24,
+    paddingBottom: 20,
   },
-  headerTop: {
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  backButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  titleIcon: {
+    marginRight: 12,
   },
-  backIcon: {
-    transform: [{ rotate: '180deg' }],
-  },
-
   title: {
     fontSize: 32,
     fontWeight: '800',
+    marginLeft:30,
+    marginTop:10,
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
-    letterSpacing: -0.5,
-marginLeft:20,
+    letterSpacing: -1,
   },
   subtitle: {
+    marginTop:10,
     fontSize: 16,
     color: 'black',
-    marginTop: 4,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Inter-Medium',
+    lineHeight: 22,
   },
   loadingContainer: {
     flex: 1,
@@ -437,89 +473,118 @@ marginLeft:20,
   groupCard: {
     backgroundColor: COLORS.card,
     borderRadius: 20,
-    padding: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 2,
-    borderWidth: 1,
+    elevation: 3,
+    borderWidth: 2,
     borderColor: COLORS.border,
+    position: 'relative',
+  },
+  cardGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  cardContent: {
+    padding: 24,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 20,
+  },
+  leftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   groupIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
     overflow: 'hidden',
+    position: 'relative',
   },
-  iconBackground: {
+  iconGradient: {
     position: 'absolute',
     width: '100%',
     height: '100%',
-    opacity: 0.15,
+    opacity: 0.25,
   },
   groupInitial: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#fff',
     fontFamily: 'Inter-Bold',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   groupInfo: {
     flex: 1,
-    marginLeft: 16,
   },
   groupName: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
+    marginBottom: 6,
   },
-
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginBottom: 16,
+  groupMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupSubtitle: {
+    fontSize: 14,
+    color: COLORS.subtext,
+    fontFamily: 'Inter-Medium',
+    marginLeft: 6,
+  },
+  moreButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${COLORS.subtext}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  membersContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-  },
-  membersCount: {
-    marginLeft: 6,
-    fontSize: 13,
-    color: COLORS.subtext,
-    fontFamily: 'Inter-Medium',
+    justifyContent: 'flex-end',
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
   },
   statusIcon: {
-    marginRight: 6,
+    marginRight: 8,
   },
   statusText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
   },
