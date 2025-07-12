@@ -173,16 +173,13 @@ export default function HomeScreen() {
     <View style={styles.appBar}>
       <View style={styles.appBarContent}>
         <View style={styles.greetingContainer}>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.userName}>{user ? user.name.split(' ')[0] : 'User'}</Text>
+          <View style={styles.greetingCard}>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.userName}>{user ? user.name.split(' ')[0] : 'User'}</Text>
+            <Text style={styles.greetingSubtext}>Ready to track your expenses?</Text>
+          </View>
         </View>
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => router.push('/profile/notifications')}
-        >
-          <View style={styles.notificationBadge} />
-          <Bell size={24} color={COLORS.text} />
-        </TouchableOpacity>
+
       </View>
     </View>
   );
@@ -721,17 +718,37 @@ const styles = StyleSheet.create({
 
   greetingContainer: {
     flex: 1,
+    paddingVertical: 8,
+  },
+  greetingCard: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   greeting: {
-    fontSize: 14,
-    color: COLORS.subtext,
-    fontFamily: 'Inter-Regular',
+    fontSize: 18,
+    color: '#fff',
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 6,
+    opacity: 0.95,
   },
   userName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#fff',
     fontFamily: 'Inter-Bold',
+    letterSpacing: -0.8,
+    marginBottom: 6,
+  },
+  greetingSubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: 'Inter-Medium',
     marginTop: 2,
   },
   notificationButton: {
