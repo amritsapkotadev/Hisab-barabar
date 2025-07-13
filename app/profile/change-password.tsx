@@ -57,13 +57,15 @@ export default function ChangePasswordScreen() {
     setSaving(true);
     try {
       const res = await apiService.changePassword(currentPassword, newPassword);
-      if (!res.success) {
+      if (res.success) {
+        Alert.alert('Success', 'Password changed successfully!', [
+          { text: 'OK', onPress: () => router.replace('/(auth)/login') }
+        ]);
+      }
+      else {        
         Alert.alert('Error', res.message || 'Failed to change password');
         return;
       }
-      Alert.alert('Success', 'Password changed successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -78,7 +80,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >

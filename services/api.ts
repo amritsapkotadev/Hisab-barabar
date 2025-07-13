@@ -451,7 +451,7 @@ export const apiService = {
   async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string }> {
     try {
       console.log('Changing password for user');
-      const response = await api.post('/users/change-password', { currentPassword, newPassword });
+      const response = await api.put('/users/change-password', { currentPassword, newPassword });
       console.log('Change password response:', response.data);
       return response.data;
     } catch (error: any) {

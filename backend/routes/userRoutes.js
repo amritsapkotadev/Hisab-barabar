@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getUserProfile, googleLogin, googleRegister, setBudget } = require('../controllers/userController');
+const { registerUser, loginUser, getUserProfile, googleLogin, googleRegister, setBudget, changePassword } = require('../controllers/userController');
 const protect = require('../middleware/authMiddleware');
 
 // Public routes
@@ -16,6 +16,9 @@ router.post('/google-register', googleRegister); // POST /users/google-register
 
 // Protected routes
 router.get('/profile', protect, getUserProfile);  // GET /users/profile
+
+//Change password route (if needed)
+router.put('/change-password', protect, changePassword);
 
 // Get all users (for testing - protect in production)
 router.get('/', async (req, res) => {
