@@ -93,7 +93,7 @@ const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPre
       <Animated.View style={[
         styles.activeSegment,
         {
-          width: tabWidth - 16,
+          width: tabWidth - 7,
           transform: [{ translateX }],
         }
       ]} />
@@ -105,10 +105,10 @@ const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPre
           activeOpacity={0.8}
         >
           {React.isValidElement(tab.icon)
-            ? React.cloneElement(tab.icon as React.ReactElement<any>, { 
-                size: 18,
-                color: activeTab === tab.id ? '#FFFFFF' : COLORS.muted
-              })
+            ? React.cloneElement(tab.icon as React.ReactElement<any>, {
+              size: 18,
+              color: activeTab === tab.id ? '#FFFFFF' : COLORS.muted
+            })
             : tab.icon}
           <Text style={[styles.segmentButtonText, activeTab === tab.id ? styles.segmentButtonTextActive : undefined]}>
             {tab.label}
@@ -308,7 +308,7 @@ const GroupScreen = () => {
           </View>
         </View>
         <View style={styles.expenseAmountContainer}>
-          <Text style={styles.expenseAmount}>₹{item.amount.toFixed(2)}</Text>
+          <Text style={styles.expenseAmount}>रु {item.amount.toFixed(2)}</Text>
           <ChevronRight size={18} color={COLORS.muted} />
         </View>
       </TouchableOpacity>
@@ -448,9 +448,14 @@ const GroupScreen = () => {
           >
             <DollarSign size={24} color="#fff" />
             <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Total</Text>
-            <Text style={[styles.summaryValue, { color: '#fff' }]}>₹{group.totalExpenses.toFixed(2)}</Text>
+            <Text style={[
+              styles.summaryValue,
+              {
+                color: '#fff',
+                marginLeft: -4,
+              }]}>रु {group.totalExpenses.toFixed(2)}</Text>
           </LinearGradient>
-          
+
           <LinearGradient
             colors={[COLORS.summaryCard2, COLORS.summaryCard3]}
             style={styles.summaryCard}
@@ -461,7 +466,7 @@ const GroupScreen = () => {
             <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Members</Text>
             <Text style={[styles.summaryValue, { color: '#fff' }]}>{group.members.length}</Text>
           </LinearGradient>
-          
+
           <LinearGradient
             colors={[COLORS.summaryCard3, '#4338ca']}
             style={styles.summaryCard}
@@ -805,7 +810,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: 10,
     height: '100%',
-    top: 0,
+    top: 5,
     left: 6,
     margin: 2,
   },

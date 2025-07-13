@@ -232,7 +232,7 @@ export default function GroupsScreen() {
         />
         <View style={styles.header}>
           <Text style={styles.title}>Your Groups</Text>
-          <Text style={styles.subtitle}>Loading your groups...</Text>
+          {/* <Text style={styles.subtitle}>Loading your groups...</Text> */}
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />

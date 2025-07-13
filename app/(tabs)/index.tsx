@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
   appBar: {
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 24,
+    // paddingBottom: 24,
   },
   greetingCard: {
     borderRadius: 24,

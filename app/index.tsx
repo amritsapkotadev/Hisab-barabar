@@ -74,7 +74,7 @@ export default function IndexScreen() {
       });
       const unsubscribe = messaging().onMessage(async remoteMessage => {
         console.log('A new message arrived!', remoteMessage);
-        return unsubscribe
+        return unsubscribe;
       });
     }, []);
 

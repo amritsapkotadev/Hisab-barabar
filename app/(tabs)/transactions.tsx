@@ -305,6 +305,7 @@ export default function TransactionsScreen() {
     >
       <Text style={[
         styles.filterButtonText,
+        { fontSize: filter === 'month' ? 13 : undefined },
         selectedFilter === filter && styles.activeFilterButtonText,
       ]}>
         {label}
@@ -342,14 +343,14 @@ export default function TransactionsScreen() {
           <View style={styles.statsAmounts}>
             <View style={styles.amountItem}>
               <Text style={styles.amountLabel}>Total</Text>
-              <Text style={styles.amountValue}>₹{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.amountValue}>रु {totalAmount.toFixed(2)}</Text>
             </View>
             
             <View style={styles.amountDivider} />
             
             <View style={styles.amountItem}>
               <Text style={styles.amountLabel}>Average</Text>
-              <Text style={styles.amountValue}>₹{averageAmount.toFixed(2)}</Text>
+              <Text style={styles.amountValue}>रु {averageAmount.toFixed(2)}</Text>
             </View>
           </View>
         </View>
@@ -651,6 +652,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 2,
   },
@@ -664,7 +666,7 @@ const styles = StyleSheet.create({
   },
   filterButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
     color: COLORS.textSecondary,
     fontFamily: 'Inter-SemiBold',
   },

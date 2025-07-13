@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Lock, Eye, EyeOff, Save } from 'lucide-react-native';
+import { apiService } from '@/services/api';
 
 export default function ChangePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -55,12 +56,17 @@ export default function ChangePasswordScreen() {
 
     setSaving(true);
     try {
-      // In a real app, you would call an API to change the password
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-      
+      const res = await apiService.changePassword(currentPassword, newPassword);
+      if (!res.success) {
+        Alert.alert('Error', res.message || 'Failed to change password');
+        return;
+      }
       Alert.alert('Success', 'Password changed successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (error) {
       Alert.alert('Error', 'Failed to change password');
     } finally {

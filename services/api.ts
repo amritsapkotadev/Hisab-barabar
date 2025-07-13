@@ -447,4 +447,16 @@ export const apiService = {
       throw error;
     }
   },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      console.log('Changing password for user');
+      const response = await api.post('/users/change-password', { currentPassword, newPassword });
+      console.log('Change password response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Change password API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to change password');
+    }
+  },
 };
