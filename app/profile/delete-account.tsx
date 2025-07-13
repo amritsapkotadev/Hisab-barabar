@@ -23,22 +23,21 @@ export default function DeleteAccountScreen() {
 
   const handleDeleteAccount = async () => {
     try {
-      // In a real app, this would call the API to delete the account
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Clear auth token
-      apiService.clearAuthToken();
-      
-      Alert.alert(
-        'Account Deleted',
-        'Your account has been permanently deleted.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(auth)/login'),
-          },
-        ]
-      );
+      const res = await apiService.deleteAccount();
+      if (res.success) {
+        console.log('Account deleted successfully');
+        Alert.alert(
+          'Account Deleted',
+          'Your account has been permanently deleted.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(auth)/login'),
+            },
+          ]
+        );
+        apiService.clearAuthToken();
+      }
     } catch (error) {
       throw new Error('Failed to delete account');
     }
@@ -50,8 +49,8 @@ export default function DeleteAccountScreen() {
       'Your data will be exported before account deletion. This may take a few moments.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Continue', 
+        {
+          text: 'Continue',
           onPress: () => setShowDeleteModal(true)
         }
       ]
@@ -86,7 +85,7 @@ export default function DeleteAccountScreen() {
           <AlertTriangle size={32} color="#dc2626" />
           <Text style={styles.warningTitle}>Permanent Account Deletion</Text>
           <Text style={styles.warningText}>
-            This action cannot be undone. All your data, including groups, expenses, 
+            This action cannot be undone. All your data, including groups, expenses,
             and transaction history will be permanently deleted.
           </Text>
         </View>
@@ -106,7 +105,7 @@ export default function DeleteAccountScreen() {
         {/* Options */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Before you delete:</Text>
-          
+
           <View style={styles.optionCard}>
             <View style={styles.optionHeader}>
               <Download size={20} color="#2563eb" />
@@ -146,7 +145,7 @@ export default function DeleteAccountScreen() {
           <Text style={styles.feedbackDescription}>
             Tell us why you're leaving. Your feedback helps us improve Hisab Kitab.
           </Text>
-          
+
           <View style={styles.reasonsList}>
             {reasons.map((reasonOption, index) => (
               <TouchableOpacity

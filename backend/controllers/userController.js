@@ -338,3 +338,20 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ message: 'Server error while changing password' });
   }
 };
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ message: 'Server error while deleting account' });
+  }
+};

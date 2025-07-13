@@ -459,4 +459,16 @@ export const apiService = {
       throw new Error(error.response?.data?.message || 'Failed to change password');
     }
   },
+
+  async deleteAccount(): Promise<{ success: boolean; message?: string }> {
+    try {
+      console.log('Deleting user account');
+      const response = await api.delete('/users/delete-account');
+      console.log('Delete account response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Delete account API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to delete account');
+    }
+  },
 };

@@ -200,7 +200,7 @@ export default function SignupScreen() {
 
             {/* Phone (Optional) */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number (Optional)</Text>
+              <Text style={styles.label}>Phone Number</Text>
               <View style={[styles.inputContainer, errors.phone && styles.inputError]}>
                 <Phone size={20} color="#6b7280" style={styles.inputIcon} />
                 <TextInput
