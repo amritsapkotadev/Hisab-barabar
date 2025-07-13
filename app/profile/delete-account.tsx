@@ -108,12 +108,14 @@ export default function DeleteAccountScreen() {
 
           <View style={styles.optionCard}>
             <View style={styles.optionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center'}}>
               <Download size={20} color="#2563eb" />
               <Text style={styles.optionTitle}>Export your data</Text>
+              </View>
+              <Text style={styles.optionDescription}>
+                Download a copy of your data before deletion
+              </Text>
             </View>
-            <Text style={styles.optionDescription}>
-              Download a copy of your data before deletion
-            </Text>
             <Switch
               value={exportData}
               onValueChange={setExportData}
@@ -124,12 +126,14 @@ export default function DeleteAccountScreen() {
 
           <View style={styles.optionCard}>
             <View style={styles.optionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center'}}>
               <Trash2 size={20} color="#dc2626" />
               <Text style={styles.optionTitle}>Delete groups you created</Text>
-            </View>
+              </View>
             <Text style={styles.optionDescription}>
               Also delete groups where you are the only member
             </Text>
+            </View>
             <Switch
               value={deleteGroups}
               onValueChange={setDeleteGroups}
@@ -180,8 +184,10 @@ export default function DeleteAccountScreen() {
 
         {/* Alternatives */}
         <View style={styles.alternativesCard}>
-          <Shield size={24} color="#059669" />
-          <Text style={styles.alternativesTitle}>Consider these alternatives:</Text>
+          <View style={{ flexDirection: 'row', alignContent: 'center' }}>
+            <Shield size={21} color="#059669" />
+            <Text style={styles.alternativesTitle}>Consider these alternatives:</Text>
+          </View>
           <Text style={styles.alternativesText}>
             • Temporarily deactivate your account{'\n'}
             • Clear your data but keep your account{'\n'}
@@ -305,9 +311,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   optionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
+    gap: 6,
   },
   optionTitle: {
     fontSize: 14,
@@ -367,15 +373,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#bbf7d0',
-    flexDirection: 'row',
+    // flexDirection: 'row',
     alignItems: 'flex-start',
   },
   alternativesTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#166534',
-    marginLeft: 8,
+    marginLeft: 6,
     marginBottom: 8,
+    marginTop: 1,
   },
   alternativesText: {
     fontSize: 12,
@@ -409,6 +416,6 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     fontStyle: 'italic',
-    marginBottom: 20,
+    marginBottom: 30,
   },
 });
