@@ -55,6 +55,7 @@
     "lucide-react-native": "^0.475.0",
     "mongodb": "^6.17.0",
     "mongoose": "^8.15.1",
+    "nodemailer": "^7.0.5",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",

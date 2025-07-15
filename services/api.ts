@@ -89,16 +89,17 @@ export const apiService = {
     }
   },
 
-  async register(name: string, email: string, password: string): Promise<{ token: string; user: User }> {
+  async register(name: string, email: string, password: string): Promise<{ token: string; user: User; success?: boolean }> {
     try {
       console.log('Attempting registration with:', { name, email });
-      const response = await api.post('/users/register', { name, email, password });
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      const response = await api.post('/users/register', { name, email, password, fcmToken });
       console.log('Registration response:', response.data);
 
-      const { token, user } = response.data;
+      const { token, user, success } = response.data;
       authToken = token;
       await AsyncStorage.setItem('authToken', token);
-      return { token, user };
+      return { token, user, success };
     } catch (error: any) {
       console.error('Registration API call failed:', error);
       throw new Error(error.response?.data?.message || 'Registration failed');
@@ -469,6 +470,30 @@ export const apiService = {
     } catch (error: any) {
       console.error('Delete account API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete account');
+    }
+  },
+
+  async verifyOtp({ otp, email }: { otp: string; email: string }): Promise<{ success: boolean, message?: string }> {
+    try {
+      console.log('Verifying OTP for email:', email);
+      const response = await api.post('/users/verify-otp', { otp, email });
+      console.log('Verify OTP response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Verify OTP API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to verify OTP');
+    } 
+  },
+
+  async resendOtp({ email }: { email: string }): Promise<{ success: boolean, message?: string }> {
+    try {
+      console.log('Resending OTP to email:', email);
+      const response = await api.post('/users/resend-otp', { email });
+      console.log('Resend OTP response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Resend OTP API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to resend OTP');
     }
   },
 };

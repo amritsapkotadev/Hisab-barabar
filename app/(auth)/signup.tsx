@@ -77,19 +77,21 @@ export default function SignupScreen() {
     if (!validateForm()) return;
     setLoading(true);
     try {
-      const { token, user } = await apiService.register(
+      const { token, user, success } = await apiService.register(
         formData.name.trim(),
         formData.email.trim(),
         formData.password
       );
       await apiService.setAuthToken(token);
 
-      Alert.alert('Success', 'Account created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/(tabs)'),
-        },
-      ]);
+      if (success) {
+        Alert.alert('Success', 'Verify your email to activate your account.', [
+          {
+            text: 'OK',
+            onPress: () => router.push({ pathname: '/(auth)/otp-verification', params: { email: formData.email } }),
+          },
+        ]);
+      }
     } catch (error: any) {
       console.error('Signup error:', error);
       Alert.alert('Error', error?.message || 'Signup failed. Please try again.');
@@ -102,13 +104,13 @@ export default function SignupScreen() {
     setGoogleLoading(true);
     try {
       const result = await googleAuthService.signInWithGoogle();
-      
+
       if (result.success && result.user) {
         // Try to register with Google user info
         try {
           const { token, user } = await apiService.registerWithGoogle(result.user);
           await apiService.setAuthToken(token);
-          
+
           Alert.alert('Success', 'Account created with Google!', [
             {
               text: 'OK',
@@ -120,7 +122,7 @@ export default function SignupScreen() {
           try {
             const { token, user } = await apiService.loginWithGoogle(result.user);
             await apiService.setAuthToken(token);
-            
+
             Alert.alert('Success', 'Signed in with existing Google account!', [
               {
                 text: 'OK',
@@ -210,6 +212,7 @@ export default function SignupScreen() {
                   keyboardType="phone-pad"
                   value={formData.phone}
                   onChangeText={val => updateFormData('phone', val)}
+                  maxLength={10}
                   accessibilityLabel="Phone number input"
                 />
               </View>
@@ -283,9 +286,9 @@ export default function SignupScreen() {
 
             {/* Signup Button */}
             <TouchableOpacity
-              style={[styles.signupButton, (loading || Object.keys(errors).length > 0) && styles.signupButtonDisabled]}
+              style={(loading || !acceptTerms) ? [styles.signupButton, (loading || Object.keys(errors).length > 0) && styles.signupButtonDisabled] : styles.signupButton}
               onPress={handleSignup}
-              disabled={loading}
+              disabled={loading || !acceptTerms}
               accessible
               accessibilityLabel="Create account"
             >

@@ -1,6 +1,17 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // Register a new user
 exports.registerUser = async (req, res) => {
@@ -30,15 +41,27 @@ exports.registerUser = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
     // Create user
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
-      fcmToken: fcmToken,
+      otp: otp,
+      otpExpires: otpExpires,
+      isVerified: false
     });
 
-    console.log('User created successfully:', { id: user._id, email: user.email, fcmToken: user.fcmToken });
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'OTP Verification',
+      text: `Your OTP is: ${otp}`
+    });
+
+    console.log('User created successfully:', { id: user._id, email: user.email });
 
     // Generate JWT token
     const token = jwt.sign(
@@ -55,11 +78,62 @@ exports.registerUser = async (req, res) => {
         name: user.name,
         email: user.email
       },
-      message: 'User registered successfully'
+      message: 'User registered successfully. Please verify your email with the OTP sent.'
     });
   } catch (error) {
     console.error('Register user error:', error);
     res.status(500).json({ message: 'Server error during registration' });
+  }
+};
+
+// Verify OTP
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(400).json({ message: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ message: 'User already verified' });
+
+    if (user.otp !== otp || user.otpExpiry < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Email verified successfully. You can now log in.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error verifying OTP', error });
+  }
+};
+
+// Resend OTP
+exports.resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(400).json({ message: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ message: 'User already verified' });
+
+    const otp = generateOTP();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Resend OTP Verification',
+      text: `Your new OTP is: ${otp}`
+    });
+
+    res.json({ message: 'OTP resent successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error resending OTP', error });
   }
 };
 
@@ -90,10 +164,14 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    if (!user.isVerified) {
+      return res.status(400).json({ success: false, message: 'Email not verified. Please verify OTP.' });
+    }
+
     console.log('Login successful:', { id: user._id, email: user.email });
 
-    user.fcmToken = fcmToken;
-    await user.save();
+    // user.fcmToken = fcmToken;
+    // await user.save();
 
     // Generate token
     const token = jwt.sign(
@@ -114,7 +192,7 @@ exports.loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Login user error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(500).json({ success: false, message: 'Server error during login' });
   }
 };
 
