@@ -111,7 +111,7 @@ export default function OTPVerificationScreen() {
           {
             text: 'OK',
             onPress: () =>
-              router.replace('/(auth)/login'),
+              router.replace('/(tabs)'),
           },
         ]);
       } else {

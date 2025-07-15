@@ -49,6 +49,7 @@ exports.registerUser = async (req, res) => {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
+      fcmTokens: fcmToken ? [fcmToken] : [],
       otp: otp,
       otpExpires: otpExpires,
       isVerified: false
@@ -170,8 +171,10 @@ exports.loginUser = async (req, res) => {
 
     console.log('Login successful:', { id: user._id, email: user.email });
 
-    // user.fcmToken = fcmToken;
-    // await user.save();
+      if (!user.fcmTokens.includes(fcmToken)) {
+        user.fcmTokens.push(fcmToken);
+        await user.save();
+    }
 
     // Generate token
     const token = jwt.sign(
