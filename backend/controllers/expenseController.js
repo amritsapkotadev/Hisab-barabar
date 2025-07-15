@@ -270,7 +270,7 @@ exports.createUnequalExpense = async (req, res) => {
       await firebase.messaging().send({
         notification: {
           title: 'New Expense Added',
-          body: `${req.user.name} has added an expense of Rs ${amount} to ${group.name}`,
+          body: `${req.user.name} added an expense of Rs ${amount} to ${group.name}`,
         },
         data: {
           groupId: group._id.toString(),

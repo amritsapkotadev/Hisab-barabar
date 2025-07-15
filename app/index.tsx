@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, PermissionsAndroid, Platform } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiService } from '@/services/api'
+import { apiService } from '@/services/api';
 import messaging from '@react-native-firebase/messaging';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 
 export default function IndexScreen() {
   const [isLoading, setIsLoading] = useState(true);
@@ -32,156 +33,143 @@ export default function IndexScreen() {
           console.log('Notification permission denied.');
         }
       }
-      } catch (error) {
-        console.error('Permission request error:', error);
-      }
-    };
+    } catch (error) {
+      console.error('Permission request error:', error);
+    }
+  };
 
-    const getDeviceToken = async () => {
-      await messaging().registerDeviceForRemoteMessages();
-      const fcmToken = await messaging().getToken();
-      if (fcmToken) {
-        console.log('Device Token:', fcmToken);
-        await AsyncStorage.setItem('fcmToken', fcmToken);
-        return fcmToken;
-      } else {
-        console.log('No device token found.');
-        return null;
-      }
-    };
+  const getDeviceToken = async () => {
+    await messaging().registerDeviceForRemoteMessages();
+    const fcmToken = await messaging().getToken();
+    if (fcmToken) {
+      console.log('Device Token:', fcmToken);
+      await AsyncStorage.setItem('fcmToken', fcmToken);
+      return fcmToken;
+    } else {
+      console.log('No device token found.');
+      return null;
+    }
+  };
 
-    useEffect(() => {
-      checkAuthStatus();
-      requestUserPermission();
-      messaging().getInitialNotification()
-        .then(remoteMessage => {
-          if (remoteMessage) {
-            console.log('Notification caused app to open from quit state:', remoteMessage.notification);
-          }
-        })
-        .catch(error => {
-          console.error('Error getting initial notification:', error);
-        });
-
-      messaging().onNotificationOpenedApp(remoteMessage => {
-        console.log('Notification caused app to open from background state:', remoteMessage.notification);
-      });
-      messaging().onMessage(async remoteMessage => {
-        console.log('A new message arrived!', remoteMessage);
-      });
-      messaging().setBackgroundMessageHandler(async remoteMessage => {
-        console.log('Message handled in the background!', remoteMessage);
-      });
-      const unsubscribe = messaging().onMessage(async remoteMessage => {
-        console.log('A new message arrived!', remoteMessage);
-        return unsubscribe;
-      });
-    }, []);
-
-    const checkAuthStatus = async () => {
-      try {
-        // const hasSeenWelcome = await AsyncStorage.getItem('hasSeenWelcome');
-        // if (!hasSeenWelcome) {
-        //   router.replace('/welcome');
-        //   return;
-        // }
-
-        const token = await AsyncStorage.getItem('authToken');
-        if (token) {
-          apiService.setAuthToken(token);
-          try {
-            await apiService.getUserProfile();
-            router.replace('/(tabs)');
-            return;
-          } catch (error) {
-            await AsyncStorage.removeItem('authToken');
-            apiService.clearAuthToken();
-          }
+  useEffect(() => {
+    checkAuthStatus();
+    requestUserPermission();
+    notifee.createChannel({
+      id: 'default',
+      name: 'Default Channel',
+      importance: AndroidImportance.HIGH,
+    }).catch(error => {
+      console.error('Error creating notification channel:', error);
+    });
+    messaging().getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          console.log('Notification caused app to open from quit state:', remoteMessage.notification);
+          displayNotification(remoteMessage.notification);
         }
-        router.replace('/(auth)/login');
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-        router.replace('/welcome');
-      } finally {
-        setIsLoading(false);
+      })
+      .catch(error => {
+        console.error('Error getting initial notification:', error);
+      });
+
+    messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log('Notification caused app to open from background state:', remoteMessage.notification);
+      displayNotification(remoteMessage.notification);
+    });
+
+    messaging().onMessage(async remoteMessage => {
+      console.log('A new message arrived!', remoteMessage);
+      displayNotification(remoteMessage.notification);
+    });
+
+    messaging().setBackgroundMessageHandler(async remoteMessage => {
+      console.log('Message handled in the background!', remoteMessage);
+    });
+  }, []);
+
+  const displayNotification = async (notification: any) => {
+    await notifee.displayNotification({
+      title: notification.title,
+      body: notification.body,
+      android: {
+        channelId: 'default',
+        importance: AndroidImportance.HIGH,
+      },
+    });
+  };
+
+  const checkAuthStatus = async () => {
+    try {
+      // const hasSeenWelcome = await AsyncStorage.getItem('hasSeenWelcome');
+      // if (!hasSeenWelcome) {
+      //   router.replace('/welcome');
+      //   return;
+      // 
+      const token = await AsyncStorage.getItem('authToken');
+      if (token) {
+        apiService.setAuthToken(token);
+        try {
+          await apiService.getUserProfile();
+          router.replace('/(tabs)');
+          return;
+        } catch (error) {
+          await AsyncStorage.removeItem('authToken');
+          apiService.clearAuthToken();
+        }
       }
-    };
+      router.replace('/(auth)/login');
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      router.replace('/welcome');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return (
-      <View style={styles.container}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>💰</Text>
-          <Text style={styles.logoText}>SplitSaathi</Text>
-        </View>
-        {/* Net Balance Dashboard Card */}
-
-        <ActivityIndicator size="large" color="#4f46e5" />
-        <Text style={styles.text}>Loading SplitSaathi...</Text>
-        <Text style={styles.subtext}>Made with ❤️ in Nepal 🇳🇵</Text>
+  return (
+    <View style={styles.container}>
+      <View style={styles.logoContainer}>
+        <Text style={styles.logoEmoji}>💰</Text>
+        <Text style={styles.logoText}>SplitSaathi</Text>
       </View>
-    );
-  }
+      <ActivityIndicator size="large" color="#4f46e5" />
+      <Text style={styles.text}>Loading SplitSaathi...</Text>
+      <Text style={styles.subtext}>Made with ❤️ in Nepal 🇳🇵</Text>
+    </View>
+  );
+}
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: '#f8fafc',
-      paddingHorizontal: 20,
-    },
-    logoContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 40,
-    },
-    logoEmoji: {
-      fontSize: 48,
-      marginRight: 12,
-    },
-    logoText: {
-      fontSize: 32,
-      fontWeight: '700',
-      color: '#111827',
-    },
-    text: {
-      marginTop: 16,
-      fontSize: 16,
-      color: '#6b7280',
-      fontWeight: '500',
-    },
-    subtext: {
-      marginTop: 8,
-      fontSize: 14,
-      color: '#9ca3af',
-    },
-    dashboardCard: {
-      width: '100%',
-      backgroundColor: '#fff',
-      borderRadius: 16,
-      padding: 24,
-      marginBottom: 18,
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 3,
-      alignItems: 'center',
-    },
-    dashboardHeading: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: '#222',
-      marginBottom: 8,
-    },
-    dashboardValuePositive: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: '#22c55e', // green
-    },
-    dashboardValueNegative: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: '#ef4444', // red
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 20,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoEmoji: {
+    fontSize: 48,
+    marginRight: 12,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  text: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  subtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+});
