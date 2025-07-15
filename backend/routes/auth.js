@@ -1,21 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
+const passport = require('./middleware/Passport');
 
-// Basic login route (simple demo)
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const user = await User.findOne({ email });
+// Start Google OAuth
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-    if (!user || user.password !== password) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    res.json({ message: 'Login successful', user });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+// Google OAuth callback
+router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  (req, res) => {
+    // Successful authentication bhane jwt token ani user profile patahune ho
+    res.json({
+      success: true,
+      token: req.user.token,
+      user: {
+        id: req.user.user._id,
+        name: req.user.user.name,
+        email: req.user.user.email,
+        picture: req.user.user.picture,
+      }
+    });
   }
-});
+);
 
 module.exports = router;
