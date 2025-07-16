@@ -497,4 +497,28 @@ export const apiService = {
       throw new Error(error.response?.data?.message || 'Failed to resend OTP');
     }
   },
+
+  async forgotPassword({ email }: { email: string }): Promise<{ success: boolean; message?: string }> {
+    try {
+      console.log('Sending forgot password request for email:', email);
+      const response = await api.post('/users/forgot-password', { email });
+      console.log('Forgot password response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Forgot password API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to send forgot password request');
+    }
+  },
+
+  async resetPassword({email, newPassword}: { email: string; newPassword: string }): Promise<{ success: boolean; message?: string }> {
+    try {
+      console.log(`Resetting password for email: '${email}' with new password: '${newPassword}'`);
+      const response = await api.post('/users/reset-password', { email, newPassword });
+      console.log('Reset password response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Reset password API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to reset password');
+    }
+  },
 };

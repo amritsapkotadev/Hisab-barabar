@@ -15,7 +15,7 @@ import { ArrowLeft, Shield, RefreshCw, CircleCheck as CheckCircle } from 'lucide
 import { apiService } from '@/services/api';
 
 export default function OTPVerificationScreen() {
-  const { email, type } = useLocalSearchParams<{ email: string, type: 'signup' | 'login' | 'verifyEmail' }>();
+  const { email, type } = useLocalSearchParams<{ email: string, type: 'signup' | 'login' | 'verifyEmail' | 'forgotPassword' }>();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -110,10 +110,20 @@ export default function OTPVerificationScreen() {
         Alert.alert('Success', 'Verification successful!', [
           {
             text: 'OK',
-            onPress: () =>
-              (type === 'signup' || type === 'verifyEmail')
-                ? router.replace('/(tabs)')
-                : router.replace('/(auth)/login'),
+            onPress: () => {
+              switch (type) {
+                case 'signup':
+                case 'verifyEmail':
+                  router.replace('/(tabs)');
+                  break;
+                case 'forgotPassword':
+                  router.replace({ pathname: '/(auth)/reset-password', params: { email } });
+                  break;
+                default:
+                  router.replace('/(auth)/login');
+                  break;
+              }
+            },
           },
         ]);
       } else {
