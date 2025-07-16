@@ -1,14 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const passport = require('./middleware/Passport');
+const passport = require('../middleware/Passport');
 
 // Start Google OAuth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
+
+router.get('/test', (req, res) => {
+  res.json({ message: 'Auth test route is working!' });
+});
 // Google OAuth callback
-router.get('/google/callback', passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   (req, res) => {
-    // Successful authentication bhane jwt token ani user profile patahune ho
+    // Successful authentication sends JWT and user info
     res.json({
       success: true,
       token: req.user.token,
@@ -16,7 +22,6 @@ router.get('/google/callback', passport.authenticate('google', { session: false,
         id: req.user.user._id,
         name: req.user.user.name,
         email: req.user.user.email,
-        picture: req.user.user.picture,
       }
     });
   }
