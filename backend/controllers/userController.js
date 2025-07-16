@@ -64,16 +64,8 @@ exports.registerUser = async (req, res) => {
 
     console.log('User created successfully:', { id: user._id, email: user.email });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
     res.status(201).json({
       success: true,
-      token,
       user: {
         id: user._id,
         name: user.name,
@@ -105,7 +97,14 @@ exports.verifyOTP = async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
-    res.json({ success: true, message: 'Email verified successfully. You can now log in.' });
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ success: true, token, message: 'Email verified successfully. You can now log in.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error verifying OTP', error });
   }
@@ -128,11 +127,18 @@ exports.resendOTP = async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Resend OTP Verification',
+      subject: 'OTP Verification',
       text: `Your new OTP is: ${otp}`
     });
 
-    res.json({ message: 'OTP resent successfully.' });
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ success: true, token, message: 'OTP resent successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Error resending OTP', error });
   }
@@ -166,14 +172,14 @@ exports.loginUser = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      return res.status(400).json({ success: false, message: 'Email not verified. Please verify OTP.' });
+      return res.status(400).json({ success: false, message: 'Email not verified' });
     }
 
     console.log('Login successful:', { id: user._id, email: user.email });
 
-      if (!user.fcmTokens.includes(fcmToken)) {
-        user.fcmTokens.push(fcmToken);
-        await user.save();
+    if (!user.fcmTokens.includes(fcmToken)) {
+      user.fcmTokens.push(fcmToken);
+      await user.save();
     }
 
     // Generate token

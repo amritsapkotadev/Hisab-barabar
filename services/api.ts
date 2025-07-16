@@ -73,33 +73,31 @@ api.interceptors.response.use(
 // API Service Functions
 export const apiService = {
   // Authentication
-  async login(email: string, password: string): Promise<{ token: string; user: User;}> {
+  async login(email: string, password: string): Promise<{ token: string; user: User; message?: string }> {
     try {
       console.log('Attempting login with:', { email });
       const fcmToken = await AsyncStorage.getItem('fcmToken');
       const response = await api.post('/users/login', { email, password, fcmToken });
       console.log('Login response:', response.data);
-      const { token, user } = response.data;
+      const { token, user, message } = response.data;
       authToken = token;
       await AsyncStorage.setItem('authToken', token);
-      return { token, user };
+      return { token, user, message };
     } catch (error: any) {
       console.error('Login API call failed:', error);
       throw new Error(error.response?.data?.message || 'Login failed');
     }
   },
 
-  async register(name: string, email: string, password: string): Promise<{ token: string; user: User; success?: boolean }> {
+  async register(name: string, email: string, password: string): Promise<{ user: User; success?: boolean }> {
     try {
       console.log('Attempting registration with:', { name, email });
       const fcmToken = await AsyncStorage.getItem('fcmToken');
       const response = await api.post('/users/register', { name, email, password, fcmToken });
       console.log('Registration response:', response.data);
 
-      const { token, user, success } = response.data;
-      authToken = token;
-      await AsyncStorage.setItem('authToken', token);
-      return { token, user, success };
+      const { user, success } = response.data;
+      return { user, success };
     } catch (error: any) {
       console.error('Registration API call failed:', error);
       throw new Error(error.response?.data?.message || 'Registration failed');
@@ -473,19 +471,22 @@ export const apiService = {
     }
   },
 
-  async verifyOtp({ otp, email }: { otp: string; email: string }): Promise<{ success: boolean, message?: string }> {
+  async verifyOtp({ otp, email }: { otp: string; email: string }): Promise<{ token: string; success: boolean; message?: string }> {
     try {
       console.log('Verifying OTP for email:', email);
       const response = await api.post('/users/verify-otp', { otp, email });
       console.log('Verify OTP response:', response.data);
+      if (response.data.success) {
+        await apiService.setAuthToken(response.data.token);
+      }
       return response.data;
     } catch (error: any) {
       console.error('Verify OTP API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to verify OTP');
-    } 
+    }
   },
 
-  async resendOtp({ email }: { email: string }): Promise<{ success: boolean, message?: string }> {
+  async resendOtp({ email }: { email: string }): Promise<{ token: string; success: boolean, message?: string }> {
     try {
       console.log('Resending OTP to email:', email);
       const response = await api.post('/users/resend-otp', { email });

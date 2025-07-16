@@ -77,18 +77,17 @@ export default function SignupScreen() {
     if (!validateForm()) return;
     setLoading(true);
     try {
-      const { token, user, success } = await apiService.register(
+      const { user, success } = await apiService.register(
         formData.name.trim(),
         formData.email.trim(),
         formData.password
       );
-      await apiService.setAuthToken(token);
 
       if (success) {
         Alert.alert('Success', 'Verify your email to activate your account.', [
           {
             text: 'OK',
-            onPress: () => router.push({ pathname: '/(auth)/otp-verification', params: { email: formData.email } }),
+            onPress: () => router.push({ pathname: '/(auth)/otp-verification', params: { email: formData.email, type: 'signup' } }),
           },
         ]);
       }

@@ -15,7 +15,7 @@ import { ArrowLeft, Shield, RefreshCw, CircleCheck as CheckCircle } from 'lucide
 import { apiService } from '@/services/api';
 
 export default function OTPVerificationScreen() {
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, type } = useLocalSearchParams<{ email: string, type: 'signup' | 'login' | 'verifyEmail' }>();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export default function OTPVerificationScreen() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [canResend]);
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) return;
@@ -111,7 +111,9 @@ export default function OTPVerificationScreen() {
           {
             text: 'OK',
             onPress: () =>
-              router.replace('/(tabs)'),
+              (type === 'signup' || type === 'verifyEmail')
+                ? router.replace('/(tabs)')
+                : router.replace('/(auth)/login'),
           },
         ]);
       } else {
@@ -120,9 +122,9 @@ export default function OTPVerificationScreen() {
         inputRefs.current[0]?.focus();
         Alert.alert('Error', res.message || 'Verification failed. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       shakeInputs();
-      Alert.alert('Error', 'Verification failed. Please try again.');
+      Alert.alert('Error', error.message || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -157,9 +159,11 @@ export default function OTPVerificationScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const maskedContact = verificationMethod === 'email'
-    ? email?.replace(/(.{2})(.*)(@.*)/, '$1***$3')
-    : phone?.replace(/(.{3})(.*)(.{2})/, '$1***$3');
+  // const maskedContact = verificationMethod === 'email'
+  //   ? email?.replace(/(.{2})(.*)(@.*)/, '$1***$3')
+  //   : phone?.replace(/(.{3})(.*)(.{2})/, '$1***$3');
+
+  const maskedContact = email?.replace(/(.{2})(.*)(@.*)/, '$1***$3');
 
   return (
     <SafeAreaView style={styles.container}>
