@@ -63,7 +63,7 @@ app.use(express.static('public'));
 app.get('/join/:groupId', (req, res) => {
   const { groupId } = req.params;
   const userAgent = req.get('User-Agent') || '';
-  const APP_DOMAIN = process.env.APP_DOMAIN || 'splitsaathi.up.railway.app';
+  const APP_DOMAIN = process.env.APP_DOMAIN || 'https://hisab-barabar.onrender.com/';
   const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
 
   if (isMobile) {

@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.splitsaathi.app",
       "associatedDomains": [
-        "applinks:splitsaathi.up.railway.app"
+        "applinks:hisab-barabar.onrender.com"
       ],
       "infoPlist": {
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera"
