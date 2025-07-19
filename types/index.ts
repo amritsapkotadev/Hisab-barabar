@@ -62,3 +62,9 @@ export interface Payer {
   name: string;
   amountPaid: number;
 }
+
+export interface GroupBalances {
+  owes: Record<string, number>;
+  owned: Record<string, number>;
+  netBalance: number;
+}

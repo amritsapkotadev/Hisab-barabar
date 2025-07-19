@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   Platform,
+  ColorValue,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
@@ -40,7 +41,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
 import ShareGroupModal from '@/components/ShareGroupModal';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
-import { Group, Expense } from '@/types';
+import { Group, Expense, User as UserType, GroupBalances } from '@/types';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { BlurView } from 'expo-blur';
@@ -157,6 +158,9 @@ const GroupScreen = () => {
   const [exportResult, setExportResult] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
+  const [user, setUser] = useState<UserType | null>(null);
+  const [balances, setBalances] = useState<GroupBalances | null>(null);
+  const [balancesLoading, setBalancesLoading] = useState(true);
 
   const fetchGroupData = async () => {
     try {
@@ -189,6 +193,23 @@ const GroupScreen = () => {
 
   useEffect(() => {
     fetchGroupData();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchUserAndBalances = async () => {
+      try {
+        setBalancesLoading(true);
+        const userProfile = await apiService.getUserProfile();
+        setUser(userProfile);
+        const groupBalances = await apiService.getGroupBalances(id, userProfile.id);
+        setBalances(groupBalances);
+      } catch (err) {
+        setBalances(null);
+      } finally {
+        setBalancesLoading(false);
+      }
+    };
+    fetchUserAndBalances();
   }, [id]);
 
   useEffect(() => {
@@ -391,7 +412,7 @@ const GroupScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={COLORS.headerGradient}
+        colors={COLORS.headerGradient as [ColorValue, ColorValue]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
@@ -507,32 +528,68 @@ const GroupScreen = () => {
           )}
 
           {activeTab === 'balances' && (
-            <>
-              {isSettled ? (
-                <View style={styles.settledBanner}>
-                  <Check size={16} color={COLORS.positive} />
-                  <Text style={styles.settledText}>All settled up!</Text>
-                </View>
-              ) : (
-                <View style={styles.balancesContainer}>
-                  {Object.entries(group.balances).map(([member, balance]) => (
-                    <View key={member}>
-                      {renderBalanceItem({ member, balance })}
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginBottom: 8 }}>Your Balances</Text>
+                {balancesLoading ? (
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                ) : balances ? (
+                  <>
+                    <View style={{
+                      backgroundColor: COLORS.card,
+                      borderRadius: 16,
+                      padding: 20,
+                      marginBottom: 20,
+                      alignItems: 'center',
+                      shadowColor: '#000',
+                      shadowOpacity: 0.06,
+                      shadowRadius: 8,
+                      elevation: 2,
+                    }}>
+                      <Text style={{ fontSize: 16, color: COLORS.muted, marginBottom: 4 }}>Net Balance</Text>
+                      <Text style={{
+                        fontSize: 32,
+                        fontWeight: 'bold',
+                        color: balances.netBalance > 0 ? COLORS.positive : balances.netBalance < 0 ? COLORS.negative : COLORS.muted
+                      }}>
+                        {balances.netBalance > 0 ? '+' : balances.netBalance < 0 ? '-' : ''}₹{Math.abs(balances.netBalance).toFixed(2)}
+                      </Text>
+                      <Text style={{ color: COLORS.muted, marginTop: 4 }}>
+                        {balances.netBalance > 0 ? 'You are owed' : balances.netBalance < 0 ? 'You owe' : 'All settled!'}
+                      </Text>
                     </View>
-                  ))}
-                </View>
-              )}
-
-              {!isSettled && (
-                <TouchableOpacity
-                  style={styles.settleButton}
-                  activeOpacity={0.8}
-                  onPress={() => router.push(`/settle-up/${group.id}`)}
-                >
-                  <Text style={styles.settleButtonText}>Settle Up</Text>
-                </TouchableOpacity>
-              )}
-            </>
+                    <View style={{ marginBottom: 16 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.negative, marginBottom: 8 }}>You Owe</Text>
+                      {Object.keys(balances.owes).length === 0 && (
+                        <Text style={{ color: COLORS.muted }}>You owe nothing to anyone in this group.</Text>
+                      )}
+                      {Object.entries(balances.owes).map(([name, amount]) => (
+                        <View key={name} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                          <MemberAvatar name={name} size={36} />
+                          <Text style={{ marginLeft: 12, fontSize: 16, color: COLORS.text, flex: 1 }}>{name}</Text>
+                          <Text style={{ fontSize: 16, color: COLORS.negative, fontWeight: 'bold' }}>₹{amount.toFixed(2)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={{ marginBottom: 16 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: COLORS.positive, marginBottom: 8 }}>You Are Owed</Text>
+                      {Object.keys(balances.owned).length === 0 && (
+                        <Text style={{ color: COLORS.muted }}>No one owes you in this group.</Text>
+                      )}
+                      {Object.entries(balances.owned).map(([name, amount]) => (
+                        <View key={name} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                          <MemberAvatar name={name} size={36} />
+                          <Text style={{ marginLeft: 12, fontSize: 16, color: COLORS.text, flex: 1 }}>{name}</Text>
+                          <Text style={{ fontSize: 16, color: COLORS.positive, fontWeight: 'bold' }}>₹{amount.toFixed(2)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={{ color: COLORS.muted }}>Could not load balances.</Text>
+                )}
+              </View>
+            </ScrollView>
           )}
 
           {activeTab === 'members' && (
@@ -565,7 +622,7 @@ const GroupScreen = () => {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={COLORS.fab}
+          colors={COLORS.fab as [ColorValue, ColorValue]}
           style={styles.fabGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}

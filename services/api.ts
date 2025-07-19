@@ -1,10 +1,10 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Group, Expense, User, BudgetResponse } from '@/types';
+import { Group, Expense, User, BudgetResponse, GroupBalances } from '@/types';
 import { GoogleUser } from './googleAuth';
 
 // API Configuration - Use environment variable or fallback to Railway domain
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://hisab-barabar.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://hisab-barabar.onrender.com';
 
 // Create axios instance
 const api = axios.create({
@@ -519,6 +519,16 @@ export const apiService = {
     } catch (error: any) {
       console.error('Reset password API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to reset password');
+    }
+  },
+
+  async getGroupBalances(groupId: string, userId: string): Promise<GroupBalances> {
+    try {
+      const response = await api.get(`/api/groups/${groupId}/balances/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get group balances API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch group balances');
     }
   },
 };

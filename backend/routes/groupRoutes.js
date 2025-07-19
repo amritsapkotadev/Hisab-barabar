@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createGroup, getGroups, getGroupById, joinGroupByInviteCode, joinGroupById, deleteGroup, deleteMember } = require('../controllers/groupController');
+const { createGroup, getGroups, getGroupById, joinGroupByInviteCode, joinGroupById, deleteGroup, deleteMember, getUserGroupBalances } = require('../controllers/groupController');
 const protect = require('../middleware/authMiddleware');
 
 // All group routes require authentication
@@ -13,6 +13,7 @@ router.post('/join', joinGroupByInviteCode); // Join by invite code
 router.post('/:groupId/join', joinGroupById); // Join by group ID (for deep linking)
 router.get('/', getGroups);
 router.get('/:id', getGroupById);
+router.get('/:groupId/balances/:userId', getUserGroupBalances);
 router.delete('/:id', deleteGroup);
 router.delete('/member/:id', deleteMember);
 

@@ -438,3 +438,64 @@ exports.getGroupById = async (req, res) => {
     res.status(500).json({ message: 'Server error while fetching group' });
   }
 };
+
+// Get user balances in a group
+exports.getUserGroupBalances = async (req, res) => {
+  try {
+    const { groupId, userId } = req.params;
+    // Fetch all expenses for the group
+    const expenses = await Expense.find({ groupId });
+    if (!expenses) {
+      return res.status(404).json({ message: 'No expenses found for this group' });
+    }
+
+    // Maps to track balances
+    const owes = {}; // { userName: amount }
+    const owned = {}; // { userName: amount }
+    let netBalance = 0;
+
+    // Helper to add to map
+    const addToMap = (map, key, amount) => {
+      if (!map[key]) map[key] = 0;
+      map[key] += amount;
+    };
+
+    // For each expense, calculate shares
+    expenses.forEach(exp => {
+      // Find payer(s)
+      let payers = [];
+      if (exp.payers && exp.payers.length > 0) {
+        payers = exp.payers.map(p => ({ name: p.name, amount: p.amountPaid }));
+      } else if (exp.paidBy) {
+        payers = [{ name: exp.paidBy, amount: exp.amount }];
+      }
+      // For each split, check if user is involved
+      if (exp.splits && exp.splits.length > 0) {
+        exp.splits.forEach(split => {
+          if (split.participant === userId || split.participant === req.user.name) {
+            // User owes this much for this expense
+            payers.forEach(payer => {
+              if (payer.name !== userId && payer.name !== req.user.name) {
+                addToMap(owes, payer.name, split.amount);
+                netBalance -= split.amount;
+              }
+            });
+          } else if (payers.some(p => p.name === userId || p.name === req.user.name)) {
+            // User is a payer, others owe them
+            addToMap(owned, split.participant, split.amount);
+            netBalance += split.amount;
+          }
+        });
+      }
+    });
+
+    res.json({
+      owes,
+      owned,
+      netBalance
+    });
+  } catch (error) {
+    console.error('Get user group balances error:', error);
+    res.status(500).json({ message: 'Server error while calculating balances' });
+  }
+};
