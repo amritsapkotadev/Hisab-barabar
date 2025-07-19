@@ -31,7 +31,7 @@ export default function ShareGroupModal({ visible, onClose, group }: ShareGroupM
   const { APP_DOMAIN } = Constants.expoConfig?.extra || {};
   const shareUrl = group.inviteLink || `https://${APP_DOMAIN}/join/${group.id}`;
   const code = group.inviteCode || '';
-  const message = `Join my group "${group.name}" on SplitSaathi!\n${shareUrl}${code ? `\nUse code: ${code}` : ''}`;
+  const message = `Join my group "${group.name}" on Hisab Barabar! to add personal expenses and split money amgong friends without any issue!!\n${shareUrl}${code ? `\nUse code: ${code}` : ''}`;
 
   const handleShare = async () => {
     try {
