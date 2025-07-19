@@ -31,7 +31,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     AsyncStorage.setItem('hasSeenWelcome', 'true');
-    
+
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
@@ -48,13 +48,22 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const { token, user } = await apiService.login(email.trim(), password);
+      const { token, user, message } = await apiService.login(email.trim(), password);
       await apiService.setAuthToken(token);
-      
       router.replace('/(tabs)');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert('Login Failed', 'Invalid email or password. Please try again.');
+      if (error.message === 'Email not verified') {
+        Alert.alert('Email not verified', 'Please verify your email before logging in.', [
+          {
+            text: 'OK',
+            onPress: async () => {
+              router.push({ pathname: '/(auth)/otp-verification', params: { email: email, type: 'verifyEmail' } });
+              await apiService.resendOtp({ email });
+            },
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -64,7 +73,7 @@ export default function LoginScreen() {
     setGoogleLoading(true);
     try {
       const result = await googleAuthService.signInWithGoogle();
-      
+
       if (result.success && result.user) {
         try {
           const { token, user } = await apiService.loginWithGoogle(result.user);
@@ -93,11 +102,11 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <Animated.ScrollView 
+        <Animated.ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -160,7 +169,7 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity style={styles.forgotPassword} onPress={() => router.push('/(auth)/forgot-password')}>
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 

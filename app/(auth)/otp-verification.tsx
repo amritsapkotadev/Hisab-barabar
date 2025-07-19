@@ -12,21 +12,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ArrowLeft, Shield, RefreshCw, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { apiService } from '@/services/api';
 
 export default function OTPVerificationScreen() {
-  const { email, phone, type } = useLocalSearchParams<{
-    email: string;
-    phone: string;
-    type: string;
-  }>();
-  
+  const { email, type } = useLocalSearchParams<{ email: string, type: 'signup' | 'login' | 'verifyEmail' | 'forgotPassword' }>();
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<'email' | 'sms'>('email');
-  
+
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
@@ -43,7 +40,7 @@ export default function OTPVerificationScreen() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [canResend]);
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) return;
@@ -96,7 +93,7 @@ export default function OTPVerificationScreen() {
 
   const handleVerifyOtp = async (otpCode?: string) => {
     const codeToVerify = otpCode || otp.join('');
-    
+
     if (codeToVerify.length !== 6) {
       Alert.alert('Error', 'Please enter the complete 6-digit code');
       return;
@@ -104,19 +101,27 @@ export default function OTPVerificationScreen() {
 
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // For demo purposes, accept any 6-digit code
-      if (codeToVerify === '123456' || codeToVerify.length === 6) {
+      const res = await apiService.verifyOtp({
+        otp: codeToVerify,
+        email: email,
+      });
+
+      if (res.success) {
         Alert.alert('Success', 'Verification successful!', [
           {
             text: 'OK',
             onPress: () => {
-              if (type === 'signup') {
-                router.replace('/(tabs)');
-              } else {
-                router.back();
+              switch (type) {
+                case 'signup':
+                case 'verifyEmail':
+                  router.replace('/(tabs)');
+                  break;
+                case 'forgotPassword':
+                  router.replace({ pathname: '/(auth)/reset-password', params: { email } });
+                  break;
+                default:
+                  router.replace('/(auth)/login');
+                  break;
               }
             },
           },
@@ -125,11 +130,11 @@ export default function OTPVerificationScreen() {
         shakeInputs();
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
-        Alert.alert('Error', 'Invalid verification code. Please try again.');
+        Alert.alert('Error', res.message || 'Verification failed. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       shakeInputs();
-      Alert.alert('Error', 'Verification failed. Please try again.');
+      Alert.alert('Error', error.message || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -138,16 +143,17 @@ export default function OTPVerificationScreen() {
   const handleResendCode = async () => {
     setResendLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const res = await apiService.resendOtp({
+        email: email,
+      });
+
       setTimer(60);
       setCanResend(false);
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
-      
+
       Alert.alert(
-        'Code Sent', 
+        'Code Sent',
         `A new verification code has been sent to your ${verificationMethod === 'email' ? 'email' : 'phone'}.`
       );
     } catch (error) {
@@ -163,14 +169,16 @@ export default function OTPVerificationScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const maskedContact = verificationMethod === 'email' 
-    ? email?.replace(/(.{2})(.*)(@.*)/, '$1***$3')
-    : phone?.replace(/(.{3})(.*)(.{2})/, '$1***$3');
+  // const maskedContact = verificationMethod === 'email'
+  //   ? email?.replace(/(.{2})(.*)(@.*)/, '$1***$3')
+  //   : phone?.replace(/(.{3})(.*)(.{2})/, '$1***$3');
+
+  const maskedContact = email?.replace(/(.{2})(.*)(@.*)/, '$1***$3');
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
@@ -189,12 +197,13 @@ export default function OTPVerificationScreen() {
         {/* Title and Description */}
         <Text style={styles.title}>Verify Your Account</Text>
         <Text style={styles.description}>
-          We've sent a 6-digit verification code to your {verificationMethod === 'email' ? 'email' : 'phone number'}
+          {/* We've sent a 6-digit verification code to {verificationMethod === 'email' ? 'email' : 'phone number'} */}
+          We've sent a 6-digit verification code to <Text style={styles.contact}>{maskedContact}</Text>
         </Text>
-        <Text style={styles.contact}>{maskedContact}</Text>
+
 
         {/* Verification Method Toggle */}
-        <View style={styles.methodToggle}>
+        {/* <View style={styles.methodToggle}>
           <TouchableOpacity
             style={[
               styles.methodButton,
@@ -223,10 +232,10 @@ export default function OTPVerificationScreen() {
               SMS
             </Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         {/* OTP Input */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.otpContainer,
             { transform: [{ translateX: shakeAnimation }] }
@@ -252,11 +261,11 @@ export default function OTPVerificationScreen() {
         </Animated.View>
 
         {/* Demo Code Hint */}
-        <View style={styles.demoHint}>
+        {/* <View style={styles.demoHint}>
           <Text style={styles.demoHintText}>
             💡 Demo: Use code <Text style={styles.demoCode}>123456</Text> for testing
           </Text>
-        </View>
+        </View> */}
 
         {/* Verify Button */}
         <TouchableOpacity
@@ -393,8 +402,9 @@ const styles = StyleSheet.create({
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: 30,
+    marginTop: 30,
+    gap: 8,
   },
   otpInput: {
     width: 48,

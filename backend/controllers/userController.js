@@ -1,6 +1,17 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // Register a new user
 exports.registerUser = async (req, res) => {
@@ -30,15 +41,61 @@ exports.registerUser = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
     // Create user
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
-      fcmToken: fcmToken,
+      fcmTokens: fcmToken ? [fcmToken] : [],
+      otp: otp,
+      otpExpires: otpExpires,
+      isVerified: false
     });
 
-    console.log('User created successfully:', { id: user._id, email: user.email, fcmToken: user.fcmToken });
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'OTP Verification',
+      text: `Your OTP is: ${otp}`
+    });
+
+    console.log('User created successfully:', { id: user._id, email: user.email });
+
+    res.status(201).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      },
+      message: 'User registered successfully. Please verify your email with the OTP sent.'
+    });
+  } catch (error) {
+    console.error('Register user error:', error);
+    res.status(500).json({ message: 'Server error during registration' });
+  }
+};
+
+// Verify OTP
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(400).json({ message: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ message: 'User already verified' });
+
+    if (user.otp !== otp || user.otpExpiry < new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
 
     // Generate JWT token
     const token = jwt.sign(
@@ -47,19 +104,113 @@ exports.registerUser = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({
+    res.json({ success: true, token, message: 'Email verified successfully. You can now log in.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error verifying OTP', error });
+  }
+};
+
+// Resend OTP
+exports.resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(400).json({ message: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ message: 'User already verified' });
+
+    const otp = generateOTP();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'OTP Verification',
+      text: `Your new OTP is: ${otp}`
+    });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ success: true, token, message: 'OTP resent successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error resending OTP', error });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validate email
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    // Generate OTP
+    const otp = generateOTP();
+    user.isVerified = false;
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    // Send OTP email
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset OTP',
+      text: `Your OTP for password reset is: ${otp}`
+    });
+
+    res.json({ success: true, message: 'OTP sent to email for password reset' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Error sending forgot password email', error });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    // Validate input
+    if (!email || !newPassword) {
+      return res.status(400).json({ message: 'Email and new password are required' });
+    } else if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    // Update user password and clear OTP
+    user.password = hashedPassword;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    user.isVerified = true; // Automatically verify user after password reset
+    await user.save();
+
+    res.json({
       success: true,
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email
-      },
-      message: 'User registered successfully'
+      message: 'Password reset successful. You can now log in.'
     });
   } catch (error) {
-    console.error('Register user error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Error resetting password', error });
   }
 };
 
@@ -90,10 +241,16 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    if (!user.isVerified) {
+      return res.status(400).json({ success: false, message: 'Email not verified' });
+    }
+
     console.log('Login successful:', { id: user._id, email: user.email });
 
-    user.fcmToken = fcmToken;
-    await user.save();
+    if (!user.fcmTokens.includes(fcmToken)) {
+      user.fcmTokens.push(fcmToken);
+      await user.save();
+    }
 
     // Generate token
     const token = jwt.sign(
@@ -114,7 +271,7 @@ exports.loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Login user error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(500).json({ success: false, message: 'Server error during login' });
   }
 };
 
