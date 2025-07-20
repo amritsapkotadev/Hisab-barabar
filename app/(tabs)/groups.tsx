@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Users, TrendingUp, TrendingDown, Plus, ChevronRight, AlertCircle, UserPlus, MoreVertical, Sparkles, Crown } from 'lucide-react-native';
-import { Group } from '@/types';
+import { Group, User } from '@/types';
 import { apiService } from '@/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -53,6 +53,7 @@ export default function GroupsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   const fadeAnim = useState(new Animated.Value(0))[0];
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -87,6 +88,18 @@ export default function GroupsScreen() {
     }).start();
   }, []);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userProfile = await apiService.getUserProfile();
+        setUser(userProfile);
+      } catch (err) {
+        setUser(null);
+      }
+    };
+    fetchUser();
+  }, []);
+
   const fetchGroups = async () => {
     try {
       setError(null);
@@ -119,13 +132,13 @@ export default function GroupsScreen() {
   );
 
   const renderGroupCard = ({ item, index }: { item: Group; index: number }) => {
-    const netAmount = Object.values(item.balances).reduce((sum, balance) => sum + balance, 0);
-    const isPositive = netAmount > 0;
-    const isNegative = netAmount < 0;
-    const statusText = isPositive 
-      ? `You're owed ₹${Math.abs(netAmount).toFixed(2)}` 
+    const userBalance = user ? (item.balances?.[user.id] || 0) : 0;
+    const isPositive = userBalance > 0;
+    const isNegative = userBalance < 0;
+    const statusText = isPositive
+      ? `You're owed ₹${Math.abs(userBalance).toFixed(2)}`
       : isNegative
-        ? `You owe ₹${Math.abs(netAmount).toFixed(2)}` 
+        ? `You owe ₹${Math.abs(userBalance).toFixed(2)}`
         : 'Settled up';
 
     const iconColor = getGroupColor(item.name);

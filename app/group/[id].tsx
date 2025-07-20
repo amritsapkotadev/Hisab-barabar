@@ -191,29 +191,32 @@ const GroupScreen = () => {
     }
   };
 
+  const fetchUserAndBalances = async () => {
+    try {
+      setBalancesLoading(true);
+      const userProfile = await apiService.getUserProfile();
+      setUser(userProfile);
+      const groupBalances = await apiService.getGroupBalances(id, userProfile.id);
+      setBalances(groupBalances);
+    } catch (err) {
+      setBalances(null);
+    } finally {
+      setBalancesLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchGroupData();
   }, [id]);
 
   useEffect(() => {
-    const fetchUserAndBalances = async () => {
-      try {
-        setBalancesLoading(true);
-        const userProfile = await apiService.getUserProfile();
-        setUser(userProfile);
-        const groupBalances = await apiService.getGroupBalances(id, userProfile.id);
-        setBalances(groupBalances);
-      } catch (err) {
-        setBalances(null);
-      } finally {
-        setBalancesLoading(false);
-      }
-    };
     fetchUserAndBalances();
   }, [id]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      fetchGroupData();
+      fetchUserAndBalances();
       if (showShareModal) {
         setShowShareModal(false);
       }
@@ -273,21 +276,58 @@ const GroupScreen = () => {
   const handleExport = async (): Promise<void> => {
     if (!group) return;
     try {
-      let csv = `Group: ${group.name}\n\n`;
-      csv += `Expenses:\nDate,Description,Amount,Paid By\n`;
+      const now = new Date();
+      const exportDate = now.toISOString();
+
+      // CSV header
+      let csv = `"Exported At","${exportDate}"\n`;
+      csv += `"Group Name","${group.name}"\n\n`;
+
+      // Expenses table
+      csv += `"Date","Description","Group Member","Amount Paid"\n`;
       expenses.forEach((exp: Expense) => {
-        csv += `${formatDate(exp.date)},${exp.description},${exp.amount},${exp.paidBy}\n`;
+        const date = new Date(exp.date).toISOString().split('T')[0];
+        csv += `"${date}","${exp.description.replace(/"/g, '""')}","${exp.paidBy.replace(/"/g, '""')}","${exp.amount}"\n`;
       });
-      csv += `\nBalances:\nMember,Balance\n`;
-      Object.entries(group.balances).forEach(([member, balance]: [string, number]) => {
-        csv += `${member},${balance.toFixed(2)}\n`;
-      });
+
+      // Total row
+      const totalAmount = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      csv += `"","","Total","${totalAmount.toFixed(2)}"\n`;
+
+      // Net Balance and Owes/Owed for current user
+      if (user && balances) {
+        csv += `\n"Net Balance for ${user.name}","${balances.netBalance.toFixed(2)}"\n`;
+
+        // You Owe section
+        if (Object.keys(balances.owes).length > 0) {
+          csv += `"You Owe"\n"To","Amount"\n`;
+          Object.entries(balances.owes).forEach(([to, amount]) => {
+            csv += `"${to}","${amount.toFixed(2)}"\n`;
+          });
+        } else {
+          csv += `"You Owe","0.00"\n`;
+        }
+
+        // You Are Owed section
+        if (Object.keys(balances.owned).length > 0) {
+          csv += `"You Are Owed"\n"From","Amount"\n`;
+          Object.entries(balances.owned).forEach(([from, amount]) => {
+            csv += `"${from}","${amount.toFixed(2)}"\n`;
+          });
+        } else {
+          csv += `"You Are Owed","0.00"\n`;
+        }
+      }
+
+      // Add BOM for Excel compatibility
+      const csvWithBom = '\uFEFF' + csv;
+
       if (Platform.OS !== 'web' && await Sharing.isAvailableAsync()) {
         const fileUri = FileSystem.cacheDirectory + `group-${group.id}.csv`;
-        await FileSystem.writeAsStringAsync(fileUri, csv);
+        await FileSystem.writeAsStringAsync(fileUri, csvWithBom, { encoding: FileSystem.EncodingType.UTF8 });
         await Sharing.shareAsync(fileUri);
       } else {
-        setExportResult(csv);
+        setExportResult(csvWithBom);
         setShowExportModal(true);
       }
     } catch (err) {

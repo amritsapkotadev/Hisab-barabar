@@ -49,7 +49,7 @@ const COLORS = {
 function getNetBalance(groups: Group[], userId: string) {
   let net = 0;
   groups.forEach(g => {
-    if (g.balances && g.balances[userId]) net += g.balances[userId];
+    net += g.balances?.[userId] || 0;
   });
   return net;
 }
@@ -189,7 +189,8 @@ export default function HomeScreen() {
 
   const renderNetBalanceCard = () => {
     const net = user ? getNetBalance(groups, user.id) : 0;
-    const isPositive = net >= 0;
+    const isPositive = net > 0;
+    const isNegative = net < 0;
     const formattedNet = Math.abs(net).toFixed(2);
 
     return (
@@ -205,11 +206,9 @@ export default function HomeScreen() {
             <Wallet size={20} color={COLORS.primary} />
             <Text style={styles.balanceTitle}>Net Balance</Text>
           </View>
-          <Text style={[styles.balanceValue, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-            ₹{formattedNet}
-          </Text>
-          <Text style={[styles.balanceStatus, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-            {isPositive ? 'You are owed' : 'You owe'}
+          <Text style={[styles.balanceValue, { color: isPositive ? COLORS.positive : isNegative ? COLORS.negative : COLORS.subtext }]}>₹{formattedNet}</Text>
+          <Text style={[styles.balanceStatus, { color: isPositive ? COLORS.positive : isNegative ? COLORS.negative : COLORS.subtext }]}> 
+            {isPositive ? 'You are owed' : isNegative ? 'You owe' : 'All settled!'}
           </Text>
         </View>
       </View>
