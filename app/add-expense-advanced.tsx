@@ -83,13 +83,13 @@ export default function AddAdvancedExpenseScreen() {
           const group = groupsData.find(g => g.id === groupId);
           if (group) {
             setSelectedGroup(group);
-            setPayers([{ name: group.members[0], amountPaid: '' }]);
-            setParticipants(group.members.map(m => ({ name: m, share: '' })));
+            setPayers([{ name: group.members[0], amountPaid: '0' }]);
+            setParticipants(group.members.map(m => ({ name: m, share: '0' })));
           }
         } else if (groupsData.length > 0) {
           setSelectedGroup(groupsData[0]);
-          setPayers([{ name: groupsData[0].members[0], amountPaid: '' }]);
-          setParticipants(groupsData[0].members.map(m => ({ name: m, share: '' })));
+          setPayers([{ name: groupsData[0].members[0], amountPaid: '0' }]);
+          setParticipants(groupsData[0].members.map(m => ({ name: m, share: '0' })));
         }
       } catch (error) {
         Alert.alert('Error', 'Failed to load groups');
@@ -118,8 +118,8 @@ export default function AddAdvancedExpenseScreen() {
 
   const handleSelectGroup = (group: Group) => {
     setSelectedGroup(group);
-    setPayers([{ name: group.members[0], amountPaid: '' }]);
-    setParticipants(group.members.map(m => ({ name: m, share: '' })));
+    setPayers([{ name: group.members[0], amountPaid: '0' }]);
+    setParticipants(group.members.map(m => ({ name: m, share: '0' })));
     setGroupModalVisible(false);
   };
 
