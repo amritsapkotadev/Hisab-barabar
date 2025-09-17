@@ -4,7 +4,7 @@ import { Group, Expense, User, BudgetResponse } from '@/types';
 import { GoogleUser } from './googleAuth';
 
 // API Configuration - Use environment variable or fallback to Railway domain
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://hisab-barabar.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://hisab-barabar.onrender.com';
 
 // Create axios instance
 const api = axios.create({

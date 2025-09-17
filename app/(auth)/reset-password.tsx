@@ -15,6 +15,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { apiService } from '@/services/api';
 import { useLocalSearchParams } from 'expo-router';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 export default function ResetPasswordScreen() {
     const [newPassword, setNewPassword] = useState('');
@@ -23,6 +24,7 @@ export default function ResetPasswordScreen() {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const { email } = useLocalSearchParams();
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
     const handleResetPassword = async () => {
         setError('');
@@ -42,12 +44,8 @@ export default function ResetPasswordScreen() {
         try {
             const res = await apiService.resetPassword({ email: Array.isArray(email) ? email[0] : email, newPassword: newPassword });
             if (res.success) {
-                setSuccessMessage('Password reset successfully! You can now log in.');
-                // Optionally navigate to login screen after a delay
-                setTimeout(() => {
-                    router.replace('/(auth)/login');
-                }, 2000);
-            }else {
+                setShowConfirmationModal(true);
+            } else {
                 setError(res.message || 'Failed to reset password. Please try again.');
             }
         } catch (err) {
@@ -90,6 +88,15 @@ export default function ResetPasswordScreen() {
                             secureTextEntry
                         />
                     </View>
+                    {/* Confirmation Modal */}
+                    <ConfirmationModal
+                        visible={showConfirmationModal}
+                        message="Password reset successfully! You can now log in."
+                        onConfirm={() => {
+                            setShowConfirmationModal(false);
+                            router.replace('/(auth)/login');
+                        }}
+                    />
                     {error ? <Text style={styles.error}>{error}</Text> : null}
                     {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
                     <TouchableOpacity

@@ -51,7 +51,7 @@ export default function EditProfileScreen() {
 
     setSaving(true);
     try {
-      // In a real app, you would call an API to update the profile
+      await apiService.updateUserProfile({ name, email });
       Alert.alert('Success', 'Profile updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);

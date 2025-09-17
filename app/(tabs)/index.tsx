@@ -206,7 +206,7 @@ export default function HomeScreen() {
             <Text style={styles.balanceTitle}>Net Balance</Text>
           </View>
           <Text style={[styles.balanceValue, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-            ₹{formattedNet}
+            रु {formattedNet}
           </Text>
           <Text style={[styles.balanceStatus, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
             {isPositive ? 'You are owed' : 'You owe'}
@@ -487,7 +487,7 @@ export default function HomeScreen() {
                 <View style={styles.personalBudgetHeader}>
                   <View>
                     <Text style={styles.personalBudgetTitle}>Monthly Budget</Text>
-                    <Text style={styles.personalBudgetValue}>₹{user?.budget ? user?.budget.toFixed(2) : '0.00'}</Text>
+                    <Text style={styles.personalBudgetValue}>रु {user?.budget ? user?.budget.toFixed(2) : '0.00'}</Text>
                   </View>
                   <TouchableOpacity 
                     style={styles.editBudgetButton}
@@ -504,7 +504,7 @@ export default function HomeScreen() {
                 <View style={styles.budgetProgressContainer}>
                   <View style={styles.budgetProgressHeader}>
                     <Text style={styles.budgetProgressLabel}>Spent this month</Text>
-                    <Text style={styles.budgetProgressValue}>₹{spentThisMonth.toFixed(2)}</Text>
+                    <Text style={styles.budgetProgressValue}>रु {spentThisMonth.toFixed(2)}</Text>
                   </View>
                   <View style={styles.budgetProgressBar}>
                     <View style={styles.budgetProgressBackground} />
@@ -520,7 +520,7 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.budgetProgressFooter}>
                     <Text style={styles.budgetProgressLabel}>Left this month</Text>
-                    <Text style={styles.budgetProgressValue}>₹{leftThisMonth.toFixed(2)}</Text>
+                    <Text style={styles.budgetProgressValue}>रु {leftThisMonth.toFixed(2)}</Text>
                   </View>
                 </View>
               </View>
@@ -538,7 +538,7 @@ export default function HomeScreen() {
                     <Wallet size={18} color={COLORS.primary} />
                   </View>
                   <Text style={styles.budgetItemLabel}>Total Budget</Text>
-                  <Text style={[styles.budgetItemValue, { color: COLORS.primary }]}>₹{user?.budget ? user?.budget.toFixed(2) : '0.00'}</Text>
+                  <Text style={[styles.budgetItemValue, { color: COLORS.primary }]}>रु {user?.budget ? user?.budget.toFixed(2) : '0.00'}</Text>
                 </View>
                 
                 <View style={styles.budgetOverviewItem}>
@@ -546,7 +546,7 @@ export default function HomeScreen() {
                     <FileText size={18} color={COLORS.negative} />
                   </View>
                   <Text style={styles.budgetItemLabel}>Spent</Text>
-                  <Text style={[styles.budgetItemValue, { color: COLORS.negative }]}>₹{spentThisMonth.toFixed(2)}</Text>
+                  <Text style={[styles.budgetItemValue, { color: COLORS.negative }]}>रु {spentThisMonth.toFixed(2)}</Text>
                 </View>
                 
                 <View style={styles.budgetOverviewItem}>
@@ -555,7 +555,7 @@ export default function HomeScreen() {
                   </View>
                   <Text style={styles.budgetItemLabel}>Remaining</Text>
                   <Text style={[styles.budgetItemValue, { color: leftThisMonth > 0 ? COLORS.positive : COLORS.negative }]}>
-                    ₹{leftThisMonth.toFixed(2)}
+                    रु {leftThisMonth.toFixed(2)}
                   </Text>
                 </View>
               </View>

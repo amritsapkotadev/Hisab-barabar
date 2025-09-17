@@ -37,7 +37,7 @@ export default function JoinGroup() {
   const [isValidCode, setIsValidCode] = useState(false);
 
   const validateCode = (text: string) => {
-    const isValid = text.length >= 4 && /^[A-Z0-9]+$/.test(text);
+    const isValid = text.length >= 8 && /^[A-Z0-9]+$/.test(text);
     setIsValidCode(isValid);
     return text;
   };
@@ -130,7 +130,7 @@ export default function JoinGroup() {
                     isValidCode && styles.inputValid,
                     code.length > 0 && !isValidCode && styles.inputInvalid
                   ]}
-                  placeholder="Enter 6-8 digit code"
+                  placeholder="Enter 8 digit code"
                   value={code}
                   onChangeText={(text) => setCode(validateCode(text.toUpperCase()))}
                   autoCapitalize="characters"
@@ -176,7 +176,7 @@ export default function JoinGroup() {
                 <Text style={styles.helpTitle}>How to get a group code?</Text>
                 <Text style={styles.helpText}>
                   Ask your group admin to share the invite code with you. 
-                  The code is usually 6-8 characters long.
+                  The code is usually 8 characters long.
                 </Text>
               </View>
             </View>
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   validationIcon: {
     position: 'absolute',
     right: 16,
-    top: 18,
+    top: 52,
   },
   joinButton: {
     borderRadius: 16,

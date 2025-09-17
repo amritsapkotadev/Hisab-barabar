@@ -316,7 +316,7 @@ export default function AddGroupScreen() {
                   style={styles.input}
                   value={groupName}
                   onChangeText={setGroupName}
-                  placeholder="e.g. Vacation, Roommates, Project"
+                  placeholder="e.g. Vacation, Roommates, etc."
                   placeholderTextColor="#94A3B8"
                   maxLength={32}
                   autoCapitalize="words"
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#1E293B',
   },

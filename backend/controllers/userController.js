@@ -247,10 +247,8 @@ exports.loginUser = async (req, res) => {
 
     console.log('Login successful:', { id: user._id, email: user.email });
 
-    if (!user.fcmTokens.includes(fcmToken)) {
-      user.fcmTokens.push(fcmToken);
-      await user.save();
-    }
+    user.fcmToken = fcmToken;
+    await user.save();
 
     // Generate token
     const token = jwt.sign(

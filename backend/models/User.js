@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
-  fcmTokens: { type: [String], default: [] },
+  fcmToken: { type: String, unique: true, sparse: true },
   googleId: { type: String, unique: true, sparse: true },
   picture: { type: String },
 }, { timestamps: true });

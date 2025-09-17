@@ -40,6 +40,5 @@ const groupSchema = new mongoose.Schema({
 });
 
 groupSchema.index({ createdBy: 1, createdAt: -1 });
-groupSchema.index({ inviteCode: 1 });
 
 module.exports = mongoose.model('Group', groupSchema);

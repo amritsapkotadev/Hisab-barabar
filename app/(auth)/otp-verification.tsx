@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ArrowLeft, Shield, RefreshCw, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { apiService } from '@/services/api';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 export default function OTPVerificationScreen() {
   const { email, type } = useLocalSearchParams<{ email: string, type: 'signup' | 'login' | 'verifyEmail' | 'forgotPassword' }>();
@@ -23,6 +24,7 @@ export default function OTPVerificationScreen() {
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [verificationMethod, setVerificationMethod] = useState<'email' | 'sms'>('email');
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
@@ -106,26 +108,28 @@ export default function OTPVerificationScreen() {
         email: email,
       });
 
+      // if (res.success) {
+      //   Alert.alert('Success', 'Verification successful!', [
+      //     {
+      //       text: 'OK',
+      //       onPress: () => {
+      //         switch (type) {
+      //           case 'signup':
+      //           case 'verifyEmail':
+      //             router.replace('/(tabs)');
+      //             break;
+      //           case 'forgotPassword':
+      //             router.replace({ pathname: '/(auth)/reset-password', params: { email } });
+      //             break;
+      //           default:
+      //             router.replace('/(auth)/login');
+      //             break;
+      //         }
+      //       },
+      //     },
+      //   ]);
       if (res.success) {
-        Alert.alert('Success', 'Verification successful!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              switch (type) {
-                case 'signup':
-                case 'verifyEmail':
-                  router.replace('/(tabs)');
-                  break;
-                case 'forgotPassword':
-                  router.replace({ pathname: '/(auth)/reset-password', params: { email } });
-                  break;
-                default:
-                  router.replace('/(auth)/login');
-                  break;
-              }
-            },
-          },
-        ]);
+        setShowConfirmationModal(true);
       } else {
         shakeInputs();
         setOtp(['', '', '', '', '', '']);
@@ -306,6 +310,26 @@ export default function OTPVerificationScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Confirmation Modal */}
+        <ConfirmationModal
+          visible={showConfirmationModal}
+          message="OTP verification successful!"
+          onConfirm={() => {
+            setShowConfirmationModal(false);
+            switch (type) {
+              case 'verifyEmail':
+                router.replace('/(tabs)');
+                break;
+              case 'forgotPassword':
+                router.replace({ pathname: '/(auth)/reset-password', params: { email } });
+                break;
+              default:
+                router.replace('/(auth)/login');
+                break;
+            }
+          }}
+        />
 
         {/* Help Text */}
         <Text style={styles.helpText}>

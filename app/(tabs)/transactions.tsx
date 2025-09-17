@@ -33,7 +33,8 @@ import {
   ChevronRight,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  HandCoins
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Group, Expense } from '@/types';
@@ -252,7 +253,7 @@ export default function TransactionsScreen() {
           
           <View style={styles.expenseRight}>
             <Text style={[styles.expenseAmount, { color: isPaidByUser ? COLORS.success : COLORS.primary }]}>
-              ₹{item.amount.toFixed(2)}
+              रु {item.amount.toFixed(2)}
             </Text>
             <View style={styles.expenseDateTime}>
               <View style={styles.dateTimeItem}>
@@ -329,13 +330,13 @@ export default function TransactionsScreen() {
         <View style={styles.statsContent}>
           <View style={styles.statsHeader}>
             <View style={styles.statsIconContainer}>
-              <DollarSign size={24} color="#fff" />
+              <HandCoins size={24} color="#fff" />
             </View>
             <View style={styles.statsHeaderText}>
               <Text style={styles.statsTitle}>Total Expenses</Text>
               <Text style={styles.statsSubtitle}>
                 {filteredExpenses.length} transaction{filteredExpenses.length !== 1 ? 's' : ''}
-                {selectedFilter !== 'all' && ` in the last ${selectedFilter}`}
+                {selectedFilter !== 'all' && ` in last ${selectedFilter}`}
               </Text>
             </View>
           </View>
