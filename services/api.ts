@@ -89,11 +89,11 @@ export const apiService = {
     }
   },
 
-  async register(name: string, email: string, password: string): Promise<{ user: User; success?: boolean }> {
+  async register(name: string, email: string, phone: string, password: string): Promise<{ user: User; success?: boolean }> {
     try {
-      console.log('Attempting registration with:', { name, email });
+      console.log('Attempting registration with:', { name, email, phone });
       const fcmToken = await AsyncStorage.getItem('fcmToken');
-      const response = await api.post('/users/register', { name, email, password, fcmToken });
+      const response = await api.post('/users/register', { name, email, phone, password, fcmToken });
       console.log('Registration response:', response.data);
 
       const { user, success } = response.data;
@@ -157,6 +157,18 @@ export const apiService = {
     } catch (error) {
       console.error('Get profile API call failed:', error);
       throw error;
+    }
+  },
+
+  async updateUserProfile(updates: Partial<User>): Promise<User> {
+    try {
+      console.log('Updating user profile with:', updates);
+      const response = await api.put('/users/profile', updates);
+      console.log('Update profile response:', response.data);
+      return response.data.user;
+    } catch (error: any) {
+      console.error('Update profile API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to update profile');
     }
   },
 

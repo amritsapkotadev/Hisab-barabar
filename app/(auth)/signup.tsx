@@ -80,6 +80,7 @@ export default function SignupScreen() {
       const { user, success } = await apiService.register(
         formData.name.trim(),
         formData.email.trim(),
+        formData.phone.trim(),
         formData.password
       );
 

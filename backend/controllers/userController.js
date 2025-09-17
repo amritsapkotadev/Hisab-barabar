@@ -408,6 +408,7 @@ exports.getUserProfile = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         picture: user.picture,
         createdAt: user.createdAt,
         budget: user.budget
@@ -416,6 +417,48 @@ exports.getUserProfile = async (req, res) => {
   } catch (error) {
     console.error('Get user profile error:', error);
     res.status(500).json({ message: 'Server error while fetching profile' });
+  }
+};
+
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+
+    // Validate input
+    if (!name || !email || !phone) {
+      return res.status(400).json({ message: 'Name, email, and phone are required' });
+    }
+
+    // Check if email is taken by another user
+    const emailTaken = await User.findOne({ email: email.toLowerCase().trim(), _id: { $ne: req.user._id } });
+    if (emailTaken) {
+      return res.status(400).json({ message: 'Email is already taken by another user' });
+    }
+
+    // Update user
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { name: name.trim(), email: email.toLowerCase().trim(), phone: phone.trim() },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+      },
+      message: 'Profile updated successfully'
+    });
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    res.status(500).json({ message: 'Server error while updating profile' });
   }
 };
 

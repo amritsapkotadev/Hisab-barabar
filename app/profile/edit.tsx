@@ -13,12 +13,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, User, Mail, Save, Camera } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, Save, Camera, Phone } from 'lucide-react-native';
 import { apiService } from '@/services/api';
 
 export default function EditProfileScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -31,6 +32,7 @@ export default function EditProfileScreen() {
       const user = await apiService.getUserProfile();
       setName(user.name);
       setEmail(user.email);
+      setPhone(user.phone ?? '');
     } catch (error) {
       Alert.alert('Error', 'Failed to load profile data');
     } finally {
@@ -49,9 +51,14 @@ export default function EditProfileScreen() {
       return;
     }
 
+    if (!phone.trim()) {
+      Alert.alert('Error', 'Phone number is required');
+      return;
+    }
+
     setSaving(true);
     try {
-      await apiService.updateUserProfile({ name, email });
+      await apiService.updateUserProfile({ name, email, phone });
       Alert.alert('Success', 'Profile updated successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -125,6 +132,23 @@ export default function EditProfileScreen() {
                   placeholder="Enter your full name"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="words"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={styles.inputContainer}>
+                <Phone size={20} color="#6b7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={phone}
+                  maxLength={10}
+                  onChangeText={setPhone}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
                 />
               </View>
             </View>
