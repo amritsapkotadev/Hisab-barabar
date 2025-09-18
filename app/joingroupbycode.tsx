@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView } from 'react-native'
 import React, { useState } from 'react'
 import { router } from 'expo-router';
 import { apiService } from '@/services/api';
@@ -27,14 +27,15 @@ const COLORS = {
   borderLight: '#F1F5F9',
   shadow: 'rgba(0, 0, 0, 0.08)',
   glass: 'rgba(255, 255, 255, 0.95)',
-  gradient1: ['#7C3AED', '#A78BFA'],
-  gradient2: ['#EC4899', '#F472B6'],
+  gradient1: ['#7C3AED', '#A78BFA'] as const,
+  gradient2: ['#EC4899', '#F472B6'] as const,
 };
 
 export default function JoinGroup() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [isValidCode, setIsValidCode] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   const validateCode = (text: string) => {
     const isValid = text.length >= 8 && /^[A-Z0-9]+$/.test(text);
@@ -59,13 +60,14 @@ export default function JoinGroup() {
       } else {
         Alert.alert('Error', 'Failed to join group. Please check the code and try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Join group error:', error);
-      Alert.alert('Error', 'Failed to join group. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to join group. Please try again.');
     } finally {
       setLoading(false);
       setCode('');
       setIsValidCode(false);
+      setIsFocused(false);
     }
   };
 
@@ -91,7 +93,12 @@ export default function JoinGroup() {
         </Animated.View>
 
         {/* Main Content */}
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="always"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Hero Section */}
           <Animated.View 
             style={styles.heroSection}
@@ -127,6 +134,7 @@ export default function JoinGroup() {
                 <TextInput
                   style={[
                     styles.input,
+                    isFocused && styles.inputFocused,
                     isValidCode && styles.inputValid,
                     code.length > 0 && !isValidCode && styles.inputInvalid
                   ]}
@@ -135,10 +143,13 @@ export default function JoinGroup() {
                   onChangeText={(text) => setCode(validateCode(text.toUpperCase()))}
                   autoCapitalize="characters"
                   autoCorrect={false}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
                   maxLength={8}
                   editable={!loading}
                   placeholderTextColor={COLORS.textTertiary}
                 />
+
                 {code.length > 0 && (
                   <View style={styles.validationIcon}>
                     {isValidCode ? (
@@ -181,7 +192,7 @@ export default function JoinGroup() {
               </View>
             </View>
           </Animated.View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -229,6 +240,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  contentContainer: {
+    paddingBottom: 24,
+    flexGrow: 1,
   },
   heroSection: {
     marginTop: 20,
@@ -311,6 +326,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     letterSpacing: 2,
     textAlign: 'center',
+  },
+  inputFocused: {
+    borderColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   inputValid: {
     borderColor: COLORS.success,
