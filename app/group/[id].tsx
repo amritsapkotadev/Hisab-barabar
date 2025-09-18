@@ -15,6 +15,8 @@ import {
   Pressable,
   Platform,
   TextInput,
+  Linking,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
@@ -35,7 +37,10 @@ import {
   FileText,
   Settings,
   Trash2,
-  Minus
+  Minus,
+  Mail,
+  Phone,
+  MessageCircle,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
@@ -48,6 +53,7 @@ import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
 
 const { width } = Dimensions.get('window');
+const { height: WINDOW_HEIGHT } = Dimensions.get('window');
 const statusBarHeight = Constants.statusBarHeight;
 
 const COLORS = {
@@ -155,11 +161,37 @@ const GroupScreen = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showDeleteMemberModal, setShowDeleteMemberModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [showMemberSheet, setShowMemberSheet] = useState(false);
+  const [memberDetail, setMemberDetail] = useState<{ id: string; name: string; email?: string; phone?: string; picture?: string } | null>(null);
+  const [loadingMemberDetail, setLoadingMemberDetail] = useState(false);
   const [exportResult, setExportResult] = useState('');
   const [addMemberPhone, setAddMemberPhone] = useState('');
   const [addingMember, setAddingMember] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+  const maxLift = Math.round(WINDOW_HEIGHT * 0.2); // how far up it can be dragged
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 6,
+      onPanResponderMove: Animated.event([null, { dy: sheetTranslateY }], {
+        useNativeDriver: false,
+        listener: (_, gesture) => {
+          // allow only upward drag (negative dy) up to -maxLift
+          const clamped = Math.max(-maxLift, Math.min(0, gesture.dy));
+          sheetTranslateY.setValue(clamped);
+        }
+      }),
+      onPanResponderRelease: () => {
+        Animated.spring(sheetTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 15,
+        }).start();
+      }
+    })
+  ).current;
 
   const fetchGroupData = async () => {
     try {
@@ -346,7 +378,25 @@ const GroupScreen = () => {
     <View style={styles.memberItem}>
       <MemberAvatar name={member} size={44} />
       <View style={styles.memberInfo}>
-        <Text style={styles.memberName} numberOfLines={1}>{member}</Text>
+        <Text
+          style={styles.memberName}
+          numberOfLines={1}
+          onPress={async () => {
+            setSelectedMember(member);
+            setShowMemberSheet(true);
+            setLoadingMemberDetail(true);
+            try {
+              const detail = await apiService.getUserByName(member);
+              setMemberDetail(detail);
+            } catch (e) {
+              setMemberDetail(null);
+            } finally {
+              setLoadingMemberDetail(false);
+            }
+          }}
+        >
+          {member}
+        </Text>
         {(group && group.members[0] === member) && (
           <Text style={styles.adminText}>Group Admin</Text>
         )}
@@ -655,6 +705,78 @@ const GroupScreen = () => {
             </View>
           </View>
         </BlurView>
+      </Modal>
+
+      {/* Member Detail Bottom Sheet */}
+      <Modal
+        visible={showMemberSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowMemberSheet(false)}
+      >
+        <Pressable style={styles.sheetBackdrop}>
+          <Animated.View style={[
+            styles.sheetContainer,
+            { transform: [{ translateY: sheetTranslateY }] }
+          ]} {...panResponder.panHandlers}>
+            <View style={styles.sheetHandle} />
+            <TouchableOpacity
+              style={styles.sheetCloseButton}
+              onPress={() => setShowMemberSheet(false)}
+              activeOpacity={0.7}
+            >
+              <X size={20} color={COLORS.muted} />
+            </TouchableOpacity>
+            <View style={styles.memberHeader}>
+              <View style={styles.memberAvatarWrapper}>
+                <LinearGradient colors={[COLORS.summaryCard1, COLORS.summaryCard2]} style={styles.memberAvatarGlow} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                <MemberAvatar name={selectedMember || ''} size={64} />
+              </View>
+              <Text style={styles.memberDetailName}>{selectedMember}</Text>
+            </View>
+
+            <View style={styles.memberInfoBlock}>
+              {loadingMemberDetail ? (
+                <View style={styles.skeletonContainer}>
+                  <View style={styles.skeletonLine} />
+                  <View style={[styles.skeletonLine, { width: '60%' }]} />
+                </View>
+              ) : (
+                <>
+                  {memberDetail?.email ? (
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIcon}><Mail size={16} color={COLORS.muted} /></View>
+                      <Text style={styles.infoText}>{memberDetail.email}</Text>
+                    </View>
+                  ) : null}
+                  {memberDetail?.phone ? (
+                    <View style={[styles.infoRow, { justifyContent: 'space-between' }]}>
+                      <View style={styles.infoIcon}><Phone size={16} color={COLORS.muted} /></View>
+                      <Text style={[styles.infoText, { flex: 1 }]} numberOfLines={1}>{memberDetail.phone}</Text>
+                      <View style={styles.inlineActions}>
+                        <TouchableOpacity
+                          style={styles.smallIconButton}
+                          onPress={() => memberDetail?.phone && Linking.openURL(`tel:${memberDetail.phone}`)}
+                          activeOpacity={0.7}
+                        >
+                          <Phone size={16} color={COLORS.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.smallIconButton}
+                          onPress={() => memberDetail?.phone && Linking.openURL(`sms:${memberDetail.phone}`)}
+                          activeOpacity={0.7}
+                        >
+                          <MessageCircle size={16} color={COLORS.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : null}
+                </>
+              )}
+            </View>
+            <View style={{ height: 12 }} />
+          </Animated.View>
+        </Pressable>
       </Modal>
 
       {/* Settings Modal */}
@@ -1272,6 +1394,140 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     backgroundColor: '#F9FAFB',
+  },
+  sheetBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheetContainer: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 14,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderColor: COLORS.border,
+    minHeight: Math.round(WINDOW_HEIGHT * 0.5),
+    maxHeight: Math.round(WINDOW_HEIGHT * 0.85),
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 56,
+    height: 6,
+    borderRadius: 4,
+    backgroundColor: '#E5E7EB',
+    marginBottom: 14,
+  },
+  sheetCloseButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 8,
+    borderRadius: 20,
+  },
+  memberHeader: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  memberAvatarWrapper: {
+    position: 'relative',
+    marginBottom: 10,
+  },
+  memberAvatarGlow: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 999,
+    opacity: 0.25,
+  },
+  memberDetailName: {
+    color: COLORS.text,
+    fontWeight: '800',
+    fontSize: 20,
+    marginTop: 10,
+  },
+  memberInfoBlock: {
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginTop: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 8,
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  infoText: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  smallIconButton: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  skeletonContainer: {
+    gap: 10,
+  },
+  skeletonLine: {
+    height: 12,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+    width: '80%',
+  },
+  iconButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  iconButtonText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  primaryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+  },
+  primaryPillText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
 

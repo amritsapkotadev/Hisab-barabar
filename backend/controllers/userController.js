@@ -144,6 +144,29 @@ exports.resendOTP = async (req, res) => {
   }
 };
 
+// Get user by name (non-sensitive fields)
+exports.getUserByName = async (req, res) => {
+  try {
+    const user = await User.findOne({ name: req.params.name }).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    return res.json({
+      success: true,
+      data: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        picture: user.picture || null,
+      }
+    });
+  } catch (error) {
+    console.error('Get user by name error:', error);
+    return res.status(500).json({ message: 'Server error while fetching user' });
+  }
+};
+
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;

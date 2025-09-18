@@ -294,6 +294,17 @@ export const apiService = {
     }
   },
 
+  async getUserByName(name: string): Promise<{ id: string; name: string; email?: string; phone?: string; picture?: string } | null> {
+    try {
+      const response = await api.get(`/users/${name}`);
+      return response.data.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) return null;
+      console.error('Get user by name API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch user');
+    }
+  },
+
   // New method to get group invite details
   async getGroupInviteDetails(groupId: string): Promise<{ inviteCode: string; qrCodeData: string }> {
     try {
