@@ -251,7 +251,7 @@ const AddExpenseScreen = () => {
               <Text style={styles.cardTitle}>Amount</Text>
             </View>
             <View style={styles.amountContainer}>
-              <Text style={styles.currency}>₹</Text>
+              <Text style={styles.currency}>रु</Text>
               <TextInput
                 style={styles.amountInput}
                 placeholder="0.00"
