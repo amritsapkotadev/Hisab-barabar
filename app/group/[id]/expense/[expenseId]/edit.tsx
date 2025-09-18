@@ -164,7 +164,6 @@ export default function EditExpenseScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>Amount *</Text>
           <View style={styles.amountContainer}>
-            <DollarSign size={20} color="#6b7280" />
             <TextInput
               style={styles.amountInput}
               value={amount}
@@ -246,7 +245,7 @@ export default function EditExpenseScreen() {
             <Text style={styles.splitTitle}>Split Preview</Text>
             <View style={styles.splitCard}>
               <Text style={styles.splitAmount}>
-                ${amount ? (parseFloat(amount) / selectedParticipants.length).toFixed(2) : '0.00'} per person
+                रु {amount ? (parseFloat(amount) / selectedParticipants.length).toFixed(2) : '0.00'} per person
               </Text>
               <Text style={styles.splitParticipants}>
                 Split between {selectedParticipants.length} participant(s):
@@ -268,7 +267,6 @@ export default function EditExpenseScreen() {
             <ActivityIndicator color="#ffffff" size="small" />
           ) : (
             <>
-              <DollarSign size={20} color="#ffffff" />
               <Text style={styles.submitButtonText}>Update Expense</Text>
             </>
           )}

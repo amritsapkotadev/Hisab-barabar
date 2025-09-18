@@ -27,7 +27,8 @@ import {
   Edit2,
   PieChart,
   Heart,
-  Calendar
+  Calendar,
+  HandCoins
 } from 'lucide-react-native';
 import { apiService } from '@/services/api';
 import { User as UserType } from '@/types';
@@ -281,9 +282,9 @@ export default function ProfileScreen() {
         >
           <View style={styles.statsGrid}>
             {renderStatCard(
-              <DollarSign size={20} color="#fff" />,
+              <HandCoins size={20} color="#fff" />,
               'Total Spent',
-              `₹${stats.totalExpenses.toFixed(0)}`,
+              `रु ${stats.totalExpenses.toFixed(0)}`,
               COLORS.gradient1,
               COLORS.primary
             )}
@@ -307,7 +308,7 @@ export default function ProfileScreen() {
             {renderStatCard(
               <Calendar size={20} color="#fff" />,
               'This Month',
-              `₹${stats.monthlySpending.toFixed(0)}`,
+              `रु ${stats.monthlySpending.toFixed(0)}`,
               COLORS.gradient4,
               COLORS.success
             )}
