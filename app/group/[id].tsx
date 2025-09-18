@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
@@ -59,11 +60,11 @@ const COLORS = {
   positive: '#10B981',
   negative: '#EF4444',
   border: '#E5E7EB',
-  headerGradient: ['#6366F1', '#4F46E5'],
+  headerGradient: ['#6366F1', '#4F46E5'] as const,
   summaryCard1: '#818CF8',
   summaryCard2: '#6366F1',
   summaryCard3: '#4F46E5',
-  fab: ['#6366F1', '#4F46E5'],
+  fab: ['#6366F1', '#4F46E5'] as const,
   chip: '#E0E7FF',
 };
 
@@ -155,6 +156,8 @@ const GroupScreen = () => {
   const [showDeleteMemberModal, setShowDeleteMemberModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [exportResult, setExportResult] = useState('');
+  const [addMemberPhone, setAddMemberPhone] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
 
@@ -239,13 +242,22 @@ const GroupScreen = () => {
 
   const handleAddMember = async (): Promise<void> => {
     if (!group) return;
+    const normalized = addMemberPhone.replace(/\D/g, '');
+    if (!normalized || normalized.length < 10) {
+      Alert.alert('Validation', 'Please enter a valid phone number');
+      return;
+    }
     try {
-      await apiService.joinGroupById(group.id);
+      setAddingMember(true);
+      await apiService.addMemberByPhone(group.id, normalized);
       await fetchGroupData();
       setShowAddMemberModal(false);
-      Alert.alert('Success', 'You joined the group!');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to join group');
+      setAddMemberPhone('');
+      Alert.alert('Success', 'Member added to the group');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to add member');
+    } finally {
+      setAddingMember(false);
     }
   };
 
@@ -391,7 +403,7 @@ const GroupScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <LinearGradient
-        colors={COLORS.headerGradient}
+        colors={[COLORS.headerGradient[0], COLORS.headerGradient[1]]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
@@ -565,7 +577,7 @@ const GroupScreen = () => {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={COLORS.fab}
+          colors={[COLORS.fab[0], COLORS.fab[1]]}
           style={styles.fabGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -605,18 +617,20 @@ const GroupScreen = () => {
       >
         <BlurView intensity={30} style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowAddMemberModal(false)}
-              activeOpacity={0.7}
-            >
-              <X size={24} color={COLORS.muted} />
-            </TouchableOpacity>
 
-            <Text style={styles.modalTitle}>Join Group</Text>
-            <Text style={styles.modalText}>
-              You'll be added as a member to "{group.name}"
-            </Text>
+            <Text style={styles.modalTitle}>Add Member</Text>
+            <View style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
+              <TextInput
+                style={styles.input}
+                placeholder="Phone number"
+                placeholderTextColor={COLORS.muted}
+                keyboardType="phone-pad"
+                autoFocus
+                value={addMemberPhone}
+                onChangeText={(t) => setAddMemberPhone(t.replace(/[^0-9+]/g, ''))}
+                maxLength={10}
+              />
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -628,11 +642,15 @@ const GroupScreen = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.confirmButton}
+                style={[
+                  styles.confirmButton,
+                  ((addMemberPhone.replace(/\D/g, '').length < 10 || addingMember)) && { opacity: 0.6 }
+                ]}
                 onPress={handleAddMember}
                 activeOpacity={0.7}
+                disabled={addingMember || addMemberPhone.replace(/\D/g, '').length < 10}
               >
-                <Text style={styles.confirmText}>Join</Text>
+                <Text style={styles.confirmText}>{addingMember ? 'Adding...' : 'Add'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1131,37 +1149,30 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 16,
+    justifyContent: 'flex-end',
+    gap: 8,
   },
   cancelButton: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: 18,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
   },
   cancelText: {
-    color: COLORS.text,
+    color: COLORS.muted,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14,
   },
   confirmButton: {
-    flex: 1,
     backgroundColor: COLORS.primary,
-    padding: 18,
-    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
   confirmText: {
     color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+    fontWeight: '700',
+    fontSize: 14,
   },
   settingsBackdrop: {
     flex: 1,
@@ -1250,6 +1261,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#FECACA',
+  },
+  input: {
+    width: '100%',
+    height: 50,
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    color: COLORS.text,
+    backgroundColor: '#F9FAFB',
   },
 });
 

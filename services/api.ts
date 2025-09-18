@@ -282,6 +282,18 @@ export const apiService = {
     }
   },
 
+  async addMemberByPhone(groupId: string, phone: string): Promise<Group> {
+    try {
+      console.log('Adding member by phone:', { groupId, phone });
+      const response = await api.post(`/api/groups/${groupId}/add-member`, { phone });
+      console.log('Add member response:', response.data);
+      return response.data.data || response.data;
+    } catch (error: any) {
+      console.error('Add member by phone API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to add member');
+    }
+  },
+
   // New method to get group invite details
   async getGroupInviteDetails(groupId: string): Promise<{ inviteCode: string; qrCodeData: string }> {
     try {

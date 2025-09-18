@@ -182,6 +182,84 @@ exports.joinGroupByInviteCode = async (req, res) => {
   }
 };
 
+// Add member to group by phone number
+exports.addMemberByPhone = async (req, res) => {
+  try {
+    const { id } = req.params; // group id
+    const { phone } = req.body;
+
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    const normalizedPhone = phone.trim();
+
+    const group = await Group.findById(id);
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    // Ensure requester has access (creator or existing member)
+    const requesterName = req.user.name;
+    const hasAccess = group.createdBy.toString() === req.user._id.toString() || group.members.includes(requesterName);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Not authorized to add members to this group' });
+    }
+
+    const userToAdd = await User.findOne({ phone: normalizedPhone });
+    if (!userToAdd) {
+      return res.status(404).json({ message: 'User with this phone number not found' });
+    }
+
+    const newMemberName = userToAdd.name;
+    if (group.members.includes(newMemberName)) {
+      return res.status(400).json({ message: 'User is already a member of this group' });
+    }
+
+    const user = await User.findById(group.createdBy);
+
+    try {
+      await firebase.messaging().send({
+        token: user.fcmToken,
+        notification: {
+          title: 'New Member',
+          body: `${requesterName} added ${newMemberName} to the group ${group.name}`,
+        },
+        data: {
+          groupId: group._id.toString(),
+          groupName: group.name,
+          userId: userToAdd._id.toString(),
+          userName: newMemberName,
+        }
+      });
+      console.log('Notification sent successfully');
+    } catch (error) {
+      console.error('Error sending FCM notification:', error);
+    }
+
+    group.members.push(newMemberName);
+    await group.save();
+
+    return res.json({
+      success: true,
+      message: 'Member added to the group successfully',
+      data: {
+        id: group._id,
+        name: group.name,
+        description: group.description,
+        members: group.members,
+        inviteCode: group.inviteCode,
+      }
+    });
+  } catch (error) {
+    console.error('Add member by phone error:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid group ID' });
+    }
+    return res.status(500).json({ message: 'Server error while adding member' });
+  }
+};
+
 // Delete group
 exports.deleteGroup = async (req, res) => {
   try {
