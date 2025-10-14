@@ -23,7 +23,9 @@ app.use(cors({
     'http://127.0.0.1:8081', 
     'http://localhost:19006',
     'https://splitsaathi.up.railway.app',
-    'https://*.up.railway.app'
+    'https://*.up.railway.app',
+    'https://*.onrender.com',
+    /https:\/\/.*\.onrender\.com$/
   ],
   credentials: true
 }));

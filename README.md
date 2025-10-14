@@ -62,17 +62,34 @@ The settle up feature helps users understand who owes whom and what amounts need
 
 ## Getting Started
 
+### Local Development
+
 1. Install dependencies:
    ```bash
    npm install
    ```
 
-2. Start the development server:
+2. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your MongoDB URI and other credentials
+   ```
+
+3. Start the backend server:
+   ```bash
+   npm start
+   ```
+
+4. Start the mobile app (in a new terminal):
    ```bash
    npx expo start
    ```
 
-3. Run on device or simulator
+5. Run on device or simulator
+
+### Deployment
+
+For deploying the backend API to Render.com, see the [Deployment Guide](DEPLOYMENT.md).
 
 ## API Documentation
 

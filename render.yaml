@@ -1,0 +1,29 @@
+services:
+  # Backend API Service
+  - type: web
+    name: hisab-barabar-api
+    runtime: node
+    env: node
+    region: oregon # Choose your preferred region
+    plan: free # Can be upgraded to starter or higher
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false # Set this in Render dashboard
+      - key: JWT_SECRET
+        sync: false # Set this in Render dashboard
+      - key: APP_DOMAIN
+        sync: false # Set this to your Render app URL (e.g., hisab-barabar-api.onrender.com)
+      - key: GOOGLE_CLIENT_ID_WEB
+        sync: false # Optional: Set if using Google auth
+      - key: GOOGLE_CLIENT_ID_IOS
+        sync: false # Optional: Set if using Google auth
+      - key: GOOGLE_CLIENT_ID_ANDROID
+        sync: false # Optional: Set if using Google auth
+    healthCheckPath: /
+    autoDeploy: true # Auto-deploy on git push
