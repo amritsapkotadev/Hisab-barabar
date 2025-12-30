@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Create expense
     const expense = new Expense({
       description: description.trim(),
-      amount: parseFloat(amount),
+      amount: typeof amount === 'string' ? parseFloat(amount) : amount,
       paidBy: paidBy?.trim(),
       participants: participants.map((p: string) => p.trim()),
       splits: splits || [],

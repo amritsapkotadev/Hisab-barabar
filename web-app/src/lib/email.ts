@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
 
 export async function sendOTPEmail(email: string, otp: string) {
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: '"Hisab Barabar" <notifications@hisabbarabar.qzz.io>',
     to: email,
     subject: 'Hisab Barabar - Email Verification OTP',
     html: `
@@ -35,7 +35,7 @@ export async function sendOTPEmail(email: string, otp: string) {
 
 export async function sendPasswordResetEmail(email: string, otp: string) {
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: '"Hisab Barabar" <notifications@hisabbarabar.qzz.io>',
     to: email,
     subject: 'Hisab Barabar - Password Reset OTP',
     html: `
