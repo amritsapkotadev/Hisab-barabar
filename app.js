@@ -18,12 +18,14 @@ connectDB();
 // Middleware
 app.use(cors({
   origin: [
-    'http://localhost:8081', 
-    'http://localhost:3000', 
-    'http://127.0.0.1:8081', 
+    'http://localhost:8081',
+    'http://localhost:3000',
+    'http://127.0.0.1:8081',
     'http://localhost:19006',
     'https://splitsaathi.up.railway.app',
-    'https://*.up.railway.app'
+    'https://*.up.railway.app',
+    'https://*.vercel.app',
+    'https://hisabbarabar.qzz.io'
   ],
   credentials: true
 }));
@@ -54,19 +56,19 @@ app.use(express.static('public'));
 app.get('/join/:groupId', (req, res) => {
   const { groupId } = req.params;
   const userAgent = req.get('User-Agent') || '';
-  
+
   // Check if it's a mobile device
   const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
-  
+
   // Get app domain from environment variable
   const APP_DOMAIN = process.env.APP_DOMAIN || 'splitsaathi.up.railway.app';
-  
+
   if (isMobile) {
     // Try to open the app with deep link, fallback to app store
     const deepLink = `splitsaathi://join/${groupId}`;
     const appStoreLink = 'https://apps.apple.com/app/splitsaathi'; // Replace with actual app store link
     const playStoreLink = 'https://play.google.com/store/apps/details?id=com.splitsaathi'; // Replace with actual play store link
-    
+
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -159,7 +161,7 @@ app.get('/join/:groupId', (req, res) => {
 
 // Health check route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'SplitSaathi API is running!',
     timestamp: new Date().toISOString(),
     status: 'healthy',
@@ -171,7 +173,7 @@ app.get('/', (req, res) => {
 
 // Test route
 app.get('/api/test', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'API test successful',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
@@ -182,7 +184,7 @@ app.get('/api/test', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
@@ -190,21 +192,23 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({ 
-    message: `Route ${req.originalUrl} not found` 
+  res.status(404).json({
+    message: `Route ${req.originalUrl} not found`
   });
 });
 
-const PORT = process.env.PORT || 5051;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📱 API available at http://localhost:${PORT}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔑 JWT Secret configured: ${!!process.env.JWT_SECRET}`);
-  console.log(`🗄️ MongoDB URI configured: ${!!process.env.MONGO_URI}`);
-  console.log(`🌐 App Domain: ${process.env.APP_DOMAIN || 'splitsaathi.up.railway.app'}`);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 5051;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📱 API available at http://localhost:${PORT}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔑 JWT Secret configured: ${!!process.env.JWT_SECRET}`);
+    console.log(`🗄️ MongoDB URI configured: ${!!process.env.MONGO_URI}`);
+    console.log(`🌐 App Domain: ${process.env.APP_DOMAIN || 'splitsaathi.up.railway.app'}`);
+  });
+}
 
 module.exports = app;
