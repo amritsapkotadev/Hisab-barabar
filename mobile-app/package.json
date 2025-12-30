@@ -1,18 +1,18 @@
 {
-  "name": "hisab-barabar",
+  "name": "hisab-barabar-mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "nodemon app.js",
+    "start": "expo start",
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
     "build:web": "expo export --platform web",
     "lint": "expo lint",
     "start:clean": "expo start -c",
-    "server": "nodemon app.js",
-    "server:dev": "NODE_ENV=development nodemon app.js",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -25,10 +25,7 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "axios": "^1.6.2",
-    "bcryptjs": "^3.0.2",
-    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
-    "dotenv": "^16.5.0",
     "expo": "^53.0.19",
     "expo-auth-session": "~6.2.1",
     "expo-blur": "~14.1.5",
@@ -48,14 +45,8 @@
     "expo-symbols": "~0.4.5",
     "expo-system-ui": "~5.0.10",
     "expo-web-browser": "~14.2.0",
-    "express": "^4.21.2",
-    "firebase-admin": "^13.4.0",
-    "jsonwebtoken": "^9.0.2",
     "lottie-react-native": "^7.2.2",
     "lucide-react-native": "^0.475.0",
-    "mongodb": "^6.17.0",
-    "mongoose": "^8.15.1",
-    "nodemailer": "^7.0.5",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
@@ -74,13 +65,11 @@
     "react-native-vector-icons": "^10.2.0",
     "react-native-vision-camera": "^4.7.0",
     "react-native-web": "^0.20.0",
-    "react-native-webview": "13.13.5",
-    "uuid": "^11.1.0"
+    "react-native-webview": "13.13.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
-    "nodemon": "^3.1.10",
     "typescript": "~5.8.3"
   },
   "keywords": [],

@@ -2,9 +2,11 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Group, Expense, User, BudgetResponse } from '@/types';
 import { GoogleUser } from './googleAuth';
+import { API_URL } from '@/config/api.config';
 
-// API Configuration - Use environment variable or fallback to Railway domain
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://hisab-barabar.onrender.com';
+// API Configuration - Use the centralized config
+// Update config/api.config.ts to switch between local and production
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || API_URL;
 
 // Create axios instance
 const api = axios.create({
@@ -77,7 +79,7 @@ export const apiService = {
     try {
       console.log('Attempting login with:', { email });
       const fcmToken = await AsyncStorage.getItem('fcmToken');
-      const response = await api.post('/users/login', { email, password, fcmToken });
+      const response = await api.post('/auth/login', { email, password, fcmToken });
       console.log('Login response:', response.data);
       const { token, user, message } = response.data;
       authToken = token;
@@ -93,7 +95,7 @@ export const apiService = {
     try {
       console.log('Attempting registration with:', { name, email, phone });
       const fcmToken = await AsyncStorage.getItem('fcmToken');
-      const response = await api.post('/users/register', { name, email, phone, password, fcmToken });
+      const response = await api.post('/auth/register', { name, email, phone, password, fcmToken });
       console.log('Registration response:', response.data);
 
       const { user, success } = response.data;
@@ -108,7 +110,7 @@ export const apiService = {
   async loginWithGoogle(googleUser: GoogleUser): Promise<{ token: string; user: User }> {
     try {
       console.log('Attempting Google login with:', { email: googleUser.email });
-      const response = await api.post('/users/google-login', {
+      const response = await api.post('/auth/google-login', {
         googleId: googleUser.id,
         email: googleUser.email,
         name: googleUser.name,
@@ -129,7 +131,7 @@ export const apiService = {
   async registerWithGoogle(googleUser: GoogleUser): Promise<{ token: string; user: User }> {
     try {
       console.log('Attempting Google registration with:', { email: googleUser.email });
-      const response = await api.post('/users/google-register', {
+      const response = await api.post('/auth/google-register', {
         googleId: googleUser.id,
         email: googleUser.email,
         name: googleUser.name,
@@ -204,7 +206,7 @@ export const apiService = {
   async getGroups(): Promise<Group[]> {
     try {
       console.log('Fetching groups...');
-      const response = await api.get('/api/groups');
+      const response = await api.get('/groups');
       console.log('Groups response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
@@ -216,7 +218,7 @@ export const apiService = {
   async getGroup(id: string): Promise<Group | null> {
     try {
       console.log('Fetching group:', id);
-      const response = await api.get(`/api/groups/${id}`);
+      const response = await api.get(`/groups/${id}`);
       console.log('Group response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
@@ -228,7 +230,7 @@ export const apiService = {
   async createGroup(group: Omit<Group, 'id' | 'createdAt' | 'totalExpenses' | 'balances' | 'inviteCode' | 'inviteLink'>): Promise<Group> {
     try {
       console.log('Creating group:', group);
-      const response = await api.post('/api/groups', group);
+      const response = await api.post('/groups', group);
       console.log('Create group response:', response.data);
 
       const createdGroup = response.data.data || response.data;
@@ -245,7 +247,7 @@ export const apiService = {
   async joinGroupById(groupId: string): Promise<Group> {
     try {
       console.log('Joining group by ID:', groupId);
-      const response = await api.post(`/api/groups/${groupId}/join`);
+      const response = await api.post(`/groups/${groupId}/join`);
       console.log('Join group response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -271,7 +273,7 @@ export const apiService = {
   async joinGroupWithInviteCode(inviteCode: string): Promise<Group> {
     try {
       console.log('Joining group with invite code:', { inviteCode });
-      const response = await api.post(`/api/groups/join`, {
+      const response = await api.post(`/groups/join`, {
         inviteCode
       });
       console.log('Join group with code response:', response.data);
@@ -285,7 +287,7 @@ export const apiService = {
   async addMemberByPhone(groupId: string, phone: string): Promise<Group> {
     try {
       console.log('Adding member by phone:', { groupId, phone });
-      const response = await api.post(`/api/groups/${groupId}/add-member`, { phone });
+      const response = await api.post(`/groups/${groupId}/add-member`, { phone });
       console.log('Add member response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -309,7 +311,7 @@ export const apiService = {
   async getGroupInviteDetails(groupId: string): Promise<{ inviteCode: string; qrCodeData: string }> {
     try {
       console.log('Fetching group invite details:', groupId);
-      const response = await api.get(`/api/groups/${groupId}/invite-details`);
+      const response = await api.get(`/groups/${groupId}/invite-details`);
       console.log('Group invite details:', response.data);
 
       // Generate QR code data string
@@ -334,7 +336,7 @@ export const apiService = {
   async getGroupExpenses(groupId: string): Promise<Expense[]> {
     try {
       console.log('Fetching expenses for group:', groupId);
-      const response = await api.get(`/api/expenses/group/${groupId}`);
+      const response = await api.get(`/expenses/group/${groupId}`);
       console.log('Expenses response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
@@ -346,7 +348,7 @@ export const apiService = {
   async getAllExpenses(): Promise<Expense[]> {
     try {
       console.log('Fetching all expenses...');
-      const response = await api.get('/api/expenses');
+      const response = await api.get('/expenses');
       console.log('All expenses response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
@@ -358,7 +360,7 @@ export const apiService = {
   async getPersonalExpenses(): Promise<Expense[]> {
     try {
       console.log('Fetching personal expenses...');
-      const response = await api.get('/api/expenses/personal');
+      const response = await api.get('/expenses/personal');
       console.log('Personal expenses response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
@@ -370,7 +372,7 @@ export const apiService = {
   async createExpense(expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> {
     try {
       console.log('Creating expense:', expense);
-      const response = await api.post('/api/expenses', expense);
+      const response = await api.post('/expenses', expense);
       console.log('Create expense response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -382,7 +384,7 @@ export const apiService = {
   async createPersonalExpense(expense: Omit<Expense, 'id' | 'createdAt' | 'groupId'>): Promise<Expense> {
     try {
       console.log('Creating expense:', expense);
-      const response = await api.post('/api/expenses/personal', expense);
+      const response = await api.post('/expenses/personal', expense);
       console.log('Create expense response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -393,7 +395,7 @@ export const apiService = {
 
   async updatePersonalExpense(expenseId: string, updates: Partial<Expense>): Promise<Expense> {
     try {
-      const response = await api.put(`/api/expenses/personal/${expenseId}`, updates);
+      const response = await api.put(`/expenses/personal/${expenseId}`, updates);
       console.log('Update personal expense response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -413,7 +415,7 @@ export const apiService = {
   }): Promise<Expense> {
     try {
       console.log('Creating unequal expense:', expense);
-      const response = await api.post('/api/expenses/unequal', expense);
+      const response = await api.post('/expenses/unequal', expense);
       console.log('Create unequal expense response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -425,7 +427,7 @@ export const apiService = {
   async deleteExpense(expenseId: string): Promise<void> {
     try {
       console.log('Deleting expense:', expenseId);
-      await api.delete(`/api/expenses/${expenseId}`);
+      await api.delete(`/expenses/${expenseId}`);
     } catch (error: any) {
       console.error('Delete expense API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete expense');
@@ -435,7 +437,7 @@ export const apiService = {
   async deletePersonalExpense(expenseId: string): Promise<void> {
     try {
       console.log('Deleting personal expense:', expenseId);
-      await api.delete(`/api/expenses/personal/${expenseId}`);
+      await api.delete(`/expenses/personal/${expenseId}`);
     } catch (error: any) {
       console.error('Delete personal expense API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to delete personal expense');
@@ -444,7 +446,7 @@ export const apiService = {
 
   async getExpenseById(expenseId: string): Promise<Expense> {
     try {
-      const response = await api.get(`/api/expenses/${expenseId}`);
+      const response = await api.get(`/expenses/${expenseId}`);
       return response.data.data || response.data;
     } catch (error) {
       console.error('Get expense by ID API call failed:', error);
@@ -454,7 +456,7 @@ export const apiService = {
 
   async deleteGroup(groupId: string): Promise<{ message: string }> {
     try {
-      const response = await api.delete(`/api/groups/${groupId}`);
+      const response = await api.delete(`/groups/${groupId}`);
       return response.data;
     } catch (error) {
       throw error;
@@ -463,7 +465,7 @@ export const apiService = {
 
   async removeGroupMember(groupId: string, memberName: string): Promise<{ message: string }> {
     try {
-      const response = await api.delete(`/api/groups/member/${groupId}`, {
+      const response = await api.delete(`/groups/member/${groupId}`, {
         data: { memberName }
       });
       return response.data;
@@ -474,7 +476,7 @@ export const apiService = {
 
   async updateExpense(expenseId: string, updates: Partial<Expense>): Promise<Expense> {
     try {
-      const response = await api.put(`/api/expenses/${expenseId}`, updates);
+      const response = await api.put(`/expenses/${expenseId}`, updates);
       return response.data.data;
     } catch (error) {
       console.error('Update expense API call failed:', error);
@@ -509,7 +511,7 @@ export const apiService = {
   async verifyOtp({ otp, email }: { otp: string; email: string }): Promise<{ token: string; success: boolean; message?: string }> {
     try {
       console.log('Verifying OTP for email:', email);
-      const response = await api.post('/users/verify-otp', { otp, email });
+      const response = await api.post('/auth/verify-otp', { otp, email });
       console.log('Verify OTP response:', response.data);
       if (response.data.success) {
         await apiService.setAuthToken(response.data.token);
@@ -524,7 +526,7 @@ export const apiService = {
   async resendOtp({ email }: { email: string }): Promise<{ token: string; success: boolean, message?: string }> {
     try {
       console.log('Resending OTP to email:', email);
-      const response = await api.post('/users/resend-otp', { email });
+      const response = await api.post('/auth/resend-otp', { email });
       console.log('Resend OTP response:', response.data);
       return response.data;
     } catch (error: any) {
@@ -536,7 +538,7 @@ export const apiService = {
   async forgotPassword({ email }: { email: string }): Promise<{ success: boolean; message?: string }> {
     try {
       console.log('Sending forgot password request for email:', email);
-      const response = await api.post('/users/forgot-password', { email });
+      const response = await api.post('/auth/forgot-password', { email });
       console.log('Forgot password response:', response.data);
       return response.data;
     } catch (error: any) {
@@ -548,7 +550,7 @@ export const apiService = {
   async resetPassword({email, newPassword}: { email: string; newPassword: string }): Promise<{ success: boolean; message?: string }> {
     try {
       console.log(`Resetting password for email: '${email}' with new password: '${newPassword}'`);
-      const response = await api.post('/users/reset-password', { email, newPassword });
+      const response = await api.post('/auth/reset-password', { email, newPassword });
       console.log('Reset password response:', response.data);
       return response.data;
     } catch (error: any) {
