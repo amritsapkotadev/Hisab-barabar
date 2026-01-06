@@ -10,7 +10,7 @@ const LOCAL_API_URL = 'http://localhost:3000/api'
 const LOCAL_API_URL_ANDROID = 'http://10.0.2.2:3000/api' // Android emulator
 
 // Production URLs
-const PRODUCTION_API_URL = 'https://your-app.vercel.app/api' // Update this with your deployed URL
+const PRODUCTION_API_URL = 'https://hisabbarabar.qzz.io/api' // Update this with your deployed URL
 
 /**
  * Current API URL

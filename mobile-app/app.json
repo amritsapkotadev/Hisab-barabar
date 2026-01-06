@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SplitSaathi",
+    "name": "Hisab Barabar",
     "slug": "hisab-barabar",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,9 +10,9 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.splitsaathi.app",
+      "bundleIdentifier": "com.hisabbarabar.app",
       "associatedDomains": [
-        "applinks:splitsaathi.up.railway.app"
+        "applinks:hisabbarabar.qzz.io"
       ],
       "infoPlist": {
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera"
@@ -20,7 +20,7 @@
     },
     "android": {
       "googleServicesFile": "./android/app/google-services.json",
-      "package": "com.splitsaathi.app",
+      "package": "com.hisabbarabar.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#4f46e5"
@@ -31,7 +31,7 @@
           "autoVerify": true,
           "data": {
             "scheme": "https",
-            "host": "splitsaathi.up.railway.app",
+            "host": "hisabbarabar.qzz.io",
             "pathPrefix": "/join"
           },
           "category": [
@@ -42,7 +42,7 @@
         {
           "action": "VIEW",
           "data": {
-            "scheme": "splitsaathi",
+            "scheme": "hisabbarabar",
             "host": "*"
           },
           "category": [
@@ -64,20 +64,21 @@
       [
         "expo-router",
         {
-          "origin": "https://splitsaathi.up.railway.app"
+          "origin": "https://hisabbarabar.qzz.io"
         }
       ],
       "expo-font",
       "expo-web-browser",
       "react-native-vision-camera",
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "router": {
-        "origin": "https://splitsaathi.up.railway.app"
+        "origin": "https://hisabbarabar.qzz.io"
       },
       "eas": {
         "projectId": "e856cf73-a3f0-464a-85d5-4f45bde7ca5d"

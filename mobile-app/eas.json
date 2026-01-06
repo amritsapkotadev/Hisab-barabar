@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "ANDROID_PACKAGE": "com.splitsaathi.app"
+        "ANDROID_PACKAGE": "com.hisabbarabar.app"
       }
     },
     "preview": {

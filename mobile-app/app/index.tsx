@@ -130,10 +130,10 @@ export default function IndexScreen() {
     <View style={styles.container}>
       <View style={styles.logoContainer}>
         <Text style={styles.logoEmoji}>💰</Text>
-        <Text style={styles.logoText}>SplitSaathi</Text>
+        <Text style={styles.logoText}>Hisab Barabar</Text>
       </View>
       <ActivityIndicator size="large" color="#4f46e5" />
-      <Text style={styles.text}>Loading SplitSaathi...</Text>
+      <Text style={styles.text}>Loading Hisab Barabar...</Text>
       <Text style={styles.subtext}>Made with ❤️ in Nepal 🇳🇵</Text>
     </View>
   );

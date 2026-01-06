@@ -147,6 +147,7 @@ export async function GET(request: NextRequest) {
           }
         } catch (error) {
           console.error(`Error calculating stats for group ${group._id}:`, error)
+          const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
           return {
             id: group._id,
             name: group.name,
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
             totalExpenses: 0,
             balances: {},
             inviteCode: group.inviteCode,
-            inviteLink: `http://localhost:3000/join/${group._id}`,
+            inviteLink: `${APP_DOMAIN}/join/${group._id}`,
             createdAt: group.createdAt,
           }
         }
