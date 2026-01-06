@@ -19,8 +19,8 @@
       }
     },
     "android": {
-      "googleServicesFile": "./android/app/google-services.json",
       "package": "com.hisabbarabar.app",
+      "googleServicesFile": "./android/app/google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#4f46e5"
@@ -70,8 +70,18 @@
       "expo-font",
       "expo-web-browser",
       "react-native-vision-camera",
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging"
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": false
+        }
+      ],
+      [
+        "@react-native-firebase/messaging",
+        {
+          "ios": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
