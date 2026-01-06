@@ -55,5 +55,3 @@ mobile-app/dist/
 mobile-app/web-build/
 web-app/.next/
 web-app/out/
-
-google-services.json

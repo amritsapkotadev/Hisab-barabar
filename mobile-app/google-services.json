@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "858936552466",
+    "project_id": "hisab-barabar-e9494",
+    "storage_bucket": "hisab-barabar-e9494.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:858936552466:android:28c3d71d2547dc59463ccb",
+        "android_client_info": {
+          "package_name": "com.hisabbarabar.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtUymqnbPzYRHMjBm27x1KGE8SXGQEMgU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

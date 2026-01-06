@@ -20,7 +20,7 @@
     },
     "android": {
       "package": "com.hisabbarabar.app",
-      "googleServicesFile": "./android/app/google-services.json",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#4f46e5"
@@ -91,7 +91,7 @@
         "origin": "https://hisabbarabar.qzz.io"
       },
       "eas": {
-        "projectId": "e856cf73-a3f0-464a-85d5-4f45bde7ca5d"
+        "projectId": "46e69d5d-c5a1-4336-bc71-1eeaa9a7ce9e"
       }
     },
     "owner": "amritsapkota"
