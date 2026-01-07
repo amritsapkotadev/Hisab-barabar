@@ -3,6 +3,9 @@ import connectDB from '@/lib/mongodb'
 import Expense from '@/models/Expense'
 import Group from '@/models/Group'
 import { authenticateUser } from '@/middleware/auth'
+import { sendPushNotification } from '@/lib/firebase' // Add this import
+import User from '@/models/User'
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,6 +77,28 @@ export async function POST(request: NextRequest) {
     })
 
     const savedExpense = await expense.save()
+
+    try {
+      const members = await User.find({ name: { $in: group.members } })
+      for (const member of members) {
+      if (member.fcmToken && member.name !== auth.user.name) {
+        await sendPushNotification(
+        member.fcmToken,
+        'New Expense Added',
+        `${auth.user.name} added expense: ${description} (₹${amount})`,
+        {
+          groupId: group._id.toString(),
+          groupName: group.name,
+          expenseId: savedExpense._id.toString(),
+          userId: auth.userId,
+          userName: auth.user.name,
+        }
+        )
+      }
+      }
+    } catch (error) {
+      console.error('Error sending FCM notification:', error)
+    }
 
     return NextResponse.json(
       {
