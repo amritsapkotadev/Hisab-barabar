@@ -35,9 +35,10 @@ export default function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Link
-              href="#download"
+            <a
+              href="https://expo.dev/artifacts/eas/oMnPFe91ANAudPC9gG89tT.apk"
               className="group relative bg-gradient-to-r from-purple-600 to-pink-600 text-white px-10 py-4 rounded-full text-lg font-semibold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
+              download
             >
               <span className="relative z-10 flex items-center gap-2">
                 Download Now
@@ -45,7 +46,7 @@ export default function Hero() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </span>
-            </Link>
+            </a>
             <Link
               href="#how-it-works"
               className="group border-2 border-gray-300 text-gray-700 px-10 py-4 rounded-full text-lg font-semibold hover:border-purple-600 hover:text-purple-600 hover:bg-purple-50 transition-all duration-300"

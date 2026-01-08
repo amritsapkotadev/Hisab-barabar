@@ -6,10 +6,15 @@ export const metadata: Metadata = {
   description: 'Split bills easily with friends and family. Track expenses, settle up, and keep your finances organized.',
   keywords: ['expense tracker', 'bill splitting', 'shared expenses', 'split bills', 'group expenses'],
   authors: [{ name: 'Hisab Barabar Team' }],
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/logo.png',
+  },
   openGraph: {
     title: 'Hisab Barabar - Split Bills & Track Expenses',
     description: 'Split bills easily with friends and family. Track expenses, settle up, and keep your finances organized.',
     type: 'website',
+    images: ['/logo.png'],
   },
 }
 

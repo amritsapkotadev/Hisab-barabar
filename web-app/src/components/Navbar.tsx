@@ -26,8 +26,8 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-500 rounded-2xl flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg">
-                <span className="text-white text-2xl font-bold">रु</span>
+              <div className="w-10 h-10 transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 overflow-hidden" style={{ borderRadius: '0.70rem' }}>
+                <img src="/logo.png" alt="Hisab Barabar Logo" className="w-full h-full object-contain" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 bg-clip-text text-transparent">
                 Hisab Barabar
