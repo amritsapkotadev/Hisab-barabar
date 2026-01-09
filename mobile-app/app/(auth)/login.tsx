@@ -75,26 +75,16 @@ export default function LoginScreen() {
       const result = await googleAuthService.signInWithGoogle();
 
       if (result.success && result.user) {
-        try {
-          const { token, user } = await apiService.loginWithGoogle(result.user);
-          await apiService.setAuthToken(token);
-          router.replace('/(tabs)');
-        } catch (loginError) {
-          try {
-            const { token, user } = await apiService.registerWithGoogle(result.user);
-            await apiService.setAuthToken(token);
-            router.replace('/(tabs)');
-          } catch (registerError) {
-            console.error('Google registration error:', registerError);
-            Alert.alert('Error', 'Failed to create account with Google');
-          }
-        }
+        // Backend now handles both login and auto-registration
+        const { token, user } = await apiService.loginWithGoogle(result.user);
+        await apiService.setAuthToken(token);
+        router.replace('/(tabs)');
       } else if (result.error !== 'User cancelled authentication') {
         Alert.alert('Error', result.error || 'Google login failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google login error:', error);
-      Alert.alert('Error', 'Google login failed. Please try again.');
+      Alert.alert('Error', error.message || 'Google login failed. Please try again.');
     } finally {
       setGoogleLoading(false);
     }

@@ -17,7 +17,7 @@ export default function IndexScreen() {
         const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           console.log('Notification permission granted.');
-          getDeviceToken();
+          await getDeviceToken();
         } else {
           console.log('Notification permission denied.');
         }
@@ -28,7 +28,7 @@ export default function IndexScreen() {
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
         if (enabled) {
           console.log('Notification permission granted.');
-          getDeviceToken();
+          await getDeviceToken();
         } else {
           console.log('Notification permission denied.');
         }
@@ -39,21 +39,25 @@ export default function IndexScreen() {
   };
 
   const getDeviceToken = async () => {
-    await messaging().registerDeviceForRemoteMessages();
-    const fcmToken = await messaging().getToken();
-    if (fcmToken) {
-      console.log('Device Token:', fcmToken);
-      await AsyncStorage.setItem('fcmToken', fcmToken);
-      return fcmToken;
-    } else {
-      console.log('No device token found.');
+    try {
+      await messaging().registerDeviceForRemoteMessages();
+      const fcmToken = await messaging().getToken();
+      if (fcmToken) {
+        console.log('Device Token:', fcmToken);
+        await AsyncStorage.setItem('fcmToken', fcmToken);
+        return fcmToken;
+      } else {
+        console.log('No device token found.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting device token:', error);
       return null;
     }
   };
 
-  useEffect(() => {
-    checkAuthStatus();
-    requestUserPermission();
+  const setupNotificationHandlers = () => {
+    // Setup notification channel
     notifee.createChannel({
       id: 'default',
       name: 'Default Channel',
@@ -61,6 +65,8 @@ export default function IndexScreen() {
     }).catch(error => {
       console.error('Error creating notification channel:', error);
     });
+
+    // Handle notification that opened app from quit state
     messaging().getInitialNotification()
       .then(remoteMessage => {
         if (remoteMessage) {
@@ -72,19 +78,44 @@ export default function IndexScreen() {
         console.error('Error getting initial notification:', error);
       });
 
+    // Handle notification that opened app from background state
     messaging().onNotificationOpenedApp(remoteMessage => {
       console.log('Notification caused app to open from background state:', remoteMessage.notification);
       displayNotification(remoteMessage.notification);
     });
 
+    // Handle foreground notifications
     messaging().onMessage(async remoteMessage => {
       console.log('A new message arrived!', remoteMessage);
       displayNotification(remoteMessage.notification);
     });
 
+    // Handle background notifications
     messaging().setBackgroundMessageHandler(async remoteMessage => {
       console.log('Message handled in the background!', remoteMessage);
     });
+  };
+
+  const initializeApp = async () => {
+    try {
+      // Step 1: Request notification permissions and get FCM token FIRST
+      await requestUserPermission();
+      
+      // Step 2: Setup notification handlers
+      setupNotificationHandlers();
+      
+      // Step 3: Check auth status (FCM token is now available in AsyncStorage)
+      await checkAuthStatus();
+    } catch (error) {
+      console.error('Error initializing app:', error);
+      // Fallback to login on error
+      router.replace('/(auth)/login');
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    initializeApp();
   }, []);
 
   const displayNotification = async (notification: any) => {

@@ -16,7 +16,8 @@
       ],
       "infoPlist": {
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera"
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "com.hisabbarabar.app",
@@ -80,6 +81,12 @@
         "@react-native-firebase/messaging",
         {
           "ios": false
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.858936552466-rfqc656f5ai8se17grq9a4989t008ni4"
         }
       ]
     ],

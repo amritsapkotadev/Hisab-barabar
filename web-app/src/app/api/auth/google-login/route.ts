@@ -23,18 +23,33 @@ export async function POST(request: NextRequest) {
     })
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found. Please register first.' },
-        { status: 400 }
-      )
-    }
+      // Auto-create user if they don't exist (unified sign-in/sign-up)
+      const userPhone = `google_${googleId}_${Date.now()}`
+      
+      user = await User.create({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        phone: userPhone,
+        googleId: googleId,
+        picture: picture,
+        isVerified: true, // Google users are auto-verified
+      })
 
-    // Update Google ID if not set
-    if (!user.googleId) {
-      user.googleId = googleId
-      user.picture = picture
-      user.isVerified = true
-      await user.save()
+      console.log('Created new user via Google login:', user.email)
+    } else {
+      // Update Google ID and picture if not set
+      let updated = false
+      if (!user.googleId) {
+        user.googleId = googleId
+        updated = true
+      }
+      if (picture && user.picture !== picture) {
+        user.picture = picture
+        updated = true
+      }
+      if (updated) {
+        await user.save()
+      }
     }
 
     // Generate token

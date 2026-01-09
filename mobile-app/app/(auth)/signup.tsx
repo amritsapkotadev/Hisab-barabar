@@ -106,42 +106,18 @@ export default function SignupScreen() {
       const result = await googleAuthService.signInWithGoogle();
 
       if (result.success && result.user) {
-        // Try to register with Google user info
-        try {
-          const { token, user } = await apiService.registerWithGoogle(result.user);
-          await apiService.setAuthToken(token);
-
-          Alert.alert('Success', 'Account created with Google!', [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)'),
-            },
-          ]);
-        } catch (registerError) {
-          // If registration fails, try to login (user might already exist)
-          try {
-            const { token, user } = await apiService.loginWithGoogle(result.user);
-            await apiService.setAuthToken(token);
-
-            Alert.alert('Success', 'Signed in with existing Google account!', [
-              {
-                text: 'OK',
-                onPress: () => router.replace('/(tabs)'),
-              },
-            ]);
-          } catch (loginError) {
-            console.error('Google login error:', loginError);
-            Alert.alert('Error', 'Failed to sign in with Google');
-          }
-        }
+        // Backend now handles both login and auto-registration
+        const { token, user } = await apiService.loginWithGoogle(result.user);
+        await apiService.setAuthToken(token);
+        router.replace('/(tabs)');
       } else {
         if (result.error !== 'User cancelled authentication') {
           Alert.alert('Error', result.error || 'Google signup failed');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google signup error:', error);
-      Alert.alert('Error', 'Google signup failed. Please try again.');
+      Alert.alert('Error', error.message || 'Google signup failed. Please try again.');
     } finally {
       setGoogleLoading(false);
     }

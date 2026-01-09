@@ -12,7 +12,20 @@
           "package_name": "com.hisabbarabar.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "858936552466-61hkpkq9u1o35rk43e5qb6hl0g1sm90b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hisabbarabar.app",
+            "certificate_hash": "5baae36e5c279acd115ca453817e1ca62f2418"
+          }
+        },
+        {
+          "client_id": "858936552466-749g86ogbvc27ma4c029sh3mogcca84d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBtUymqnbPzYRHMjBm27x1KGE8SXGQEMgU"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "858936552466-749g86ogbvc27ma4c029sh3mogcca84d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

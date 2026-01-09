@@ -16,7 +16,17 @@ import { Group } from '@/types';
 import { apiService } from '@/services/api';
 
 export default function AddExpenseScreen() {
-  const { groupId } = useLocalSearchParams<{ groupId?: string }>();
+  const params = useLocalSearchParams<{ 
+    groupId?: string;
+    edit?: string;
+    add?: string;
+    description?: string;
+    amount?: string;
+    paidBy?: string;
+    participants?: string;
+    date?: string;
+  }>();
+  const { groupId, edit, add } = params;
   const [group, setGroup] = useState<Group | null>(null);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -25,17 +35,16 @@ export default function AddExpenseScreen() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const params = useLocalSearchParams();
 
   useEffect(() => {
-    if (params.edit === 'true') return;
-    if (params.add === 'true') return;
+    if (edit === 'true') return;
+    if (add === 'true') return;
     if (groupId) {
       router.replace({ pathname: '/add-expense-advanced', params: { groupId } });
     } else {
       router.replace('/add-expense-advanced');
     }
-  }, [groupId, params]);
+  }, [groupId, edit, add]);
 
   useEffect(() => {
     const fetchGroup = async () => {
@@ -62,14 +71,14 @@ export default function AddExpenseScreen() {
   }, [groupId]);
 
   useEffect(() => {
-    if (params.edit === 'true') {
+    if (edit === 'true') {
       if (params.description) setDescription(params.description as string);
       if (params.amount) setAmount(params.amount as string);
       if (params.paidBy) setPaidBy(params.paidBy as string);
       if (params.participants) setSelectedParticipants(JSON.parse(params.participants as string));
       if (params.date) setDate(params.date as string);
     }
-  }, [params]);
+  }, [edit, params.description, params.amount, params.paidBy, params.participants, params.date]);
 
   const toggleParticipant = (member: string) => {
     setSelectedParticipants(prev => {
