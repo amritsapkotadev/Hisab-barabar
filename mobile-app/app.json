@@ -73,7 +73,6 @@
         }
       ],
       "expo-font",
-      "expo-web-browser",
       "react-native-vision-camera",
       [
         "@react-native-firebase/app",
