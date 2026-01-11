@@ -215,6 +215,16 @@ export default function AdminManagementPage() {
     }
   }
 
+  const getRoleBadge = (role: string) => {
+    if (role === 'super-admin') {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Super Admin</span>
+    }
+    if (role === 'admin') {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Admin</span>
+    }
+    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Moderator</span>
+  }
+
   // Check if current user can manage admins
   const canManageAdmins = currentAdmin?.role === 'super-admin' || currentAdmin?.permissions?.canManageAdmins
 
@@ -236,18 +246,18 @@ export default function AdminManagementPage() {
   return (
     <div className="max-w-7xl">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="text-gray-600">Create and manage admin accounts</p>
         </div>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg"
+          className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          <span className="hidden md:inline">Create Admin</span>
+          <span>Create Admin</span>
         </button>
       </div>
 
@@ -255,7 +265,7 @@ export default function AdminManagementPage() {
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
-            <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-5 h-5 text-red-600 mr-2 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
             <span className="text-red-800">{error}</span>
@@ -266,7 +276,7 @@ export default function AdminManagementPage() {
       {success && (
         <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center">
-            <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-5 h-5 text-green-600 mr-2 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             <span className="text-green-800">{success}</span>
@@ -276,8 +286,8 @@ export default function AdminManagementPage() {
 
       {/* Create Admin Form */}
       {showCreateForm && (
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border-2 border-purple-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Create New Admin</h2>
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 mb-8 border-2 border-purple-200">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Create New Admin</h2>
           <form onSubmit={handleCreateAdmin} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -359,11 +369,11 @@ export default function AdminManagementPage() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="submit"
                 disabled={formLoading}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {formLoading ? 'Creating...' : 'Create Admin'}
               </button>
@@ -373,7 +383,7 @@ export default function AdminManagementPage() {
                   setShowCreateForm(false)
                   setFormData({ name: '', email: '', password: '', phone: '', role: 'admin' })
                 }}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
+                className="w-full sm:w-auto px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all"
               >
                 Cancel
               </button>
@@ -384,7 +394,7 @@ export default function AdminManagementPage() {
 
       {/* Admins List */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-4 md:p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
             All Admins ({admins.length})
           </h2>
@@ -398,79 +408,151 @@ export default function AdminManagementPage() {
         ) : admins.length === 0 ? (
           <div className="text-center py-12 text-gray-500">No admins found</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Admin</th>
-                  <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Contact</th>
-                  <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Role</th>
-                  <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Last Login</th>
-                  <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {admins.map((admin) => (
-                  <tr key={admin._id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-gray-900">{admin.name}</div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="text-sm text-gray-900">{admin.email}</div>
-                      {admin.phone && <div className="text-xs text-gray-500">{admin.phone}</div>}
-                    </td>
-                    <td className="py-4 px-6">
-                      {admin.role === 'super-admin' && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          Super Admin
-                        </span>
-                      )}
-                      {admin.role === 'admin' && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          Admin
-                        </span>
-                      )}
-                      {admin.role === 'moderator' && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Moderator
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-sm text-gray-600">
-                      {admin.lastLogin ? new Date(admin.lastLogin).toLocaleString() : 'Never'}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center space-x-2">
-                        {admin._id !== currentAdmin?.id && (
-                          <>
-                            <button
-                              onClick={() => handleToggleActive(admin._id, admin.isActive)}
-                              className={`px-3 py-1 text-xs font-medium rounded ${
-                                admin.isActive
-                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
-                              }`}
-                            >
-                              {admin.isActive ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAdmin(admin._id, admin.name)}
-                              className="px-3 py-1 text-xs font-medium rounded bg-red-100 text-red-700 hover:bg-red-200"
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                        {admin._id === currentAdmin?.id && (
-                          <span className="text-xs text-gray-500 italic">You</span>
-                        )}
+          <>
+            {/* Mobile Card View */}
+            <div className="block md:hidden">
+              {admins.map((admin) => (
+                <div key={admin._id} className="border-b border-gray-100 p-4 hover:bg-gray-50 transition-colors">
+                  {/* Admin Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 shrink-0 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                        {admin.name.charAt(0).toUpperCase()}
                       </div>
-                    </td>
+                      <div>
+                        <div className="font-semibold text-gray-900 text-base">{admin.name}</div>
+                        <div className="mt-1">{getRoleBadge(admin.role)}</div>
+                      </div>
+                    </div>
+                    {admin.isActive ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Admin Details */}
+                  <div className="space-y-2 text-sm mb-3">
+                    <div className="flex items-start">
+                      <svg className="w-4 h-4 text-gray-400 mr-2 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-gray-900 break-all">{admin.email}</span>
+                    </div>
+                    {admin.phone && (
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 text-gray-400 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        <span className="text-gray-600">{admin.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center text-gray-600">
+                      <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Last login: {admin.lastLogin ? new Date(admin.lastLogin).toLocaleString() : 'Never'}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  {admin._id !== currentAdmin?.id ? (
+                    <div className="flex gap-2 pt-3 border-t border-gray-100">
+                      <button
+                        onClick={() => handleToggleActive(admin._id, admin.isActive)}
+                        className={`flex-1 px-3 py-2 text-xs font-medium rounded ${
+                          admin.isActive
+                            ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                      >
+                        {admin.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAdmin(admin._id, admin.name)}
+                        className="flex-1 px-3 py-2 text-xs font-medium rounded bg-red-100 text-red-700 hover:bg-red-200"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="pt-3 border-t border-gray-100 text-center">
+                      <span className="text-xs text-gray-500 italic">This is you</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Admin</th>
+                    <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Contact</th>
+                    <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Role</th>
+                    <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Last Login</th>
+                    <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {admins.map((admin) => (
+                    <tr key={admin._id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 shrink-0 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                            {admin.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="font-medium text-gray-900">{admin.name}</div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="text-sm text-gray-900">{admin.email}</div>
+                        {admin.phone && <div className="text-xs text-gray-500">{admin.phone}</div>}
+                      </td>
+                      <td className="py-4 px-6">
+                        {getRoleBadge(admin.role)}
+                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-600">
+                        {admin.lastLogin ? new Date(admin.lastLogin).toLocaleString() : 'Never'}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center space-x-2">
+                          {admin._id !== currentAdmin?.id ? (
+                            <>
+                              <button
+                                onClick={() => handleToggleActive(admin._id, admin.isActive)}
+                                className={`px-3 py-1 text-xs font-medium rounded ${
+                                  admin.isActive
+                                    ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                }`}
+                              >
+                                {admin.isActive ? 'Deactivate' : 'Activate'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAdmin(admin._id, admin.name)}
+                                className="px-3 py-1 text-xs font-medium rounded bg-red-100 text-red-700 hover:bg-red-200"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-500 italic">You</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

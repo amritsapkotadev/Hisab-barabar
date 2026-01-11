@@ -212,7 +212,7 @@ export default function AdminDashboardPage() {
                     <td className="py-3 px-4 text-gray-600 text-sm hidden md:table-cell">{user.email}</td>
                     <td className="py-3 px-4">
                       {/* Icons for all devices */}
-                      <div className="flex gap-2">
+                      <div className="flex" style={{ gap: '0.3rem' }}>
                         {user.isVerified ? (
                           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-100 text-green-600" title="Verified">
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
