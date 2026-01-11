@@ -69,9 +69,8 @@ export default function AdminUsersPage() {
     : users
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">User Management</h1>
+    <div className="max-w-7xl">
+      <div className="mb-6">
         <p className="text-gray-600">View and manage registered users</p>
       </div>
 

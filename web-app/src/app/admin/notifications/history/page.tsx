@@ -104,11 +104,10 @@ export default function NotificationHistoryPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="max-w-7xl">
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Notification History</h1>
           <p className="text-gray-600">View all sent and scheduled notifications</p>
         </div>
         <Link

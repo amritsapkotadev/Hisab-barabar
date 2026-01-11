@@ -13,6 +13,7 @@ export default function AdminLayout({
   const pathname = usePathname()
   const [loading, setLoading] = useState(true)
   const [adminUser, setAdminUser] = useState<any>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
@@ -65,157 +66,226 @@ export default function AdminLayout({
   }
 
   const navItems = [
-    { name: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-    { name: 'Notifications', path: '/admin/notifications', icon: '🔔' },
-    { name: 'Users', path: '/admin/users', icon: '👥' },
-    { name: 'Admins', path: '/admin/admins', icon: '👑', superAdminOnly: true },
+    { 
+      name: 'Dashboard', 
+      path: '/admin/dashboard', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      )
+    },
+    { 
+      name: 'Notifications', 
+      path: '/admin/notifications', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      )
+    },
+    { 
+      name: 'Users', 
+      path: '/admin/users', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      )
+    },
+    { 
+      name: 'Admins', 
+      path: '/admin/admins', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+      superAdminOnly: true 
+    },
   ]
 
+  const getPageTitle = () => {
+    const item = navItems.find(item => item.path === pathname)
+    return item?.name || 'Admin Panel'
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-      {/* Top Navigation Bar */}
-      <nav className="bg-white shadow-lg border-b border-gray-200">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo and Brand */}
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center space-x-2">
-                  <img 
-                    src="/logo.png" 
-                    alt="Logo" 
-                    className="w-10 h-10 object-contain"
-                  />
-                  <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Admin Portal
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Left Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transition-all duration-300 flex flex-col ${
+        sidebarOpen ? 'w-64' : 'w-16'
+      } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        
+        {/* Sidebar Header */}
+        <div className="h-16 flex items-center px-4 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center">
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              className="w-8 h-8 object-contain flex-shrink-0"
+            />
+            <span className={`ml-3 text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent whitespace-nowrap transition-all duration-300 overflow-hidden ${
+              sidebarOpen ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0 ml-0'
+            }`}>
+              Admin Portal
+            </span>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-2.5 py-4 space-y-1 overflow-y-auto min-h-0">
+          {navItems.map((item) => {
+            // Hide super-admin only items for non-super-admins
+            if (item.superAdminOnly && adminUser?.role !== 'super-admin') {
+              return null
+            }
+            
+            const isActive = pathname === item.path
+            
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
+                  isActive
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+                title={!sidebarOpen ? item.name : ''}
+              >
+                <div className="flex items-center justify-center w-5">
+                  <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'}`}>
+                    {item.icon}
                   </span>
                 </div>
-              </div>
+                <span className={`ml-3 whitespace-nowrap transition-all duration-300 overflow-hidden ${
+                  sidebarOpen ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0 ml-0'
+                }`}>
+                  {item.name}
+                </span>
+              </Link>
+            )
+          })}
+        </nav>
 
-              {/* Desktop Navigation */}
-              <div className="hidden md:block ml-10">
-                <div className="flex space-x-1">
-                  {navItems.map((item) => {
-                    // Hide super-admin only items for non-super-admins
-                    if (item.superAdminOnly && adminUser?.role !== 'super-admin') {
-                      return null
-                    }
-                    
-                    return (
-                      <Link
-                        key={item.path}
-                        href={item.path}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                          pathname === item.path
-                            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <span className="mr-2">{item.icon}</span>
-                        {item.name}
-                      </Link>
-                    )
-                  })}
-                </div>
+        {/* User Section */}
+        <div className="border-t border-gray-200 p-3">
+          {/* Admin Avatar */}
+          <div className="flex items-center py-3">
+            <div className="flex items-center justify-center w-10 flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-semibold shadow-md">
+                {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
               </div>
             </div>
-
-            {/* Right Side - User Info */}
-            <div className="flex items-center space-x-4">
-              {/* Admin Info */}
-              <div className="hidden md:flex items-center space-x-3">
-                <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">
-                    {adminUser?.name || 'Admin'}
-                  </div>
-                  <div className="text-xs text-gray-500 capitalize">
-                    {adminUser?.role === 'super-admin' ? 'Super Admin' : 
-                     adminUser?.role === 'admin' ? 'Admin' : 
-                     adminUser?.role === 'moderator' ? 'Moderator' : 
-                     'Administrator'}
-                  </div>
-                </div>
+            <div className={`flex-1 min-w-0 ml-3 transition-all duration-300 overflow-hidden ${
+              sidebarOpen ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0 ml-0'
+            }`}>
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {adminUser?.name || 'Admin'}
               </div>
+              <div className="text-xs text-gray-500 truncate">
+                {adminUser?.role === 'super-admin' ? 'Super Admin' : 
+                 adminUser?.role === 'admin' ? 'Admin' : 
+                 adminUser?.role === 'moderator' ? 'Moderator' : 
+                 'Administrator'}
+              </div>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            title={!sidebarOpen ? 'Logout' : ''}
+          >
+            <div className="flex items-center justify-center w-5">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <span className={`ml-3 whitespace-nowrap transition-all duration-300 overflow-hidden ${
+              sidebarOpen ? 'opacity-100 max-w-[200px]' : 'opacity-0 max-w-0 ml-0'
+            }`}>
+              Logout
+            </span>
+          </button>
+        </div>
 
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                className="hidden md:flex items-center space-x-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span>Logout</span>
-              </button>
+        {/* Collapse/Expand Button - At Bottom */}
+        <div className="p-3 mt-auto">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="hidden lg:flex w-full items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            title={sidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {sidebarOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              )}
+            </svg>
+            {sidebarOpen && <span>Collapse</span>}
+          </button>
+        </div>
+      </aside>
 
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {mobileMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  )}
-                </svg>
-              </button>
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Main Content Area */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
+        {/* Top Header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
+          <div className="flex items-center space-x-4">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            
+            {/* Page Title */}
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">{getPageTitle()}</h1>
+              <p className="text-xs text-gray-500 hidden sm:block">Welcome back, {adminUser?.name || 'Admin'}</p>
             </div>
           </div>
 
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-200">
-              <div className="space-y-1">
-                {navItems.map((item) => {
-                  // Hide super-admin only items for non-super-admins
-                  if (item.superAdminOnly && adminUser?.role !== 'super-admin') {
-                    return null
-                  }
-                  
-                  return (
-                    <Link
-                      key={item.path}
-                      href={item.path}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`block px-4 py-2 rounded-lg text-sm font-medium ${
-                        pathname === item.path
-                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <span className="mr-2">{item.icon}</span>
-                      {item.name}
-                    </Link>
-                  )
-                })}
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
-                >
-                  <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Logout
-                </button>
-              </div>
+          <div className="flex items-center space-x-3">
+            {/* Admin Avatar - Mobile Only */}
+            <div className="sm:hidden w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white text-sm font-semibold">
+              {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
             </div>
-          )}
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="min-h-[calc(100vh-64px-60px)]">{children}</main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="container mx-auto px-4 py-4">
-          <div className="text-center text-sm text-gray-600">
-            <p>© {new Date().getFullYear()} Hisab Barabar. All rights reserved.</p>
+            
+            {/* Time Display */}
+            <div className="hidden md:block text-sm text-gray-600">
+              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </div>
           </div>
-        </div>
-      </footer>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-auto p-4 lg:p-6">
+          {children}
+        </main>
+
+        {/* Footer */}
+        <footer className="bg-white border-t border-gray-200 py-4 px-6">
+          <div className="text-center text-xs text-gray-500">
+            © {new Date().getFullYear()} Hisab Barabar. All rights reserved.
+          </div>
+        </footer>
+      </div>
     </div>
   )
 }

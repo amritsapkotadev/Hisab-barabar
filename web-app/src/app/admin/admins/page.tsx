@@ -220,7 +220,7 @@ export default function AdminManagementPage() {
 
   if (!canManageAdmins) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl">
         <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
           <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -234,11 +234,10 @@ export default function AdminManagementPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="max-w-7xl">
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Management</h1>
           <p className="text-gray-600">Create and manage admin accounts</p>
         </div>
         <button

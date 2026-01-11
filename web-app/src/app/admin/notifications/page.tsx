@@ -232,7 +232,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+    <div className="max-w-7xl">
       {/* Result Modal */}
       {showResultModal && result && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -327,13 +327,10 @@ export default function AdminNotificationsPage() {
         </div>
       )}
 
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div>
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              Notifications
-            </h1>
             <p className="text-gray-600">
               Send push notifications to users
             </p>
