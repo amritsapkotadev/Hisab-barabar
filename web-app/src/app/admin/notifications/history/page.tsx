@@ -104,20 +104,7 @@ export default function NotificationHistoryPage() {
   }
 
   return (
-    <div className="max-w-7xl">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-gray-600">View all sent and scheduled notifications</p>
-        </div>
-        <Link
-          href="/admin/notifications"
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg"
-        >
-          Send New
-        </Link>
-      </div>
-
+    <div className="max-w-full px-2 sm:px-4">
       {/* Error */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -126,16 +113,16 @@ export default function NotificationHistoryPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Filter by Status:</label>
+      <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <label className="text-xs sm:text-sm font-medium text-gray-700">Filter by Status:</label>
           <select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value)
               setPage(1)
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm sm:text-base"
           >
             <option value="all">All Notifications</option>
             <option value="scheduled">Scheduled</option>
@@ -147,7 +134,7 @@ export default function NotificationHistoryPage() {
           <button
             onClick={fetchHistory}
             disabled={loading}
-            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50"
+            className="px-3 sm:px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 text-sm sm:text-base"
           >
             {loading ? 'Loading...' : 'Refresh'}
           </button>
@@ -172,30 +159,30 @@ export default function NotificationHistoryPage() {
           <div className="divide-y divide-gray-100">
             {notifications.map((notification) => (
               <details key={notification._id} className="group">
-                <summary className="p-4 hover:bg-gray-50 cursor-pointer transition-colors list-none">
-                  <div className="flex items-center justify-between gap-4">
+                <summary className="p-3 sm:p-4 hover:bg-gray-50 cursor-pointer transition-colors list-none">
+                  <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
                     {/* Left: Status + Title */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getStatusBadge(notification.status)}`}>
+                    <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+                      <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-medium shrink-0 ${getStatusBadge(notification.status)}`}>
                         {getStatusIcon(notification.status)}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">{notification.title}</h3>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                        <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">{notification.title}</h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs text-gray-500 mt-0.5">
                           <span className="truncate">{notification.body}</span>
-                          <span className="text-gray-400">•</span>
+                          <span className="hidden sm:inline text-gray-400">•</span>
                           <span className="whitespace-nowrap">by {notification.createdBy.name}</span>
                           {notification.sentAt && (
                             <>
-                              <span className="text-gray-400">•</span>
+                              <span className="hidden sm:inline text-gray-400">•</span>
                               <span className="whitespace-nowrap">
-                                {new Date(notification.sentAt).toLocaleString()}
+                                {new Date(notification.sentAt).toLocaleDateString()}
                               </span>
                             </>
                           )}
                           {notification.status === 'scheduled' && notification.scheduledFor && (
                             <>
-                              <span className="text-gray-400">•</span>
+                              <span className="hidden sm:inline text-gray-400">•</span>
                               <span className="whitespace-nowrap text-blue-600">
                                 ⏰ {new Date(notification.scheduledFor).toLocaleString()}
                               </span>
@@ -206,9 +193,9 @@ export default function NotificationHistoryPage() {
                     </div>
 
                     {/* Right: Stats + Arrow */}
-                    <div className="flex items-center gap-3 text-sm shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm shrink-0">
                       {notification.results && (
-                        <div className="flex items-center gap-2">
+                        <div className="hidden sm:flex items-center gap-2">
                           <span className="text-gray-700">
                             {notification.recipients.type === 'all' ? '👥' : `👤 ${notification.recipients.userIds?.length || 0}`}
                           </span>
@@ -218,7 +205,7 @@ export default function NotificationHistoryPage() {
                           )}
                         </div>
                       )}
-                      <svg className="w-5 h-5 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
@@ -226,8 +213,8 @@ export default function NotificationHistoryPage() {
                 </summary>
 
                 {/* Expanded Details */}
-                <div className="px-4 pb-4 pt-2 bg-gray-50 border-t border-gray-100">
-                  <div className="flex gap-6">
+                <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-2 bg-gray-50 border-t border-gray-100">
+                  <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
                     {/* Left Side: Message & Results */}
                     <div className="flex-1 space-y-3">
                       {/* Full Message */}
@@ -268,7 +255,7 @@ export default function NotificationHistoryPage() {
                     </div>
 
                     {/* Right Side: Recipients */}
-                    <div className="w-80 shrink-0">
+                    <div className="lg:w-80 shrink-0">
                       <div>
                         <label className="text-xs font-semibold text-gray-600 uppercase">Recipients</label>
                         {notification.recipients.type === 'all' ? (
@@ -323,21 +310,21 @@ export default function NotificationHistoryPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
+          <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-t border-gray-200">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
-            <span className="text-sm text-gray-700">
+            <span className="text-xs sm:text-sm text-gray-700">
               Page {page} of {totalPages}
             </span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>

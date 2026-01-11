@@ -68,6 +68,9 @@ export default function AdminUsersPage() {
       )
     : users
 
+  const verifiedCount = users.filter(u => u.isVerified).length
+  const tokenCount = users.filter(u => u.fcmToken).length
+
   return (
     <div className="max-w-7xl">
       <div className="mb-6">
@@ -111,10 +114,21 @@ export default function AdminUsersPage() {
 
       {/* Users List */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            Users ({filteredUsers.length})
-          </h2>
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">
+              Users ({filteredUsers.length})
+            </h2>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-gray-600">
+                <span className="font-semibold text-gray-900">{verifiedCount}</span> Verified
+              </span>
+              <span className="text-gray-400">•</span>
+              <span className="text-gray-600">
+                <span className="font-semibold text-gray-900">{tokenCount}</span> Push Enabled
+              </span>
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">

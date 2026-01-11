@@ -106,6 +106,10 @@ export default function AdminLayout({
   ]
 
   const getPageTitle = () => {
+    // Check for specific sub-pages first
+    if (pathname === '/admin/notifications/history') return 'History'
+    
+    // Then check nav items
     const item = navItems.find(item => item.path === pathname)
     return item?.name || 'Admin Panel'
   }
@@ -262,11 +266,6 @@ export default function AdminLayout({
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Admin Avatar - Mobile Only */}
-            <div className="sm:hidden w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white text-sm font-semibold">
-              {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
-            </div>
-            
             {/* Time Display */}
             <div className="hidden md:block text-sm text-gray-600">
               {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}

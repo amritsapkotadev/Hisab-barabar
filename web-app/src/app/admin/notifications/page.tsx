@@ -232,7 +232,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div className="max-w-7xl">
+    <div className="max-w-7xl px-4 sm:px-6">
       {/* Result Modal */}
       {showResultModal && result && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -328,24 +328,6 @@ export default function AdminNotificationsPage() {
       )}
 
       <div>
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <p className="text-gray-600">
-              Send push notifications to users
-            </p>
-          </div>
-          <Link
-            href="/admin/notifications/history"
-            className="flex items-center space-x-2 px-6 py-3 bg-white border-2 border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition-all shadow-lg"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="hidden md:inline">View History</span>
-          </Link>
-        </div>
-
         {/* Error Alert */}
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
@@ -358,11 +340,22 @@ export default function AdminNotificationsPage() {
           </div>
         )}
 
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Notification Form */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Create Notification</h2>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Create Notification</h2>
+              <Link
+                href="/admin/notifications/history"
+                className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition-all text-sm sm:text-base"
+                title="View History"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="hidden sm:inline">History</span>
+              </Link>
+            </div>
             
             <div className="space-y-4">
               {/* Title Input */}
@@ -497,25 +490,29 @@ export default function AdminNotificationsPage() {
           </div>
 
           {/* User Selection */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Select Recipients</h2>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Select Recipients</h2>
             
             {/* Search and Filter */}
-            <div className="space-y-4 mb-4">
+            <div className="space-y-3 sm:space-y-4 mb-4">
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
                   placeholder="Search by name or email"
                 />
                 <button
                   onClick={handleSearch}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+                  className="px-3 sm:px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+                  title="Search"
                 >
-                  Search
+                  <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span className="hidden sm:inline text-sm sm:text-base">Search</span>
                 </button>
               </div>
 
@@ -523,7 +520,7 @@ export default function AdminNotificationsPage() {
                 <select
                   value={filterTokens}
                   onChange={(e) => setFilterTokens(e.target.value as any)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
                 >
                   <option value="all">All Users</option>
                   <option value="with">With FCM Token</option>
@@ -532,9 +529,13 @@ export default function AdminNotificationsPage() {
                 <button
                   onClick={fetchUsers}
                   disabled={fetchingUsers}
-                  className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  className="px-3 sm:px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  title="Refresh"
                 >
-                  {fetchingUsers ? 'Loading...' : 'Refresh'}
+                  <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span className="hidden sm:inline text-sm sm:text-base">{fetchingUsers ? 'Loading...' : 'Refresh'}</span>
                 </button>
               </div>
             </div>
@@ -609,9 +610,9 @@ export default function AdminNotificationsPage() {
         </div>
 
         {/* Info Section */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">📱 Information</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
+        <div className="mt-6 sm:mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">📱 Information</h3>
+          <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
             <li>• Only users with FCM tokens can receive push notifications</li>
             <li>• Custom data should be in valid JSON format</li>
             <li>• Notifications are sent asynchronously and may take a few moments</li>

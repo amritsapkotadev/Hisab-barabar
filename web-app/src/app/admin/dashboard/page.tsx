@@ -95,103 +95,57 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="max-w-7xl">
-      {/* Stats section - removed header since it's now in the layout */}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {/* Total Users */}
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow">
-          <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 md:w-14 md:h-14 bg-purple-100 rounded-full flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 md:w-7 md:h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{stats?.totalUsers || 0}</p>
-            <p className="text-xs md:text-sm font-medium text-gray-600">Total Users</p>
-          </div>
-        </div>
-
-        {/* Verified Users */}
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow">
-          <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 md:w-14 md:h-14 bg-green-100 rounded-full flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 md:w-7 md:h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{stats?.verifiedUsers || 0}</p>
-            <p className="text-xs md:text-sm font-medium text-gray-600">Verified</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {stats?.totalUsers ? Math.round((stats.verifiedUsers / stats.totalUsers) * 100) : 0}%
-            </p>
-          </div>
-        </div>
-
-        {/* Users with FCM Tokens */}
-        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow">
-          <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-100 rounded-full flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 md:w-7 md:h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{stats?.usersWithTokens || 0}</p>
-            <p className="text-xs md:text-sm font-medium text-gray-600">Push Enabled</p>
-          </div>
-        </div>
-      </div>
 
       {/* Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
         <Link href="/admin/notifications" className="block group">
-          <div className="bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg p-6 hover:shadow-2xl transform hover:-translate-y-1 transition-all">
-            <div className="flex items-center justify-between text-white mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg p-4 md:p-6 hover:shadow-2xl transform hover:-translate-y-1 transition-all">
+            <div className="flex items-center justify-between text-white mb-2 md:mb-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
               </div>
-              <svg className="w-6 h-6 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Send Notifications</h3>
-            <p className="text-purple-100 text-sm">Send push notifications to users</p>
+            <h3 className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2">Send Notifications</h3>
+            <p className="text-purple-100 text-xs md:text-sm">Send push notifications to users</p>
           </div>
         </Link>
 
         <Link href="/admin/users" className="block group">
-          <div className="bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-lg p-6 hover:shadow-2xl transform hover:-translate-y-1 transition-all">
-            <div className="flex items-center justify-between text-white mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-gradient-to-br from-green-500 to-teal-500 rounded-xl shadow-lg p-4 md:p-6 hover:shadow-2xl transform hover:-translate-y-1 transition-all">
+            <div className="flex items-center justify-between text-white mb-2 md:mb-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <svg className="w-6 h-6 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Manage Users</h3>
-            <p className="text-green-100 text-sm">View and manage all users</p>
+            <h3 className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2">Manage Users</h3>
+            <p className="text-green-100 text-xs md:text-sm">View and manage all users</p>
           </div>
         </Link>
 
         <button onClick={fetchDashboardStats} className="block group text-left">
-          <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg p-6 hover:shadow-2xl transform hover:-translate-y-1 transition-all">
-            <div className="flex items-center justify-between text-white mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg p-4 md:p-6 hover:shadow-2xl transform hover:-translate-y-1 transition-all">
+            <div className="flex items-center justify-between text-white mb-2 md:mb-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </div>
-              <svg className="w-6 h-6 transform group-hover:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 md:w-6 md:h-6 transform group-hover:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Refresh Stats</h3>
-            <p className="text-orange-100 text-sm">Update dashboard data</p>
+            <h3 className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2">Refresh Stats</h3>
+            <p className="text-orange-100 text-xs md:text-sm">Update dashboard data</p>
           </div>
         </button>
       </div>
