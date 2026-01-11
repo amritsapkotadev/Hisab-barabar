@@ -110,11 +110,13 @@ export const apiService = {
   async loginWithGoogle(googleUser: GoogleUser): Promise<{ token: string; user: User }> {
     try {
       console.log('Attempting Google login with:', { email: googleUser.email });
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
       const response = await api.post('/auth/google-login', {
         googleId: googleUser.id,
         email: googleUser.email,
         name: googleUser.name,
         picture: googleUser.picture,
+        fcmToken,
       });
       console.log('Google login response:', response.data);
 
@@ -131,11 +133,13 @@ export const apiService = {
   async registerWithGoogle(googleUser: GoogleUser): Promise<{ token: string; user: User }> {
     try {
       console.log('Attempting Google registration with:', { email: googleUser.email });
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
       const response = await api.post('/auth/google-register', {
         googleId: googleUser.id,
         email: googleUser.email,
         name: googleUser.name,
         picture: googleUser.picture,
+        fcmToken,
       });
       console.log('Google registration response:', response.data);
 
@@ -556,6 +560,18 @@ export const apiService = {
     } catch (error: any) {
       console.error('Reset password API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to reset password');
+    }
+  },
+
+  async updateFCMToken(fcmToken: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      console.log('Updating FCM token');
+      const response = await api.put('/users/fcm-token', { fcmToken });
+      console.log('Update FCM token response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update FCM token API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to update FCM token');
     }
   },
 };

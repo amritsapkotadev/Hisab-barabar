@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB()
 
-    const { googleId, email, name, picture, phone } = await request.json()
+    const { googleId, email, name, picture, phone, fcmToken } = await request.json()
 
     // Validation - phone is now optional for Google users
     if (!googleId || !email || !name) {
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       phone: userPhone,
       googleId: googleId,
       picture: picture,
+      fcmToken: fcmToken || undefined, // Save FCM token if provided
       isVerified: true, // Google users are auto-verified
     })
 

@@ -20,7 +20,7 @@ export async function sendPushNotification(
   fcmToken: string,
   title: string,
   body: string,
-  data?: any
+  data: Record<string, string> = {}
 ) {
   try {
     const message = {
@@ -28,8 +28,34 @@ export async function sendPushNotification(
         title,
         body,
       },
-      data: data || {},
+      data: {
+        title,
+        body,
+        ...data
+      },
       token: fcmToken,
+      android: {
+        priority: 'high' as 'high',
+        notification: {
+          channelId: 'high_alerts',
+          sound: 'default',
+          priority: 'high' as 'high',
+          defaultVibrateTimings: true,
+          visibility: 'public' as 'public',
+        },
+        ttl: 86400, // 24 hours time-to-live
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: {
+              title,
+              body,
+            },
+            sound: 'default',
+          },
+        },
+      },
     }
 
     const response = await admin.messaging().send(message)

@@ -48,17 +48,42 @@ class GoogleAuthService {
         showPlayServicesUpdateDialog: true,
       });
 
-      // Sign in
+      // Sign out first to force account picker
+      try {
+        await GoogleSignin.signOut();
+      } catch (e) {
+        // Ignore if not signed in
+      }
+
+      // Sign in - this will now show account picker
       const userInfo = await GoogleSignin.signIn();
+
+      // Check response type
+      if (userInfo.type === 'cancelled') {
+        return {
+          success: false,
+          error: 'User cancelled authentication',
+        };
+      }
+
+      // Check if user data exists (v16+ returns data.user)
+      const userData = userInfo.data?.user;
+      if (!userData || !userData.id || !userData.email) {
+        console.error('Invalid userInfo structure:', userInfo);
+        return {
+          success: false,
+          error: 'Invalid response from Google Sign-in',
+        };
+      }
 
       // Extract user information
       const user: GoogleUser = {
-        id: userInfo.user.id,
-        email: userInfo.user.email,
-        name: userInfo.user.name || '',
-        picture: userInfo.user.photo || undefined,
-        given_name: userInfo.user.givenName || undefined,
-        family_name: userInfo.user.familyName || undefined,
+        id: userData.id,
+        email: userData.email,
+        name: userData.name || '',
+        picture: userData.photo || undefined,
+        given_name: userData.givenName || undefined,
+        family_name: userData.familyName || undefined,
       };
 
       return {
@@ -104,14 +129,16 @@ class GoogleAuthService {
   async getCurrentUser(): Promise<GoogleUser | null> {
     try {
       const userInfo = await GoogleSignin.signInSilently();
-      if (userInfo) {
+      const userData = userInfo?.data?.user;
+      
+      if (userData && userData.id && userData.email) {
         return {
-          id: userInfo.user.id,
-          email: userInfo.user.email,
-          name: userInfo.user.name || '',
-          picture: userInfo.user.photo || undefined,
-          given_name: userInfo.user.givenName || undefined,
-          family_name: userInfo.user.familyName || undefined,
+          id: userData.id,
+          email: userData.email,
+          name: userData.name || '',
+          picture: userData.photo || undefined,
+          given_name: userData.givenName || undefined,
+          family_name: userData.familyName || undefined,
         };
       }
       return null;

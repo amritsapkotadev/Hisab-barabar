@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB()
 
-    const { googleId, email, name, picture } = await request.json()
+    const { googleId, email, name, picture, fcmToken } = await request.json()
 
     // Validation
     if (!googleId || !email || !name) {
@@ -32,21 +32,34 @@ export async function POST(request: NextRequest) {
         phone: userPhone,
         googleId: googleId,
         picture: picture,
+        fcmToken: fcmToken || undefined, // Save FCM token if provided
         isVerified: true, // Google users are auto-verified
       })
 
       console.log('Created new user via Google login:', user.email)
     } else {
-      // Update Google ID and picture if not set
+      // Update existing user
       let updated = false
+      
+      // Update FCM token if new token is provided
+      if (fcmToken && user.fcmToken !== fcmToken) {
+        user.fcmToken = fcmToken
+        updated = true
+        console.log('Updated FCM token for existing Google user:', user.email)
+      }
+      
+      // Update Google ID if not set
       if (!user.googleId) {
         user.googleId = googleId
         updated = true
       }
+      
+      // Update picture if changed
       if (picture && user.picture !== picture) {
         user.picture = picture
         updated = true
       }
+      
       if (updated) {
         await user.save()
       }

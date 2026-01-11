@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -20,6 +21,8 @@ export default function EditProfileScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [picture, setPicture] = useState<string | undefined>();
+  const [authProvider, setAuthProvider] = useState<'email' | 'google' | 'both'>('email');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -33,6 +36,15 @@ export default function EditProfileScreen() {
       setName(user.name);
       setEmail(user.email);
       setPhone(user.phone ?? '');
+      setPicture(user.picture);
+      setAuthProvider(user.authProvider || 'email');
+      
+      // Debug logging
+      console.log('📝 Edit Profile - User Data:', {
+        email: user.email,
+        authProvider: user.authProvider,
+        shouldBeReadonly: user.authProvider !== 'email'
+      });
     } catch (error) {
       Alert.alert('Error', 'Failed to load profile data');
     } finally {
@@ -111,13 +123,22 @@ export default function EditProfileScreen() {
           <View style={styles.avatarSection}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
-                <User size={40} color="#6b7280" />
+                {picture ? (
+                  <Image 
+                    source={{ uri: picture }} 
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <User size={40} color="#6b7280" />
+                )}
               </View>
               <TouchableOpacity style={styles.cameraButton}>
                 <Camera size={16} color="#ffffff" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.avatarText}>Tap to change photo</Text>
+            <Text style={styles.avatarText}>
+              {authProvider === 'google' ? 'Google Profile Photo' : 'Tap to change photo'}
+            </Text>
           </View>
 
           <View style={styles.form}>
@@ -155,18 +176,30 @@ export default function EditProfileScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email Address</Text>
-              <View style={styles.inputContainer}>
-                <Mail size={20} color="#6b7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
+              {authProvider === 'email' ? (
+                <View style={styles.inputContainer}>
+                  <Mail size={20} color="#6b7280" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+              ) : (
+                <View style={[styles.inputContainer, styles.inputReadonly]}>
+                  <Mail size={20} color="#6b7280" style={styles.inputIcon} />
+                  <Text style={styles.inputReadonlyText}>{email}</Text>
+                </View>
+              )}
+              {(authProvider === 'google' || authProvider === 'both') && (
+                <Text style={styles.helperText}>
+                  Email cannot be changed for Google accounts
+                </Text>
+              )}
             </View>
 
             <View style={styles.infoCard}>
@@ -255,6 +288,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   cameraButton: {
     position: 'absolute',
@@ -327,5 +365,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1e40af',
     lineHeight: 16,
+  },
+  inputDisabled: {
+    backgroundColor: '#f3f4f6',
+    opacity: 0.7,
+  },
+  inputReadonly: {
+    backgroundColor: '#f9fafb',
+    borderColor: '#e5e7eb',
+  },
+  inputReadonlyText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#6b7280',
+    paddingVertical: 12,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+    marginLeft: 8,
   },
 });
