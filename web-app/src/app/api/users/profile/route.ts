@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
         email: user.email,
         phone: user.phone,
         picture: user.picture,
-        authProvider: user.authProvider,
         createdAt: user.createdAt,
         budget: user.budget,
       },
