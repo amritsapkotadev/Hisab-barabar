@@ -66,7 +66,7 @@ export default function AdminLayout({
 
   const navItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-    { name: 'Notifications', path: '/admin/notifications', icon: '📱' },
+    { name: 'Notifications', path: '/admin/notifications', icon: '🔔' },
     { name: 'Users', path: '/admin/users', icon: '👥' },
     { name: 'Admins', path: '/admin/admins', icon: '👑', superAdminOnly: true },
   ]
@@ -129,23 +129,12 @@ export default function AdminLayout({
                     {adminUser?.name || 'Admin'}
                   </div>
                   <div className="text-xs text-gray-500 capitalize">
-                    {adminUser?.role === 'super-admin' ? '👑 Super Admin' : 
-                     adminUser?.role === 'admin' ? '⭐ Admin' : 
-                     adminUser?.role === 'moderator' ? '👤 Moderator' : 
+                    {adminUser?.role === 'super-admin' ? 'Super Admin' : 
+                     adminUser?.role === 'admin' ? 'Admin' : 
+                     adminUser?.role === 'moderator' ? 'Moderator' : 
                      'Administrator'}
                   </div>
                 </div>
-                {adminUser?.picture ? (
-                  <img
-                    src={adminUser.picture}
-                    alt={adminUser.name}
-                    className="w-10 h-10 rounded-full border-2 border-purple-200"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-semibold">
-                    {adminUser?.name?.charAt(0).toUpperCase() || 'A'}
-                  </div>
-                )}
               </div>
 
               {/* Logout Button */}

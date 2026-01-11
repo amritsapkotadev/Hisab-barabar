@@ -248,7 +248,7 @@ export default function AdminManagementPage() {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          <span>Create Admin</span>
+          <span className="hidden md:inline">Create Admin</span>
         </button>
       </div>
 
@@ -349,9 +349,9 @@ export default function AdminManagementPage() {
             {/* Role Description */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-900 font-medium mb-2">
-                {formData.role === 'super-admin' && '👑 Super Admin: Full system access including admin management'}
-                {formData.role === 'admin' && '⭐ Admin: Can manage users and send notifications'}
-                {formData.role === 'moderator' && '👤 Moderator: Read-only access for monitoring'}
+                {formData.role === 'super-admin' && 'Super Admin: Full system access including admin management'}
+                {formData.role === 'admin' && 'Admin: Can manage users and send notifications'}
+                {formData.role === 'moderator' && 'Moderator: Read-only access for monitoring'}
               </p>
               <div className="text-xs text-blue-700 space-y-1">
                 <div>• Send Notifications: {formData.role !== 'moderator' ? '✅' : '❌'}</div>
@@ -406,7 +406,6 @@ export default function AdminManagementPage() {
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Admin</th>
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Contact</th>
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Role</th>
-                  <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Status</th>
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Last Login</th>
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-700">Actions</th>
                 </tr>
@@ -415,12 +414,7 @@ export default function AdminManagementPage() {
                 {admins.map((admin) => (
                   <tr key={admin._id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-4 px-6">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold mr-3">
-                          {admin.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="font-medium text-gray-900">{admin.name}</div>
-                      </div>
+                      <div className="font-medium text-gray-900">{admin.name}</div>
                     </td>
                     <td className="py-4 px-6">
                       <div className="text-sm text-gray-900">{admin.email}</div>
@@ -429,28 +423,17 @@ export default function AdminManagementPage() {
                     <td className="py-4 px-6">
                       {admin.role === 'super-admin' && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          👑 Super Admin
+                          Super Admin
                         </span>
                       )}
                       {admin.role === 'admin' && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          ⭐ Admin
+                          Admin
                         </span>
                       )}
                       {admin.role === 'moderator' && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          👤 Moderator
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6">
-                      {admin.isActive ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          ✓ Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          ● Inactive
+                          Moderator
                         </span>
                       )}
                     </td>

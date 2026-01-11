@@ -110,7 +110,7 @@ export default function LoginScreen() {
               </View>
             </View>
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to your SplitSaathi account</Text>
+            <Text style={styles.subtitle}>Sign in to your account</Text>
           </View>
 
           {/* Form */}
