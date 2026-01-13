@@ -20,7 +20,7 @@ interface RequestBody {
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params;
   
-  // Validate group ID - using mongoose's isValidObjectId
+  // Validate group ID
   const mongoose = (await import('mongoose')).default;
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       {
         $set: {
           settlements: [...(group.settlements || []), ...settlementsWithDates],
-          balances: updatedBalances,
+          balances: Object.fromEntries(updatedBalances), // Convert Map to object for MongoDB
           settled: settlements.length > 0 ? true : group.settled,
           settledAt: settledAt || new Date(),
           updatedAt: new Date(),
@@ -123,7 +123,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-     const allSettled = Array.from(updatedBalances.values()).every(
+    // Check if all balances are settled (within small tolerance)
+    const allSettled = Array.from(updatedBalances.values()).every(
       balance => Math.abs(balance) < 0.01
     );
 
@@ -183,7 +184,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params;
   
-   const mongoose = (await import('mongoose')).default;
+  // Validate group ID
+  const mongoose = (await import('mongoose')).default;
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, error: 'Invalid group ID format' },
@@ -205,6 +207,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       );
     }
 
+    // Handle balances properly - group.balances is already an object when using .lean()
+    const balances = group.balances || {};
+
     return NextResponse.json({
       success: true,
       data: {
@@ -213,7 +218,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         settlements: group.settlements || [],
         settled: group.settled || false,
         settledAt: group.settledAt,
-        balances: group.balances ? Object.fromEntries(group.balances) : {},
+        balances: balances, // Already an object, no need for Object.fromEntries
         totalExpenses: group.totalExpenses || 0,
         settlementSummary: {
           totalSettled: (group.settlements || []).reduce((sum: number, s: any) => sum + s.amount, 0),
