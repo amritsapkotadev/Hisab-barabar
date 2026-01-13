@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
 import type { NextRequest } from 'next/server';
 import Group from '@/models/Group';
 
@@ -21,8 +20,9 @@ interface RequestBody {
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params;
   
-  // Validate group ID
-  if (!ObjectId.isValid(id)) {
+  // Validate group ID - using mongoose's isValidObjectId
+  const mongoose = (await import('mongoose')).default;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, error: 'Invalid group ID format' },
       { status: 400 }
@@ -123,8 +123,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-    // Check if all balances are settled (within small tolerance)
-    const allSettled = Array.from(updatedBalances.values()).every(
+     const allSettled = Array.from(updatedBalances.values()).every(
       balance => Math.abs(balance) < 0.01
     );
 
@@ -179,12 +178,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       { status: 500 }
     );
   }
-} 
+}
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params;
   
-  if (!ObjectId.isValid(id)) {
+   const mongoose = (await import('mongoose')).default;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json(
       { success: false, error: 'Invalid group ID format' },
       { status: 400 }
