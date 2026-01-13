@@ -18,7 +18,7 @@
 
 ## 📱 About
 
-**Hisab Barabar** (meaning "Accounts Settled" in Hindi) is a comprehensive expense-splitting application that helps you manage shared expenses with friends, roommates, or travel companions. Split bills fairly, track who owes what, and settle up easily.
+**Hisab Barabar** (meaning "Accounts Settled" ) is a comprehensive expense-splitting application that helps you manage shared expenses with friends, roommates, or travel companions. Split bills fairly, track who owes what, and settle up easily.
 
 ### Why Hisab Barabar?
 
