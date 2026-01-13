@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import type { NextRequest } from 'next/server';
 
-export async function POST(request, { params }) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = params;
   const groupId = ObjectId.isValid(id) ? new ObjectId(id) : id;
   const { settlements } = await request.json(); // Expecting array of settlements
