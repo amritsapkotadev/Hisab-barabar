@@ -1,3 +1,4 @@
+// screens/AddAdvancedExpenseScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,310 +10,512 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
-  FlatList,
+  Keyboard,
   Platform,
-  Modal,
-  Pressable,
   Dimensions,
+  Modal,
+  StatusBar,
+  LayoutAnimation,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, DollarSign, Users, Calculator, Percent, Hash, Plus, Minus, Calendar } from 'lucide-react-native';
+import { ArrowLeft, DollarSign, Users, Calculator, Percent, Hash, Plus, Calendar, ChevronDown } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
 import { Group } from '@/types';
 import { apiService } from '@/services/api';
-import { limitService } from '@/services/limitService';
-import AdModal from '@/components/AdModal';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
+import {
+  calculateExpenseSplits,
+  calculateEqualSplit,
+  type ExpenseInput,
+  type Payer,
+  type SplitType
+} from '@/utils/expenseSplitter';
 
 const SPLIT_METHODS = [
-  { key: 'equal', label: 'Equal', icon: Users },
-  { key: 'unequal', label: 'Unequal', icon: Calculator },
-  { key: 'percentage', label: 'Percent', icon: Percent },
-  { key: 'shares', label: 'Shares', icon: Hash },
+  { key: 'equal' as const, label: 'Equal', icon: Users },
+  { key: 'exact' as const, label: 'Unequal', icon: Calculator },
+  { key: 'percentage' as const, label: 'Percent', icon: Percent },
+  { key: 'shares' as const, label: 'Shares', icon: Hash },
 ];
 
 function getInitials(name: string): string {
-  return name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
-}
-
-// Fixed calculation functions
-function calculateEqualSplit(total: number, count: number): number[] {
-  const amountPerPerson = Math.floor(total * 100 / count) / 100;
-  const remainder = Math.round((total - amountPerPerson * count) * 100);
-  
-  return Array(count).fill(amountPerPerson).map((val, i) => 
-    i < remainder ? Number((val + 0.01).toFixed(2)) : val
-  );
-}
-
-function calculateSharesSplit(total: number, shares: number[]): number[] {
-  const totalShares = shares.reduce((sum, share) => sum + share, 0);
-  return shares.map(share => parseFloat((total * share / totalShares).toFixed(2)));
-}
-
-function calculatePercentageSplit(total: number, percentages: number[]): number[] {
-  return percentages.map(pct => parseFloat((total * pct / 100).toFixed(2)));
+  return name.split(' ').map(n => n[0]).join('').toUpperCase();
 }
 
 export default function AddAdvancedExpenseScreen() {
   const { groupId } = useLocalSearchParams<{ groupId?: string }>();
+
+  // State
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
-  const [payers, setPayers] = useState<{ name: string; amountPaid: string }[]>([]);
-  const [splitType, setSplitType] = useState<'equal' | 'unequal' | 'percentage' | 'shares'>('equal');
-  const [participants, setParticipants] = useState<any[]>([]);
+  const [splitType, setSplitType] = useState<SplitType>('equal');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showAdModal, setShowAdModal] = useState(false);
-  const [canAddExpense, setCanAddExpense] = useState(true);
-  const [remainingTransactions, setRemainingTransactions] = useState(0);
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-  const [groupModalVisible, setGroupModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [activeField, setActiveField] = useState<string | null>(null);
+  const [groupModalVisible, setGroupModalVisible] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Payers: who paid and how much
+  const [payers, setPayers] = useState<{ userId: string; name: string; amountPaid: string }[]>([]);
+
+  // Participants: who is splitting the expense and their share values
+  const [participants, setParticipants] = useState<{
+    userId: string;
+    name: string;
+    shareValue: string;
+    isIncluded: boolean;
+  }[]>([]);
+
+  // Validation errors (kept for UI feedback but not for blocking)
+  const [validationResult, setValidationResult] = useState<{
+    isValid: boolean;
+    errors: string[];
+    totalPaid: number;
+    totalSplit: number;
+  }>({ isValid: true, errors: [], totalPaid: 0, totalSplit: 0 });
+
+  const { width } = Dimensions.get('window');
+
+  /* ==================== KEYBOARD HANDLING ==================== */
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardVisible(true);
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  /* ==================== INITIALIZATION ==================== */
 
   useEffect(() => {
     const fetchGroups = async () => {
       try {
         const groupsData = await apiService.getGroups();
         setGroups(groupsData);
-        if (groupId) {
-          const group = groupsData.find(g => g.id === groupId);
-          if (group) {
-            setSelectedGroup(group);
-            setPayers([{ name: group.members[0], amountPaid: '' }]);
-            setParticipants(group.members.map(m => ({ name: m, share: '' })));
-          }
-        } else if (groupsData.length > 0) {
-          setSelectedGroup(groupsData[0]);
-          setPayers([{ name: groupsData[0].members[0], amountPaid: '' }]);
-          setParticipants(groupsData[0].members.map(m => ({ name: m, share: '' })));
+        const initialGroup = groupId
+          ? groupsData.find(g => g.id === groupId)
+          : groupsData[0];
+        if (initialGroup) {
+          handleSelectGroup(initialGroup);
         }
-      } catch (error) {
+      } catch {
         Alert.alert('Error', 'Failed to load groups');
       } finally {
         setLoading(false);
       }
     };
-    const checkLimits = async () => {
-      const { canAdd, remaining } = await limitService.canAddTransaction();
-      setCanAddExpense(canAdd);
-      setRemainingTransactions(remaining);
-    };
+
     fetchGroups();
-    checkLimits();
   }, [groupId]);
 
-  useEffect(() => {
-    if (!selectedGroup) return;
-    
-    const total = parseFloat(totalAmount) || 0;
-    if (splitType === 'equal' && total > 0) {
-      const amounts = calculateEqualSplit(total, selectedGroup.members.length);
-      setParticipants(selectedGroup.members.map((m, i) => ({ name: m, share: amounts[i].toFixed(2) })));
-    }
-  }, [totalAmount, splitType, selectedGroup]);
+  /* ==================== GROUP SELECTION ==================== */
 
   const handleSelectGroup = (group: Group) => {
+    Keyboard.dismiss();
     setSelectedGroup(group);
-    setPayers([{ name: group.members[0], amountPaid: '' }]);
-    setParticipants(group.members.map(m => ({ name: m, share: '' })));
+
+    // Initialize payers (first member pays all by default)
+    setPayers([{
+      userId: group.members[0],
+      name: group.members[0],
+      amountPaid: ''
+    }]);
+
+    // Initialize participants (all members included with empty shares)
+    setParticipants(group.members.map(member => ({
+      userId: member,
+      name: member,
+      shareValue: '',
+      isIncluded: true,
+    })));
+
     setGroupModalVisible(false);
   };
 
+  /* ==================== PAYER MANAGEMENT ==================== */
+
   const handleAddPayer = () => {
     if (!selectedGroup) return;
-    const available = selectedGroup.members.filter(m => !payers.some(p => p.name === m));
+    const available = selectedGroup.members.filter(m =>
+      !payers.some(p => p.userId === m)
+    );
     if (available.length > 0) {
-      setPayers([...payers, { name: available[0], amountPaid: '' }]);
+      setPayers([...payers, {
+        userId: available[0],
+        name: available[0],
+        amountPaid: ''
+      }]);
     }
   };
 
   const handleRemovePayer = (idx: number) => {
-    if (payers.length > 1) setPayers(payers.filter((_, i) => i !== idx));
-  };
-
-  const handlePayerName = (idx: number, name: string) => {
-    if (payers.some((p, i) => p.name === name && i !== idx)) return;
-    setPayers(payers.map((p, i) => (i === idx ? { ...p, name } : p)));
+    if (payers.length > 1) {
+      setPayers(payers.filter((_, i) => i !== idx));
+    }
   };
 
   const handlePayerAmount = (idx: number, value: string) => {
-    setPayers(payers.map((p, i) => (i === idx ? { ...p, amountPaid: value.replace(/[^0-9.]/g, '') } : p)));
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    const newPayers = [...payers];
+    newPayers[idx].amountPaid = cleaned;
+    setPayers(newPayers);
   };
 
-  const handleSplitType = (type: any) => {
+  const handlePayerChange = (idx: number, userId: string) => {
+    const member = selectedGroup?.members.find(m => m === userId);
+    if (!member) return;
+    const newPayers = [...payers];
+    newPayers[idx].userId = userId;
+    newPayers[idx].name = member;
+    setPayers(newPayers);
+  };
+
+  /* ==================== SPLIT TYPE & SHARES ==================== */
+
+  const handleSplitType = (type: SplitType) => {
     setSplitType(type);
+
     if (!selectedGroup) return;
-    
+
     const total = parseFloat(totalAmount) || 0;
-    if (type === 'equal' && total > 0) {
-      const amounts = calculateEqualSplit(total, selectedGroup.members.length);
-      setParticipants(selectedGroup.members.map((m, i) => ({ name: m, share: amounts[i].toFixed(2) })));
+    const includedMembers = participants.filter(p => p.isIncluded);
+
+    if (type === 'equal' && total > 0 && includedMembers.length > 0) {
+      // Calculate equal split
+      const amounts = calculateEqualSplit(total, includedMembers.length);
+      const newParticipants = [...participants];
+      let amountIndex = 0;
+
+      newParticipants.forEach(p => {
+        if (p.isIncluded) {
+          p.shareValue = amounts[amountIndex].toFixed(2);
+          amountIndex++;
+        } else {
+          p.shareValue = '';
+        }
+      });
+
+      setParticipants(newParticipants);
     } else if (type === 'percentage') {
-      setParticipants(selectedGroup.members.map(m => ({ name: m, share: (100 / selectedGroup.members.length).toFixed(1) })));
+      // Initialize equal percentages
+      const pct = includedMembers.length > 0
+        ? (100 / includedMembers.length).toFixed(1)
+        : '0';
+
+      setParticipants(participants.map(p => ({
+        ...p,
+        shareValue: p.isIncluded ? pct : ''
+      })));
     } else if (type === 'shares') {
-      setParticipants(selectedGroup.members.map(m => ({ name: m, share: '1' })));
+      // Initialize equal shares
+      setParticipants(participants.map(p => ({
+        ...p,
+        shareValue: p.isIncluded ? '1' : ''
+      })));
     } else {
-      setParticipants(selectedGroup.members.map(m => ({ name: m, share: '' })));
+      // Clear shares for exact split
+      setParticipants(participants.map(p => ({
+        ...p,
+        shareValue: ''
+      })));
     }
   };
 
   const handleParticipantShare = (idx: number, value: string) => {
+    const cleaned = value.replace(/[^0-9.]/g, '');
     const newParticipants = [...participants];
-    newParticipants[idx].share = value.replace(/[^0-9.]/g, '');
+    newParticipants[idx].shareValue = cleaned;
     setParticipants(newParticipants);
   };
 
-  const handleDateChange = (event: any, selected?: Date) => {
-    setDatePickerVisible(false);
-    if (selected) {
-      setDate(selected.toISOString().split('T')[0]);
+  const toggleParticipant = (idx: number) => {
+    const newParticipants = [...participants];
+    newParticipants[idx].isIncluded = !newParticipants[idx].isIncluded;
+
+    if (!newParticipants[idx].isIncluded) {
+      newParticipants[idx].shareValue = '';
+    } else if (splitType === 'equal') {
+      // Recalculate equal split
+      const total = parseFloat(totalAmount) || 0;
+      const included = newParticipants.filter(p => p.isIncluded);
+      if (total > 0 && included.length > 0) {
+        const amounts = calculateEqualSplit(total, included.length);
+        let amountIndex = 0;
+        newParticipants.forEach(p => {
+          if (p.isIncluded) {
+            p.shareValue = amounts[amountIndex].toFixed(2);
+            amountIndex++;
+          }
+        });
+      }
     }
+
+    setParticipants(newParticipants);
   };
 
-  const getTotalPaid = () => {
-    return payers.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
-  };
+  /* ==================== AUTO-UPDATE EQUAL SPLIT ==================== */
 
-  const getTotalSplit = () => {
+  useEffect(() => {
+    if (!selectedGroup || splitType !== 'equal') return;
+
     const total = parseFloat(totalAmount) || 0;
-    
-    if (splitType === 'equal' || splitType === 'unequal') {
-      return participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
-    } else if (splitType === 'percentage') {
-      return participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
-    } else if (splitType === 'shares') {
-      return participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
-    }
-    return 0;
-  };
+    const includedMembers = participants.filter(p => p.isIncluded);
 
-  const validateExpense = () => {
-    const errors: any = {};
+    if (total > 0 && includedMembers.length > 0) {
+      const amounts = calculateEqualSplit(total, includedMembers.length);
+      const newParticipants = [...participants];
+      let amountIndex = 0;
+
+      newParticipants.forEach(p => {
+        if (p.isIncluded) {
+          p.shareValue = amounts[amountIndex].toFixed(2);
+          amountIndex++;
+        }
+      });
+
+      setParticipants(newParticipants);
+    }
+  }, [totalAmount, splitType, participants.filter(p => p.isIncluded).length]);
+
+  /* ==================== REAL-TIME VALIDATION ==================== */
+
+  useEffect(() => {
     const total = parseFloat(totalAmount) || 0;
-    const paid = getTotalPaid();
-    
-    if (!description.trim()) errors.description = 'Enter a description';
-    if (!totalAmount || total <= 0) errors.totalAmount = 'Enter a valid amount';
-    
-    // Validate paid amount
-    if (Math.abs(paid - total) > 0.01) {
-      errors.paid = `Total paid ($${paid.toFixed(2)}) must match total amount ($${total.toFixed(2)})`;
-    }
-    
-    // Validate split amounts
-    if (splitType === 'equal' || splitType === 'unequal') {
-      const splitTotal = participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
-      if (Math.abs(splitTotal - total) > 0.01) {
-        errors.split = `Total split ($${splitTotal.toFixed(2)}) must match total amount ($${total.toFixed(2)})`;
-      }
-    } else if (splitType === 'percentage') {
-      const percentageTotal = participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
-      if (Math.abs(percentageTotal - 100) > 0.01) {
-        errors.split = `Total percentage (${percentageTotal.toFixed(1)}%) must equal 100%`;
-      }
-    } else if (splitType === 'shares') {
-      const sharesTotal = participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
-      if (sharesTotal <= 0) {
-        errors.split = 'Total shares must be greater than zero';
-      }
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+    const totalPaid = payers.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
 
-  const handleSubmit = async () => {
-    if (!validateExpense()) return;
+    const includedParticipants = participants.filter(p => p.isIncluded);
+    const totalSplit = includedParticipants.reduce((sum, p) =>
+      sum + (parseFloat(p.shareValue) || 0), 0
+    );
+
+    const errors: string[] = [];
+
+    // Show errors for feedback but don't block submission
+    if (total > 0) {
+      if (Math.abs(totalPaid - total) > 0.01) {
+        errors.push(`Total paid ($${totalPaid.toFixed(2)})  Remaining ($${(total - totalPaid).toFixed(2)})`);
+      }
+
+      if (splitType === 'percentage' && includedParticipants.length > 0) {
+        if (Math.abs(totalSplit - 100) > 0.01) {
+          errors.push(`Percentages sum to ${totalSplit.toFixed(1)}% (need 100%)`);
+        }
+      } else if (splitType === 'exact' && includedParticipants.length > 0) {
+        if (Math.abs(totalSplit - total) > 0.01) {
+          errors.push(`Split total ($${totalSplit.toFixed(2)}) ≠ expense ($${total.toFixed(2)})`);
+        }
+      }
+    }
+
+    setValidationResult({
+      isValid: errors.length === 0,
+      errors,
+      totalPaid,
+      totalSplit,
+    });
+  }, [totalAmount, payers, participants, splitType]);
+
+  /* ==================== FORM VALIDATION & SUBMISSION ==================== */
+
+  const validateAndSubmit = async () => {
+    if (!selectedGroup) {
+      Alert.alert('Error', 'Please select a group first');
+      return;
+    }
+
+    if (!description.trim()) {
+      Alert.alert('Error', 'Please enter a description');
+      return;
+    }
+
+    const total = parseFloat(totalAmount) || 0;
+    if (total <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
+    }
+
+    const includedParticipants = participants.filter(p => p.isIncluded);
+    if (includedParticipants.length === 0) {
+      Alert.alert('Error', 'Please include at least one participant');
+      return;
+    }
+
+    // Auto-fill payer amounts if empty
+    const updatedPayers = [...payers];
+    let emptyPayers = 0;
+    let totalPaid = 0;
+    
+    updatedPayers.forEach(payer => {
+      const amount = parseFloat(payer.amountPaid) || 0;
+      if (amount <= 0) {
+        emptyPayers++;
+      } else {
+        totalPaid += amount;
+      }
+    });
+
+    // Distribute remaining amount among empty payers
+    if (emptyPayers > 0 && total > 0) {
+      const remaining = total - totalPaid;
+      const share = remaining / emptyPayers;
+      
+      updatedPayers.forEach(payer => {
+        if (parseFloat(payer.amountPaid) <= 0) {
+          payer.amountPaid = share.toFixed(2);
+        }
+      });
+    }
+
+    // Auto-fill participant shares if empty
+    const updatedParticipants = [...participants];
+    const included = updatedParticipants.filter(p => p.isIncluded);
+    
+    if (splitType === 'equal') {
+      // Equal split is already calculated
+    } else if (splitType === 'percentage') {
+      // Distribute percentages equally
+      const sharePct = 100 / included.length;
+      included.forEach(p => {
+        if (!p.shareValue || parseFloat(p.shareValue) <= 0) {
+          p.shareValue = sharePct.toFixed(1);
+        }
+      });
+    } else if (splitType === 'shares') {
+      // Give 1 share to each
+      included.forEach(p => {
+        if (!p.shareValue || parseFloat(p.shareValue) <= 0) {
+          p.shareValue = '1';
+        }
+      });
+    } else if (splitType === 'exact') {
+      // Distribute amount equally
+      const shareAmount = total / included.length;
+      included.forEach(p => {
+        if (!p.shareValue || parseFloat(p.shareValue) <= 0) {
+          p.shareValue = shareAmount.toFixed(2);
+        }
+      });
+    }
+
+    // Build expense input
+    const payersData: Payer[] = updatedPayers.map(p => ({
+      userId: p.userId,
+      amount: parseFloat(p.amountPaid) || 0,
+    }));
+
+    const splitDetails: Record<string, number> = {};
+    included.forEach(p => {
+      splitDetails[p.userId] = parseFloat(p.shareValue) || 0;
+    });
+
+    const expenseInput: ExpenseInput = {
+      totalAmount: total,
+      paidBy: payersData,
+      splitType,
+      splitDetails,
+      participants: included.map(p => p.userId),
+    };
+
+    // Validate using the splitting logic
+    const result = calculateExpenseSplits(expenseInput);
+
+    if (!result.isValid) {
+      // Auto-correct and try again with simplified logic
+      const simplifiedSettlements = included.map(p => ({
+        from: p.name,
+        to: updatedPayers[0].name,
+        amount: parseFloat(p.shareValue) || (total / included.length),
+      }));
+
+      // Submit expense
+      setSubmitting(true);
+      try {
+        const expenseData = {
+          groupId: selectedGroup.id,
+          description: description.trim(),
+          amount: total,
+          paidBy: updatedPayers.length === 1 ? updatedPayers[0].name : 'Multiple',
+          splits: included.map(p => ({
+            participant: p.name,
+            amount: parseFloat(p.shareValue) || (total / included.length),
+            percentage: splitType === 'percentage' ? parseFloat(p.shareValue) || (100 / included.length) : undefined,
+          })),
+          date,
+          type: 'group' as const,
+          splitType,
+          balances: {},
+          settlements: simplifiedSettlements,
+        };
+
+        await apiService.createUnequalExpense(expenseData);
+
+        Alert.alert('Success', 'Expense added successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      } catch (e: any) {
+        Alert.alert('Error', e?.message || 'Failed to add expense');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    // Submit expense
     setSubmitting(true);
-    
     try {
       const expenseData = {
-        groupId: selectedGroup!.id,
+        groupId: selectedGroup.id,
         description: description.trim(),
-        amount: parseFloat(totalAmount),
-        paidBy: payers.length === 1 ? payers[0].name : 'Multiple',
-        payers: payers.map(p => ({ name: p.name, amountPaid: parseFloat(p.amountPaid) })),
-        participants: participants.map(p => p.name),
-        splits: participants.map(p => {
-          // For shares and percentage, calculate actual amounts
-          if (splitType === 'shares') {
-            const shares = parseFloat(p.share) || 0;
-            const totalShares = participants.reduce((sum, part) => sum + (parseFloat(part.share) || 0), 0);
-            return { participant: p.name, amount: parseFloat(totalAmount) * shares / totalShares };
-          } else if (splitType === 'percentage') {
-            const percentage = parseFloat(p.share) || 0;
-            return { participant: p.name, amount: parseFloat(totalAmount) * percentage / 100 };
-          }
-          return { participant: p.name, amount: parseFloat(p.share) };
-        }),
-        splitType,
+        amount: total,
+        paidBy: updatedPayers.length === 1 ? updatedPayers[0].name : 'Multiple',
+        splits: included.map(p => ({
+          participant: p.name,
+          amount: parseFloat(p.shareValue) || 0,
+          percentage: splitType === 'percentage' ? parseFloat(p.shareValue) : undefined,
+        })),
         date,
         type: 'group' as const,
+        splitType,
+        balances: result.balances,
+        settlements: result.settlements,
       };
-      
+
       await apiService.createUnequalExpense(expenseData);
-      await limitService.incrementTransactions();
-      Alert.alert('Success', 'Expense added!', [{ text: 'OK', onPress: () => router.back() }]);
+
+      Alert.alert('Success', 'Expense added successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } catch (e: any) {
-      console.error('Create unequal expense error:', e);
-      let message = 'Failed to add expense.';
-      if (e?.response?.data?.message) message = e.response.data.message;
-      else if (e?.message) message = e.message;
-      Alert.alert('Error', message);
+      Alert.alert('Error', e?.message || 'Failed to add expense');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const renderGroupModal = () => (
-    <Modal
-      visible={groupModalVisible}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setGroupModalVisible(false)}
-    >
-      <Pressable style={styles.modalOverlay} onPress={() => setGroupModalVisible(false)}>
-        <View style={styles.groupModalCard}>
-          <Text style={styles.groupModalTitle}>Select Group</Text>
-          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }}>
-            {groups.map(group => (
-              <Pressable
-                key={group.id}
-                style={[styles.groupModalItem, selectedGroup?.id === group.id && styles.groupModalItemSelected]}
-                onPress={() => handleSelectGroup(group)}
-              >
-                <View style={styles.groupModalAvatars}>
-                  {group.members.slice(0, 3).map(m => (
-                    <View key={m} style={styles.groupModalAvatar}>
-                      <Text style={styles.groupModalAvatarText}>{getInitials(m)}</Text>
-                    </View>
-                  ))}
-                  {group.members.length > 3 && (
-                    <View style={styles.groupModalAvatar}>
-                      <Text style={styles.groupModalAvatarText}>+{group.members.length - 3}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.groupModalName}>{group.name}</Text>
-                  <Text style={styles.groupModalMembers}>{group.members.length} members</Text>
-                </View>
-                {selectedGroup?.id === group.id && <Text style={styles.groupModalCheck}>✓</Text>}
-              </Pressable>
-            ))}
-          </ScrollView>
-          <TouchableOpacity style={styles.groupModalClose} onPress={() => setGroupModalVisible(false)}>
-            <Text style={styles.groupModalCloseText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </Pressable>
-    </Modal>
-  );
+  /* ==================== RENDERING ==================== */
 
   if (loading) {
     return (
@@ -324,54 +527,72 @@ export default function AddAdvancedExpenseScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient 
-        colors={['#f8fafc', '#f1f5f9']} 
-        style={StyleSheet.absoluteFill} 
-      />
-      
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <LinearGradient colors={['#f8fafc', '#f1f5f9']} style={StyleSheet.absoluteFill} />
+
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#4f46e5" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Expense</Text>
-      </View>
+      <LinearGradient
+        colors={['#7C3AED', '#5B21B6']}
+        style={styles.headerGradient}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 0}}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => {
+              Keyboard.dismiss();
+              router.back();
+            }}
+          >
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Expense</Text>
+          <View style={{ width: 40 }} />
+        </View>
+      </LinearGradient>
 
       {/* Group Selector */}
       <TouchableOpacity 
-        style={styles.groupSelectorCard} 
+        style={styles.groupSelector}
         onPress={() => setGroupModalVisible(true)}
+        activeOpacity={0.8}
       >
-        <View style={styles.groupSelectorRow}>
-          <View style={styles.groupSelectorAvatars}>
-            {selectedGroup?.members.slice(0, 3).map(m => (
-              <View key={m} style={styles.groupSelectorAvatar}>
-                <Text style={styles.groupSelectorAvatarText}>{getInitials(m)}</Text>
-              </View>
-            ))}
-            {selectedGroup && selectedGroup.members.length > 3 && (
-              <View style={styles.groupSelectorAvatar}>
-                <Text style={styles.groupSelectorAvatarText}>+{selectedGroup.members.length - 3}</Text>
-              </View>
-            )}
+        <View style={styles.groupInfo}>
+          <View style={styles.groupAvatar}>
+            <Text style={styles.groupAvatarText}>
+              {selectedGroup ? getInitials(selectedGroup.name) : 'G'}
+            </Text>
           </View>
-          <View style={styles.groupSelectorTextContainer}>
-            <Text style={styles.groupSelectorName}>{selectedGroup?.name || 'Select Group'}</Text>
-            <Text style={styles.groupSelectorMembers}>{selectedGroup?.members.length || 0} members</Text>
+          <View style={styles.groupTextContainer}>
+            <Text style={styles.groupSelectorTitle}>Group</Text>
+            <Text style={styles.groupSelectorName} numberOfLines={1}>
+              {selectedGroup?.name || 'Select Group'}
+            </Text>
           </View>
-          <Text style={styles.groupSelectorDropdown}>▼</Text>
         </View>
+        <ChevronDown size={20} color="#64748B" />
       </TouchableOpacity>
-      
-      {renderGroupModal()}
 
-      {/* Main Content */}
+      {/* Inline Error Messages (Info only, not blocking) */}
+      {!validationResult.isValid && totalAmount && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorTitle}>Note:</Text>
+          {validationResult.errors.map((err, i) => (
+            <Text key={i} style={styles.errorText}>• {err}</Text>
+          ))}
+          <Text style={styles.errorNote}>You can still submit - system will auto-correct</Text>
+        </View>
+      )}
+
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Expense Details */}
+
+        {/* Amount & Description */}
         <View style={styles.card}>
           <View style={styles.amountContainer}>
             <DollarSign size={28} color="#7c3aed" />
@@ -380,128 +601,79 @@ export default function AddAdvancedExpenseScreen() {
               value={totalAmount}
               onChangeText={setTotalAmount}
               placeholder="0.00"
-              placeholderTextColor="#94a3b8"
               keyboardType="decimal-pad"
-              maxLength={10}
-              onFocus={() => setActiveField('amount')}
-              onBlur={() => setActiveField(null)}
+              placeholderTextColor="#c7d2fe"
+              returnKeyType="next"
             />
           </View>
-          
           <TextInput
             style={styles.descInput}
             value={description}
             onChangeText={setDescription}
-            placeholder="Description (e.g. Dinner)"
-            placeholderTextColor="#94a3b8"
-            maxLength={100}
-            onFocus={() => setActiveField('description')}
-            onBlur={() => setActiveField(null)}
+            placeholder="What's this expense for?"
+            placeholderTextColor="#94A3B8"
+            returnKeyType="next"
           />
           
+          {/* Date Selector */}
           <TouchableOpacity 
-            style={styles.dateRow} 
+            style={styles.dateSelector}
             onPress={() => setDatePickerVisible(true)}
+            activeOpacity={0.7}
           >
             <Calendar size={18} color="#7c3aed" />
             <Text style={styles.dateText}>{date}</Text>
-            <Text style={styles.dateEdit}>Edit</Text>
           </TouchableOpacity>
-          
-          {(formErrors.description || formErrors.totalAmount) && (
-            <View style={styles.errorContainer}>
-              {formErrors.description && <Text style={styles.errorText}>{formErrors.description}</Text>}
-              {formErrors.totalAmount && <Text style={styles.errorText}>{formErrors.totalAmount}</Text>}
-            </View>
-          )}
         </View>
 
-        {/* Who Paid Section */}
+        {/* Who Paid */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Who paid?</Text>
-          
-          <View style={styles.payersContainer}>
-            {payers.map((payer, idx) => (
-              <View key={idx} style={styles.payerRow}>
-                <View style={styles.payerInfo}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{getInitials(payer.name)}</Text>
-                  </View>
-                  <Text style={styles.payerName}>{payer.name}</Text>
+          <Text style={styles.sectionTitle}>
+            Who paid? <Text style={styles.totalPaidText}>${validationResult.totalPaid.toFixed(2)}</Text>
+          </Text>
+          {payers.map((payer, idx) => (
+            <View key={idx} style={styles.payerRow}>
+              <View style={styles.payerInfo}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{getInitials(payer.name)}</Text>
                 </View>
-                
-                <View style={styles.payerAmountContainer}>
-                  <TextInput
-                    style={styles.payerAmountInput}
-                    value={payer.amountPaid}
-                    onChangeText={v => handlePayerAmount(idx, v)}
-                    placeholder="$0.00"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="decimal-pad"
-                    maxLength={10}
-                    onFocus={() => setActiveField(`payer-${idx}`)}
-                    onBlur={() => setActiveField(null)}
-                  />
-                  {payers.length > 1 && (
-                    <TouchableOpacity 
-                      style={styles.removePayerBtn} 
-                      onPress={() => handleRemovePayer(idx)}
-                    >
-                      <Minus size={16} color="#ef4444" />
-                    </TouchableOpacity>
-                  )}
-                </View>
+                <Text style={styles.payerName}>{payer.name}</Text>
               </View>
-            ))}
-            
-            {selectedGroup && payers.length < selectedGroup.members.length && (
-              <TouchableOpacity style={styles.addPayerBtn} onPress={handleAddPayer}>
-                <Plus size={20} color="#7c3aed" />
-                <Text style={styles.addPayerBtnText}>Add payer</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          
-          {/* Remaining amount display */}
-          <View style={styles.remainingContainer}>
-            <Text style={styles.remainingLabel}>Remaining:</Text>
-            {(() => {
-              const total = parseFloat(totalAmount) || 0;
-              const paid = getTotalPaid();
-              const remaining = total - paid;
-              let color = '#f59e0b';
-              if (remaining === 0) color = '#10b981';
-              if (remaining < 0) color = '#ef4444';
-              
-              return (
-                <Text style={[styles.remainingAmount, { color }]}>
-                  {remaining >= 0 ? `$${remaining.toFixed(2)}` : `-$${Math.abs(remaining).toFixed(2)}`}
-                </Text>
-              );
-            })()}
-          </View>
-          
-          {formErrors.paid && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{formErrors.paid}</Text>
+              <View style={styles.payerAmountContainer}>
+                <Text style={styles.currencySymbol}>$</Text>
+                <TextInput
+                  style={styles.payerAmountInput}
+                  value={payer.amountPaid}
+                  onChangeText={v => handlePayerAmount(idx, v)}
+                  keyboardType="decimal-pad"
+                  placeholder="0.00"
+                  placeholderTextColor="#c7d2fe"
+                  returnKeyType="next"
+                />
+              </View>
             </View>
+          ))}
+          {selectedGroup && payers.length < selectedGroup.members.length && (
+            <TouchableOpacity style={styles.addPayerBtn} onPress={handleAddPayer}>
+              <Plus size={20} color="#7c3aed" />
+              <Text style={styles.addPayerBtnText}>Add payer</Text>
+            </TouchableOpacity>
           )}
         </View>
 
         {/* Split Method */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Split method</Text>
-          
           <View style={styles.splitMethodsContainer}>
             {SPLIT_METHODS.map(method => {
               const Icon = method.icon;
               const isActive = splitType === method.key;
-              
               return (
                 <TouchableOpacity
                   key={method.key}
                   style={[styles.splitMethodBtn, isActive && styles.splitMethodBtnActive]}
                   onPress={() => handleSplitType(method.key)}
+                  activeOpacity={0.85}
                 >
                   <Icon size={20} color={isActive ? '#fff' : '#7c3aed'} />
                   <Text style={[styles.splitMethodText, isActive && styles.splitMethodTextActive]}>
@@ -513,71 +685,60 @@ export default function AddAdvancedExpenseScreen() {
           </View>
         </View>
 
-        {/* Participants List */}
+        {/* Participants */}
         <View style={styles.card}>
-          <View style={styles.participantsHeader}>
-            <Text style={styles.sectionTitle}>Split between</Text>
-            <Text style={styles.splitTypeHint}>
-              {splitType === 'percentage' ? 'Enter %' : 
-               splitType === 'shares' ? 'Enter shares' : 
-               'Amount per person'}
-            </Text>
-          </View>
-          
-          <FlatList
-            data={participants}
-            scrollEnabled={false}
-            keyExtractor={item => item.name}
-            renderItem={({ item, index }) => (
-              <View style={styles.participantRow}>
-                <View style={styles.participantInfo}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
-                  </View>
-                  <Text style={styles.participantName}>{item.name}</Text>
+          <Text style={styles.sectionTitle}>
+            Split between ({participants.filter(p => p.isIncluded).length} people)
+            {splitType !== 'equal' && (
+              <Text style={styles.totalSplitText}> • ${validationResult.totalSplit.toFixed(2)}</Text>
+            )}
+          </Text>
+          {participants.map((p, i) => (
+            <View key={i} style={styles.participantRow}>
+              <TouchableOpacity
+                style={styles.participantCheckbox}
+                onPress={() => toggleParticipant(i)}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  styles.checkbox,
+                  p.isIncluded && styles.checkboxActive
+                ]} />
+              </TouchableOpacity>
+              <View style={styles.participantInfo}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{getInitials(p.name)}</Text>
                 </View>
-                
+                <Text style={[
+                  styles.participantName,
+                  !p.isIncluded && styles.participantNameInactive
+                ]}>
+                  {p.name}
+                </Text>
+              </View>
+              <View style={styles.participantShareContainer}>
+                {splitType === 'percentage' && p.isIncluded && <Text style={styles.percentageSymbol}>%</Text>}
+                {splitType === 'equal' && p.isIncluded && <Text style={styles.currencySymbol}>$</Text>}
                 <TextInput
-                  style={styles.participantShareInput}
-                  value={item.share}
-                  onChangeText={v => handleParticipantShare(index, v)}
-                  placeholder={splitType === 'percentage' ? '0%' : splitType === 'shares' ? '0' : '$0.00'}
-                  placeholderTextColor="#94a3b8"
+                  style={[
+                    styles.participantShareInput,
+                    !p.isIncluded && styles.participantShareInputDisabled
+                  ]}
+                  value={p.shareValue}
+                  onChangeText={v => handleParticipantShare(i, v)}
                   keyboardType="decimal-pad"
-                  maxLength={10}
-                  editable={splitType !== 'equal'}
-                  onFocus={() => setActiveField(`participant-${index}`)}
-                  onBlur={() => setActiveField(null)}
+                  editable={splitType !== 'equal' && p.isIncluded}
+                  placeholder={p.isIncluded ? '0' : '—'}
+                  placeholderTextColor="#c7d2fe"
+                  returnKeyType="done"
                 />
               </View>
-            )}
-          />
+            </View>
+          ))}
         </View>
 
-        {/* Summary Card */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total paid:</Text>
-            <Text style={styles.summaryValue}>${getTotalPaid().toFixed(2)}</Text>
-          </View>
-          
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>
-              {splitType === 'percentage' ? 'Total %: ' : 
-               splitType === 'shares' ? 'Total shares: ' : 
-               'Total split: '}
-            </Text>
-            <Text style={styles.summaryValue}>
-              {getTotalSplit().toFixed(2)}{splitType === 'percentage' ? '%' : ''}
-            </Text>
-          </View>
-          
-          {formErrors.split && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{formErrors.split}</Text>
-            </View>
-          )}
-        </View>
+        {/* Extra padding at bottom for keyboard */}
+        <View style={{ height: keyboardVisible ? 100 : 20 }} />
       </ScrollView>
 
       {/* Date Picker */}
@@ -586,23 +747,78 @@ export default function AddAdvancedExpenseScreen() {
           value={new Date(date)}
           mode="date"
           display="default"
-          onChange={handleDateChange}
+          onChange={(e, d) => {
+            setDatePickerVisible(false);
+            if (d) setDate(d.toISOString().split('T')[0]);
+          }}
         />
       )}
 
-      {/* Submit Button */}
-      <View style={styles.footer}>
+      {/* Group Selection Modal */}
+      <Modal
+        visible={groupModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setGroupModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Group</Text>
+              <TouchableOpacity onPress={() => setGroupModalVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {groups.map((group) => (
+                <TouchableOpacity
+                  key={group.id}
+                  style={styles.groupOption}
+                  onPress={() => handleSelectGroup(group)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.groupOptionAvatar}>
+                    <Text style={styles.groupOptionAvatarText}>
+                      {getInitials(group.name)}
+                    </Text>
+                  </View>
+                  <View style={styles.groupOptionInfo}>
+                    <Text style={styles.groupOptionName}>{group.name}</Text>
+                    <Text style={styles.groupOptionMembers}>
+                      {group.members.length} members
+                    </Text>
+                  </View>
+                  {selectedGroup?.id === group.id && (
+                    <View style={styles.selectedIndicator}>
+                      <View style={styles.selectedDot} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Submit Button - Always enabled */}
+      <View style={[
+        styles.footer,
+        {
+          bottom: keyboardVisible ? keyboardHeight : 0,
+        }
+      ]}>
         <TouchableOpacity
-          style={[styles.submitBtn, (!canAddExpense || submitting) && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={!canAddExpense || submitting}
+          style={styles.submitBtn}
+          onPress={validateAndSubmit}
+          disabled={submitting}
+          activeOpacity={0.85}
         >
-          <LinearGradient
-            colors={['#7c3aed', '#6d28d9']}
-            style={styles.submitGradient}
+          <LinearGradient 
+            colors={['#10B981', '#059669']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-          >
+            style={styles.submitGradient}
+          > 
             {submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
@@ -611,506 +827,443 @@ export default function AddAdvancedExpenseScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
-      
-      <AdModal
-        visible={showAdModal}
-        onClose={() => setShowAdModal(false)}
-        onAdWatched={() => {}}
-        adType="transaction"
-      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f8fafc' 
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: '#f8fafc' 
   },
-  header: {
-    marginTop:20,
-
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerGradient: {
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingBottom: 8,
   },
-  backButton: {
-    marginRight: 16,
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 22,
-    marginLeft:50,
-    fontWeight: '700',
-    color: '#1e293b',
-    fontFamily: 'Inter-Bold',
-  },
-  groupSelectorCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 24,
-    marginTop: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  groupSelectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  groupSelectorAvatars: {
-    flexDirection: 'row',
-    marginRight: 12,
-  },
-  groupSelectorAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ede9fe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: -8,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  groupSelectorAvatarText: {
-    color: '#7c3aed',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  groupSelectorTextContainer: {
-    flex: 1,
-  },
-  groupSelectorName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1e293b',
-    fontFamily: 'Inter-SemiBold',
-  },
-  groupSelectorMembers: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
-    fontFamily: 'Inter-Regular',
-  },
-  groupSelectorDropdown: {
-    fontSize: 18,
-    color: '#7c3aed',
-    marginLeft: 8,
-    fontWeight: '700',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  groupModalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 5,
-  },
-  groupModalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#7c3aed',
-    marginBottom: 20,
-    textAlign: 'center',
-    fontFamily: 'Inter-Bold',
-  },
-  groupModalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 8,
-  },
-  groupModalItemSelected: {
-    backgroundColor: '#f5f3ff',
-  },
-  groupModalAvatars: {
-    flexDirection: 'row',
-    marginRight: 16,
-  },
-  groupModalAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ede9fe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: -6,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  groupModalAvatarText: {
-    color: '#7c3aed',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  groupModalName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    fontFamily: 'Inter-SemiBold',
-  },
-  groupModalMembers: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 2,
-    fontFamily: 'Inter-Regular',
-  },
-  groupModalCheck: {
-    fontSize: 18,
-    color: '#10b981',
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  groupModalClose: {
-    marginTop: 20,
-    alignSelf: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
-  },
-  groupModalCloseText: {
-    color: '#7c3aed',
-    fontWeight: '600',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-    paddingTop: 8,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginHorizontal: 24,
-    marginTop: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  amountInput: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#7c3aed',
-    marginLeft: 12,
-    flex: 1,
-    fontFamily: 'Inter-Bold',
-  },
-  descInput: {
-    fontSize: 18,
-    color: '#334155',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    fontFamily: 'Inter-Medium',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#f8fafc',
-  },
-  dateText: {
-    marginLeft: 12,
-    color: '#64748b',
-    fontSize: 16,
-    flex: 1,
-    fontFamily: 'Inter-Medium',
-  },
-  dateEdit: {
-    color: '#7c3aed',
-    fontWeight: '600',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  payersContainer: {
-    marginBottom: 16,
-  },
-  payerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-  },
-  payerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
+  backButton: { 
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ede9fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    color: '#fff' 
+  },
+  groupSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    marginHorizontal: 24,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  groupInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  groupAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarText: {
-    color: '#7c3aed',
+  groupAvatarText: {
+    fontSize: 18,
     fontWeight: '700',
-    fontSize: 16,
+    color: '#7C3AED',
   },
-  payerName: {
+  groupTextContainer: {
+    flex: 1,
+  },
+  groupSelectorTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 2,
+  },
+  groupSelectorName: {
     fontSize: 16,
-    color: '#334155',
-    fontFamily: 'Inter-Medium',
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  errorBanner: { 
+    backgroundColor: '#FEF3C7', 
+    borderRadius: 12, 
+    marginHorizontal: 24, 
+    marginTop: 12, 
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  errorTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  errorText: { 
+    color: '#92400E', 
+    fontSize: 14, 
+    marginBottom: 4 
+  },
+  errorNote: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#92400E',
+    marginTop: 4,
+  },
+  scrollView: { 
+    flex: 1 
+  },
+  scrollContent: { 
+    paddingBottom: 120, 
+    paddingTop: 16 
+  },
+  card: { 
+    backgroundColor: '#fff', 
+    borderRadius: 20, 
+    marginHorizontal: 24, 
+    marginBottom: 16, 
+    padding: 24, 
+    borderWidth: 1, 
+    borderColor: '#f1f5f9' 
+  },
+  amountContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 8 
+  },
+  amountInput: { 
+    fontSize: 32, 
+    fontWeight: '700', 
+    color: '#7c3aed', 
+    marginLeft: 12, 
+    flex: 1 
+  },
+  descInput: { 
+    fontSize: 16, 
+    color: '#334155', 
+    paddingVertical: 12, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#e2e8f0',
+    marginBottom: 8,
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#7c3aed',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: '600', 
+    color: '#1e293b', 
+    marginBottom: 16 
+  },
+  totalPaidText: {
+    color: '#10B981',
+    fontWeight: '700',
+  },
+  totalSplitText: {
+    color: '#6366F1',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  payerRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    backgroundColor: '#f8fafc', 
+    borderRadius: 16, 
+    padding: 16, 
+    marginBottom: 12 
+  },
+  payerInfo: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    flex: 1 
+  },
+  avatar: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    backgroundColor: '#ede9fe', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginRight: 12 
+  },
+  avatarText: { 
+    color: '#7c3aed', 
+    fontWeight: '700', 
+    fontSize: 16 
+  },
+  payerName: { 
+    fontSize: 16, 
+    color: '#334155' 
   },
   payerAmountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  payerAmountInput: {
-    width: 100,
-    fontSize: 16,
-    color: '#1e293b',
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 12,
-    padding: 12,
-    textAlign: 'right',
-    fontFamily: 'Inter-Medium',
+    paddingHorizontal: 12,
+    width: 120,
   },
-  removePayerBtn: {
-    marginLeft: 12,
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 8,
-  },
-  addPayerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ede9fe',
-    borderRadius: 16,
-    padding: 16,
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  addPayerBtnText: {
-    color: '#7c3aed',
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
-    fontFamily: 'Inter-SemiBold',
-  },
-  remainingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  remainingLabel: {
-    fontSize: 16,
-    color: '#64748b',
-    fontFamily: 'Inter-Medium',
-  },
-  remainingAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: 'Inter-Bold',
-  },
-  splitMethodsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  splitMethodBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minWidth: 100,
-    justifyContent: 'center',
-  },
-  splitMethodBtnActive: {
-    backgroundColor: '#7c3aed',
-  },
-  splitMethodText: {
-    marginLeft: 8,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#7c3aed',
-    fontFamily: 'Inter-SemiBold',
-  },
-  splitMethodTextActive: {
-    color: '#fff',
-  },
-  participantsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  splitTypeHint: {
-    fontSize: 14,
-    color: '#64748b',
-    fontFamily: 'Inter-Regular',
-  },
-  participantRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  participantInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  participantName: {
-    fontSize: 16,
-    color: '#334155',
-    fontFamily: 'Inter-Medium',
-  },
-  participantShareInput: {
-    width: 100,
+  currencySymbol: {
     fontSize: 16,
     color: '#1e293b',
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  payerAmountInput: { 
+    flex: 1,
+    fontSize: 16, 
+    color: '#1e293b', 
+    paddingVertical: 12,
+    textAlign: 'right' 
+  },
+  addPayerBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#ede9fe', 
+    borderRadius: 12, 
+    padding: 12, 
+    marginTop: 8 
+  },
+  addPayerBtnText: { 
+    color: '#7c3aed', 
+    fontSize: 16, 
+    fontWeight: '600', 
+    marginLeft: 8 
+  },
+  splitMethodsContainer: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 12 
+  },
+  splitMethodBtn: { 
+    flex: 1, 
+    minWidth: '45%', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#f8fafc', 
+    borderRadius: 12, 
+    padding: 16, 
+    borderWidth: 1, 
+    borderColor: '#e2e8f0' 
+  },
+  splitMethodBtnActive: { 
+    backgroundColor: '#7c3aed', 
+    borderColor: '#7c3aed' 
+  },
+  splitMethodText: { 
+    color: '#7c3aed', 
+    fontSize: 16, 
+    fontWeight: '600', 
+    marginLeft: 8 
+  },
+  splitMethodTextActive: { 
+    color: '#fff' 
+  },
+  participantRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    backgroundColor: '#f8fafc', 
+    borderRadius: 16, 
+    padding: 16, 
+    marginBottom: 12 
+  },
+  participantCheckbox: { 
+    marginRight: 12 
+  },
+  checkbox: { 
+    width: 24, 
+    height: 24, 
+    borderRadius: 6, 
+    borderWidth: 2, 
+    borderColor: '#cbd5e1' 
+  },
+  checkboxActive: { 
+    backgroundColor: '#7c3aed', 
+    borderColor: '#7c3aed' 
+  },
+  participantInfo: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    flex: 1 
+  },
+  participantName: { 
+    fontSize: 16, 
+    color: '#334155' 
+  },
+  participantNameInactive: { 
+    color: '#94a3b8' 
+  },
+  participantShareContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 12,
-    padding: 12,
-    textAlign: 'right',
-    fontFamily: 'Inter-Medium',
+    paddingHorizontal: 12,
+    width: 120,
   },
-  summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginHorizontal: 24,
-    marginTop: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    marginBottom: 24,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  summaryLabel: {
+  percentageSymbol: {
     fontSize: 16,
-    color: '#64748b',
-    fontFamily: 'Inter-Medium',
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: '700',
     color: '#1e293b',
-    fontFamily: 'Inter-Bold',
+    fontWeight: '600',
   },
-  errorContainer: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 12,
+  participantShareInput: { 
+    flex: 1,
+    fontSize: 16, 
+    color: '#1e293b', 
+    paddingVertical: 12,
+    textAlign: 'right' 
   },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
+  participantShareInputDisabled: { 
+    backgroundColor: '#f1f5f9', 
+    color: '#94a3b8' 
   },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#fff',
-    padding: 24,
-    borderTopWidth: 1,
+  footer: { 
+    position: 'absolute', 
+    left: 0, 
+    right: 0, 
+    backgroundColor: '#fff', 
+    paddingHorizontal: 24, 
+    paddingVertical: 16, 
+    borderTopWidth: 1, 
     borderTopColor: '#e2e8f0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -5 },
   },
-  submitBtn: {
-    borderRadius: 16,
-    overflow: 'hidden',
+  submitBtn: { 
+    borderRadius: 16, 
+    overflow: 'hidden' 
   },
-  submitGradient: {
-    paddingVertical: 18,
+  submitGradient: { 
+    paddingVertical: 18, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  submitBtnText: { 
+    color: '#fff', 
+    fontSize: 18, 
+    fontWeight: '700' 
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#64748B',
+    padding: 4,
+  },
+  groupOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  groupOptionAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
-  submitBtnDisabled: {
-    opacity: 0.7,
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 18,
+  groupOptionAvatarText: {
+    fontSize: 16,
     fontWeight: '700',
-    fontFamily: 'Inter-Bold',
+    color: '#7C3AED',
+  },
+  groupOptionInfo: {
+    flex: 1,
+  },
+  groupOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  groupOptionMembers: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  selectedIndicator: {
+    padding: 4,
+  },
+  selectedDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#7C3AED',
   },
 });
