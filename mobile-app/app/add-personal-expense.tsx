@@ -93,13 +93,7 @@ const AddExpenseScreen = () => {
     { id: '9', name: 'Gifts', icon: 'gift', color: '#FF8A65', gradient: ['#FF8A65', '#FFAB91'] },
   ];
 
-  const paymentMethods = [
-    { name: 'Cash', icon: 'wallet' },
-    { name: 'Credit Card', icon: 'card' },
-    { name: 'Debit Card', icon: 'card' },
-    { name: 'Bank Transfer', icon: 'business' },
-    { name: 'Digital Wallet', icon: 'phone-portrait' },
-  ];
+ 
 
   const handleBackPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -352,44 +346,7 @@ const AddExpenseScreen = () => {
             )}
           </TouchableOpacity>
 
-          {/* Payment Method Card */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="card" size={20} color={COLORS.warning} />
-              <Text style={styles.cardTitle}>Payment Method</Text>
-            </View>
-            <View style={styles.paymentMethods}>
-              {paymentMethods.map((method) => (
-                <TouchableOpacity
-                  key={method.name}
-                  style={[
-                    styles.paymentMethod,
-                    paymentMethod === method.name && styles.selectedPaymentMethod
-                  ]}
-                  onPress={() => {
-                    setPaymentMethod(method.name);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  activeOpacity={0.7}
-                  disabled={loading}
-                >
-                  <Ionicons 
-                    name={method.icon as any} 
-                    size={16} 
-                    color={paymentMethod === method.name ? '#fff' : COLORS.textSecondary} 
-                  />
-                  <Text
-                    style={[
-                      styles.paymentMethodText,
-                      paymentMethod === method.name && styles.selectedPaymentMethodText,
-                    ]}
-                  >
-                    {method.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          //paymentmethod  selection removed
 
           {/* Submit Button */}
           <TouchableOpacity
