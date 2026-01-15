@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   keywords: ['expense tracker', 'bill splitting', 'shared expenses', 'split bills', 'group expenses'],
   authors: [{ name: 'Hisab Barabar Team' }],
   icons: {
-    icon: '/favicon.svg',
-    apple: '/logo.png',
+    icon: '/logo.jpeg',
+    apple: '/logo.jpeg',
   },
   openGraph: {
     title: 'Hisab Barabar - Split Bills & Track Expenses',

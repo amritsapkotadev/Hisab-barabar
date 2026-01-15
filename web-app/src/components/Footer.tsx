@@ -11,8 +11,8 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center space-x-3 mb-6 group">
-              <div className="w-12 h-12 transform group-hover:scale-110 transition-transform duration-300 overflow-hidden" style={{ borderRadius: '0.70rem' }}>
-                <img src="/logo.png" alt="Hisab Barabar Logo" className="w-full h-full object-contain" />
+              <div className="w-12 h-12 overflow-hidden" style={{ borderRadius: '1rem' }}>
+                <img src="/logo.jpeg" alt="Hisab Barabar Logo" className="w-full h-full object-cover scale-125" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Hisab Barabar
