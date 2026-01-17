@@ -8,6 +8,12 @@ export interface IGroup extends Document {
   members: string[]
   inviteCode: string
   emoji: string
+  settlements?: object[]
+  balances?: object
+  settled?: boolean
+  settledAt?: Date | null
+  settlementNotes?: Array<{ note: string; date: Date }>
+  totalExpenses?: number
   createdAt: Date
   updatedAt: Date
 }
@@ -48,6 +54,36 @@ const groupSchema = new Schema<IGroup>(
       type: String,
       trim: true,
       default: '',
+    },
+    // Settlement-related fields
+    settlements: {
+      type: [Object],
+      default: [],
+    },
+    balances: {
+      type: Object,
+      default: {},
+    },
+    settled: {
+      type: Boolean,
+      default: false,
+    },
+    settledAt: {
+      type: Date,
+      default: null,
+    },
+    settlementNotes: {
+      type: [
+        {
+          note: { type: String },
+          date: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+    totalExpenses: {
+      type: Number,
+      default: 0,
     },
   },
   {
