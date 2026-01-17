@@ -8,7 +8,7 @@ export interface ISettlement extends Document {
   amount: number;
   date: Date;
   description?: string;
-  groupId: mongoose.Types.ObjectId; // Add group reference
+  groupId: mongoose.Types.ObjectId; 
   status?: 'pending' | 'completed' | 'cancelled'; // Add status field
 }
 
@@ -31,7 +31,6 @@ export interface IGroup extends Document {
   updatedAt: Date;
 }
 
-// Settlement Schema (as a separate collection)
 const settlementSchema = new Schema<ISettlement>(
   {
     fromUserId: {
