@@ -11,9 +11,9 @@ export function calculateNetSettlements(balances: Record<string, number>) {
   debtors.sort((a, b) => b.amount - a.amount);
   // Debug log (always log for now)
   console.log('NetSettlements calculation:');
-  console.log('Balances:', balances);
-  console.log('Creditors:', creditors);
-  console.log('Debtors:', debtors);
+  console.log('Balances (userIds):', balances);
+  console.log('Creditors (userIds):', creditors);
+  console.log('Debtors (userIds):', debtors);
   while (creditors.length && debtors.length) {
     const creditor = creditors[0];
     const debtor = debtors[0];
@@ -24,6 +24,6 @@ export function calculateNetSettlements(balances: Record<string, number>) {
     if (creditor.amount < 0.01) creditors.shift();
     if (debtor.amount < 0.01) debtors.shift();
   }
-  console.log('Settlements:', settlements);
+  console.log('Settlements (userIds):', settlements);
   return settlements;
 }

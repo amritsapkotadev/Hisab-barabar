@@ -19,7 +19,7 @@ export async function GET(
     }
 
     await connectDB()
-    const group = await Group.findById(params.id)
+    const group = await Group.findById(params.id).populate('members', 'name email');
 
     if (!group) {
       return NextResponse.json({ message: 'Group not found' }, { status: 404 })
@@ -27,7 +27,8 @@ export async function GET(
 
     // Check if user has access to this group
     const hasAccess =
-      group.createdBy.toString() === auth.userId || group.members.includes(auth.user.name)
+      group.createdBy.toString() === auth.userId ||
+      (Array.isArray(group.members) && group.members.some((member: any) => member._id?.toString() === auth.userId));
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -42,27 +43,26 @@ export async function GET(
     // Calculate total expenses
     const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
 
-    // Calculate balances
-    const balances: Record<string, number> = {}
-    group.members.forEach((member) => {
-      balances[member] = 0
-    })
+    // Calculate balances using only current group members' user IDs
+    const memberIds = group.members.map((m: any) => m._id ? m._id.toString() : m.toString());
+    const balances: Record<string, number> = {};
+    memberIds.forEach(id => { balances[id] = 0; });
 
     expenses.forEach((expense) => {
-      const splitAmount = expense.amount / (expense.participants?.length || 1)
+      const splitAmount = expense.amount / (expense.participants?.length || 1);
 
-      // Add to payer's balance
-      if (expense.paidBy && balances.hasOwnProperty(expense.paidBy)) {
-        balances[expense.paidBy] += expense.amount
+      // Add to payer's balance (only if in group)
+      if (expense.paidBy && memberIds.includes(expense.paidBy.toString())) {
+        balances[expense.paidBy.toString()] += expense.amount;
       }
 
-      // Subtract split amount from each participant
+      // Subtract split amount from each participant (only if in group)
       expense.participants?.forEach((participant) => {
-        if (balances.hasOwnProperty(participant)) {
-          balances[participant] -= splitAmount
+        if (memberIds.includes(participant.toString())) {
+          balances[participant.toString()] -= splitAmount;
         }
-      })
-    })
+      });
+    });
 
     // Generate invite link
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -78,16 +78,16 @@ export async function GET(
         id: group._id,
         name: group.name,
         description: group.description,
-        members: group.members,
+        members: group.members, // populated with name/email
         emoji: group.emoji,
         totalExpenses,
-        balances: roundedBalances,
+        balances: roundedBalances, // keys are userIds
         inviteCode: group.inviteCode,
         inviteLink: inviteLink,
         createdAt: group.createdAt,
-                netSettlements: calculateNetSettlements(roundedBalances),
+        netSettlements: calculateNetSettlements(roundedBalances), // userIds
       },
-    })
+    });
   } catch (error) {
     console.error('Get group by ID error:', error)
     return NextResponse.json(

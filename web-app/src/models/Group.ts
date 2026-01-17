@@ -6,7 +6,7 @@ export interface IGroup extends Document {
   name: string
   description: string
   createdBy: mongoose.Types.ObjectId
-  members: string[]
+    members: mongoose.Types.ObjectId[]
   inviteCode: string
   emoji: string
   createdAt: Date
@@ -17,7 +17,7 @@ export interface IGroup extends Document {
     amount: number;
   }>;
   settlements?: any[];
-  balances?: Record<string, number>;
+    balances?: Record<string, number>; // keys will be userId strings
   settled?: boolean;
   settledAt?: Date | null;
   settlementNotes?: Array<{ note: string; date: Date }>;
@@ -50,13 +50,11 @@ const groupSchema = new Schema<IGroup>(
       ref: 'User',
       required: true,
     },
-    members: [
-      {
-        type: String,
+      members: {
+        type: [Schema.Types.ObjectId],
+        ref: 'User',
         required: true,
-        trim: true,
       },
-    ],
     inviteCode: {
       type: String,
       unique: true,
@@ -73,10 +71,10 @@ const groupSchema = new Schema<IGroup>(
       type: [Object],
       default: [],
     },
-    balances: {
-      type: Object,
-      default: {},
-    },
+      balances: {
+        type: Object,
+        default: {}, // keys will be userId strings
+      },
     settled: {
       type: Boolean,
       default: false,
