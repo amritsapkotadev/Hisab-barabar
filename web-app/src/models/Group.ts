@@ -11,6 +11,16 @@ export interface IGroup extends Document {
   emoji: string
   createdAt: Date
   updatedAt: Date
+  netSettlements?: Array<{
+    fromUserId: string;
+    toUserId: string;
+    amount: number;
+  }>;
+  settlements?: any[];
+  balances?: Record<string, number>;
+  settled?: boolean;
+  settledAt?: Date | null;
+  settlementNotes?: Array<{ note: string; date: Date }>;
 }
 
 const groupSchema = new Schema<IGroup>(
