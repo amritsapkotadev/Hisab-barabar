@@ -21,6 +21,7 @@ export interface IGroup extends Document {
   settled?: boolean;
   settledAt?: Date | null;
   settlementNotes?: Array<{ note: string; date: Date }>;
+  totalExpenses?: number;
 }
 
 const groupSchema = new Schema<IGroup>(
