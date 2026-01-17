@@ -95,11 +95,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     
     settlementsWithDates.forEach(settlement => {
       // Deduct from sender (fromUserId)
-      const currentFromBalance = updatedBalances.get(settlement.fromUserId) || 0;
+      const currentFromBalance = Number(updatedBalances.get(settlement.fromUserId) ?? 0);
       updatedBalances.set(settlement.fromUserId, parseFloat((currentFromBalance + settlement.amount).toFixed(2)));
       
       // Add to receiver (toUserId)
-      const currentToBalance = updatedBalances.get(settlement.toUserId) || 0;
+      const currentToBalance = Number(updatedBalances.get(settlement.toUserId) ?? 0);
       updatedBalances.set(settlement.toUserId, parseFloat((currentToBalance - settlement.amount).toFixed(2)));
     });
 
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Check if all balances are settled (within small tolerance)
     const allSettled = Array.from(updatedBalances.values()).every(
-      balance => Math.abs(balance) < 0.01
+      balance => Math.abs(Number(balance)) < 0.01
     );
 
     // If all settled, update the group status

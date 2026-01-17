@@ -8,7 +8,9 @@ export interface IGroup extends Document {
   members: string[]
   inviteCode: string
   emoji: string
-   settled?: boolean
+  settlements?: object[]
+  balances?: object
+  settled?: boolean
   settledAt?: Date | null
   settlementNotes?: Array<{ note: string; date: Date }>
   totalExpenses?: number
