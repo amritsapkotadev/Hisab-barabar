@@ -1,3 +1,4 @@
+import User from "@/models/User";
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import type { NextRequest } from 'next/server';
@@ -91,33 +92,53 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     await Settlement.insertMany(settlementsWithDates);
 
     // Update balances based on settlements
-    const updatedBalances = new Map((group as any).balances || new Map());
-    
+    // Ensure balances is always a plain object for Map
+    const balancesObj =
+      group && group.balances && typeof group.balances === 'object' && !Array.isArray(group.balances)
+        ? group.balances
+        : {};
+    const updatedBalances = new Map(Object.entries(balancesObj));
+
+    // Correct logic: Deduct from payer, add to payee
     settlementsWithDates.forEach(settlement => {
-      // Deduct from sender (fromUserId)
+      // Deduct from payer (fromUserId)
       const currentFromBalance = Number(updatedBalances.get(settlement.fromUserId) ?? 0);
-      updatedBalances.set(settlement.fromUserId, parseFloat((currentFromBalance + settlement.amount).toFixed(2)));
-      
-      // Add to receiver (toUserId)
+      updatedBalances.set(
+        settlement.fromUserId,
+        parseFloat((currentFromBalance - settlement.amount).toFixed(2))
+      );
+
+      // Add to payee (toUserId)
       const currentToBalance = Number(updatedBalances.get(settlement.toUserId) ?? 0);
-      updatedBalances.set(settlement.toUserId, parseFloat((currentToBalance - settlement.amount).toFixed(2)));
+      updatedBalances.set(
+        settlement.toUserId,
+        parseFloat((currentToBalance + settlement.amount).toFixed(2))
+      );
     });
 
+    // Recalculate netSettlements after updating balances
+    // Import the netSettlements utility if not already
+    // (Assume it's imported as netSettlements)
+    const balancesObjForNet = Object.fromEntries(updatedBalances);
+    const netSettlementsArr = require('@/utils/netSettlements').default(balancesObjForNet);
+
     // Update the group
+    const update: any = {
+      $set: {
+        settlements: [...(group.settlements || []), ...settlementsWithDates],
+        balances: balancesObjForNet, // Persist updated balances
+        netSettlements: netSettlementsArr, // Persist recalculated netSettlements
+        settled: settlements.length > 0 ? true : group.settled,
+        settledAt: settledAt || new Date(),
+        updatedAt: new Date(),
+      },
+    };
+    if (notes) {
+      update.$push = { settlementNotes: { note: notes, date: new Date() } };
+    }
     const updatedGroup = await Group.findByIdAndUpdate(
       id,
-      {
-        $set: {
-          settlements: [...(group.settlements || []), ...settlementsWithDates],
-          balances: Object.fromEntries(updatedBalances), // Convert Map to object for MongoDB
-          settled: settlements.length > 0 ? true : group.settled,
-          settledAt: settledAt || new Date(),
-          updatedAt: new Date(),
-        },
-        $push: {
-          settlementNotes: notes ? { note: notes, date: new Date() } : undefined,
-        },
-      },
+      update,
       { new: true, runValidators: true }
     ).populate('createdBy', 'name email');
 

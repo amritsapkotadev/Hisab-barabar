@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Settlement from '@/models/Settlement';
 import type { NextRequest } from 'next/server';
+import User from '@/models/User';
 
 // GET /api/settlements?groupId=xxx
 export async function GET(request: NextRequest) {

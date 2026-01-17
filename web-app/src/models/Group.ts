@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose'
 import { v4 as uuidv4 } from 'uuid'
+import User from './User';
 
 export interface IGroup extends Document {
   name: string
@@ -8,18 +9,30 @@ export interface IGroup extends Document {
   members: string[]
   inviteCode: string
   emoji: string
-  settlements?: object[]
-  balances?: object
-  settled?: boolean
-  settledAt?: Date | null
-  settlementNotes?: Array<{ note: string; date: Date }>
-  totalExpenses?: number
   createdAt: Date
   updatedAt: Date
+  netSettlements?: Array<{
+    fromUserId: string;
+    toUserId: string;
+    amount: number;
+  }>;
+  settlements?: any[];
+  balances?: Record<string, number>;
+  settled?: boolean;
+  settledAt?: Date | null;
+  settlementNotes?: Array<{ note: string; date: Date }>;
+  totalExpenses?: number;
 }
 
 const groupSchema = new Schema<IGroup>(
   {
+        netSettlements: [
+          {
+            fromUserId: { type: String, required: true },
+            toUserId: { type: String, required: true },
+            amount: { type: Number, required: true }
+          }
+        ],
     name: {
       type: String,
       required: true,
