@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import type { NextRequest } from 'next/server';
-import Group from '@/models/Group';
+import { Group } from '@/models/Group';
 
 // Type definitions
 interface SettlementInput {
   fromUserId: string;
   toUserId: string;
-  amount: number;
+  amount: number;te
   description?: string;
 }
 
@@ -75,14 +75,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         { status: 404 }
       );
     }
-
-    // Prepare settlements with dates
+    // Prepare settlements with dates, groupId, and members
     const settlementsWithDates = settlements.map(settlement => ({
       fromUserId: settlement.fromUserId,
       toUserId: settlement.toUserId,
       amount: parseFloat(settlement.amount.toFixed(2)), // Ensure 2 decimal places
       date: new Date(),
       description: settlement.description || `Settlement from ${settlement.fromUserId} to ${settlement.toUserId}`,
+      groupId: id,
+      members: group.members,
     }));
 
     // Update balances based on settlements
