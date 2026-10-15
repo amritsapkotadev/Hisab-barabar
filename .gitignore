@@ -55,3 +55,23 @@ mobile-app/dist/
 mobile-app/web-build/
 web-app/.next/
 web-app/out/
+
+# Generated project docs (local only)
+web-app/docs/
+mobile-app/docs/
+docs/
+
+# Local-only generated (contexts, skills)
+mobile-app/contexts/
+mobile-app/skills/
+web-app/skills/
+
+# Secrets - never commit
+firebaseConfig.json
+**/firebaseConfig.json
+google-services.json
+**/google-services.json
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+.env
+.env.local
