@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import ThemeToggle from '@/components/ThemeToggle'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -16,113 +17,68 @@ export default function Navbar() {
   }, [])
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled 
-        ? 'bg-white/95 backdrop-blur-lg shadow-lg' 
-        : 'bg-white/80 backdrop-blur-md shadow-sm'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-3 group">
-              <div className="w-10 h-10 overflow-hidden" style={{ borderRadius: '0.70rem' }}>
-                <img src="/logo.jpeg" alt="Hisab Barabar Logo" className="w-full h-full object-cover scale-125" />
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 bg-clip-text text-transparent">
-                Hisab Barabar
-              </span>
-            </Link>
-          </div>
+    <nav
+      className={`fixed top-0 w-full z-50 transition-all border-b ${
+        scrolled
+          ? 'bg-white/90 dark:bg-neutral-950/90 backdrop-blur border-neutral-300 dark:border-neutral-800'
+          : 'bg-white/70 dark:bg-neutral-950/70 backdrop-blur border-transparent'
+      }`}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="flex justify-between items-center h-16">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="w-8 h-8 overflow-hidden rounded-lg block">
+              <img src="/logo.jpeg" alt="Hisab Barabar logo" className="w-full h-full object-cover" />
+            </span>
+            <span className="font-semibold tracking-tight text-lg">Hisab Barabar</span>
+          </Link>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-1">
-            <Link 
-              href="/#features" 
-              className="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium rounded-lg hover:bg-purple-50 transition-all duration-200"
-            >
+          <div className="hidden md:flex items-center gap-6 text-[15px]">
+            <Link href="/#features" className="text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
               Features
             </Link>
-            <Link 
-              href="/#how-it-works" 
-              className="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium rounded-lg hover:bg-purple-50 transition-all duration-200"
-            >
-              How It Works
+            <Link href="/#how-it-works" className="text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
+              How it works
             </Link>
-            <Link 
-              href="/#download" 
-              className="px-4 py-2 text-gray-700 hover:text-purple-600 font-medium rounded-lg hover:bg-purple-50 transition-all duration-200"
-            >
+            <Link href="/#download" className="text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
               Download
             </Link>
-            <div className="ml-4 flex items-center gap-3">
-              <Link
-                href="/#download"
-                className="group relative bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2.5 rounded-full font-semibold hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden"
-              >
-                <span className="relative z-10">Get Started</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-700 to-pink-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </Link>
-            </div>
+            <ThemeToggle />
+            <Link
+              href="/#download"
+              className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-5 py-2 rounded-full font-medium hover:opacity-85 transition-opacity"
+            >
+              Get started
+            </Link>
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg focus:outline-none transition-all duration-200"
+              aria-label={isOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isOpen}
+              className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-lg transition-colors"
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                {isOpen ? (
-                  <path d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path d="M4 6h16M4 12h16M4 18h16" />
-                )}
+              <svg className="h-6 w-6" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                {isOpen ? <path d="M6 18L18 6M6 6l12 12" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
               </svg>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 shadow-lg animate-slideDown">
+        <div className="md:hidden bg-white dark:bg-neutral-950 border-t border-neutral-300 dark:border-neutral-800 animate-slideDown">
           <div className="px-4 pt-2 pb-4 space-y-1">
-            <Link
-              href="/#features"
-              className="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-all duration-200 font-medium"
-              onClick={() => setIsOpen(false)}
-            >
+            <Link href="/#features" className="block px-3 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-lg font-medium" onClick={() => setIsOpen(false)}>
               Features
             </Link>
-            <Link
-              href="/#how-it-works"
-              className="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-all duration-200 font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              How It Works
+            <Link href="/#how-it-works" className="block px-3 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-lg font-medium" onClick={() => setIsOpen(false)}>
+              How it works
             </Link>
-            <Link
-              href="/#download"
-              className="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-all duration-200 font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Download
-            </Link>
-            <Link
-              href="/#download"
-              className="block mt-2 text-center bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
-              onClick={() => setIsOpen(false)}
-            >
-              Get Started
+            <Link href="/#download" className="block mt-2 text-center bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-5 py-3 rounded-full font-medium" onClick={() => setIsOpen(false)}>
+              Get started
             </Link>
           </div>
         </div>

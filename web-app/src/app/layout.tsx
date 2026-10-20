@@ -14,9 +14,11 @@ export const metadata: Metadata = {
     title: 'Hisab Barabar - Split Bills & Track Expenses',
     description: 'Split bills easily with friends and family. Track expenses, settle up, and keep your finances organized.',
     type: 'website',
-    images: ['/logo.png'],
+    images: ['/logo.jpeg'],
   },
 }
+
+const themeInit = `(function(){try{var t=localStorage.getItem('hb-theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){}})();`
 
 export default function RootLayout({
   children,
@@ -24,7 +26,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+      </head>
       <body>{children}</body>
     </html>
   )

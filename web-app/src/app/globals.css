@@ -18,9 +18,15 @@
 }
 
 :root {
+  color-scheme: light;
   --primary: #6200EE;
   --secondary: #03DAC6;
   --accent: #FF6F00;
+  --kagaj: #FFFEFB;
+  --ink: #1A1B25;
+  --hisab: #0E7A5A;
+  --mohar: #C1272D;
+  --haldi: #E8A317;
 }
 
 body {
@@ -29,6 +35,77 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--kagaj);
+  color: var(--ink);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.dark body {
+  background: #0A0B10;
+  color: #F4F4F2;
+}
+
+/* Ledger paper: faint ruled lines, no gradient wash */
+.ledger-paper {
+  background-color: #FFFFFF;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 31px,
+    rgba(26, 27, 37, 0.05) 31px,
+    rgba(26, 27, 37, 0.05) 32px
+  );
+}
+
+.dark .ledger-paper {
+  background-color: #12141B;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 31px,
+    rgba(255, 255, 255, 0.06) 31px,
+    rgba(255, 255, 255, 0.06) 32px
+  );
+}
+
+.font-display {
+  font-family: Fraunces, Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.02em;
+}
+
+/* Single orchestrated moment: the Barabar stamp */
+@keyframes stamp-thud {
+  0% { opacity: 0; transform: scale(1.6) rotate(-14deg); }
+  60% { opacity: 1; transform: scale(0.95) rotate(-8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-8deg); }
+}
+
+.stamp-in {
+  animation: stamp-thud 0.45s ease-out;
+}
+
+/* Accessible focus, always visible */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #0E7A5A;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: #E8A317;
+  color: #1A1B25;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp-in,
+  .animate-scale-in {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 @layer utilities {
@@ -36,41 +113,12 @@ body {
     text-wrap: balance;
   }
   
-  .animate-blob {
-    animation: blob 7s infinite;
-  }
-  
-  .animation-delay-2000 {
-    animation-delay: 2s;
-  }
-  
-  .animation-delay-4000 {
-    animation-delay: 4s;
-  }
-  
   .animate-fadeIn {
     animation: fadeIn 1s ease-in;
   }
   
-  .animate-gradient {
-    background-size: 200% 200%;
-    animation: gradient 3s ease infinite;
-  }
-  
   .animate-slideDown {
     animation: slideDown 0.3s ease-out;
-  }
-}
-
-@keyframes blob {
-  0%, 100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
   }
 }
 
@@ -82,15 +130,6 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes gradient {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
   }
 }
 
