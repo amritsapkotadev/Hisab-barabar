@@ -75,9 +75,8 @@ export default function AdminNotificationsPage() {
       }
 
       setUsers(data.users || [])
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch users')
-      console.error('Error fetching users:', err)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch users')
     } finally {
       setFetchingUsers(false)
     }
@@ -128,7 +127,7 @@ export default function AdminNotificationsPage() {
       }
 
       if (!sendToAll && selectedUsers.length === 0) {
-        throw new Error('Please select at least one user or choose "Send to All"')
+        throw new Error('Please select at least one user or choose "Send to all"')
       }
 
       let parsedData = {}
@@ -177,7 +176,7 @@ export default function AdminNotificationsPage() {
 
         // Show success message for scheduled notification
         setError('')
-        alert(`✅ Notification scheduled successfully for ${scheduledDateTime.toLocaleString()}`)
+        alert(`Notification scheduled successfully for ${scheduledDateTime.toLocaleString()}`)
         
         // Clear form
         setTitle('')
@@ -223,9 +222,8 @@ export default function AdminNotificationsPage() {
           setSendToAll(false)
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to send notifications')
-      console.error('Error sending notifications:', err)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send notifications')
     } finally {
       setLoading(false)
     }
@@ -235,12 +233,12 @@ export default function AdminNotificationsPage() {
     <div className="max-w-7xl px-4 sm:px-6">
       {/* Result Modal */}
       {showResultModal && result && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-scale-in">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-2xl shadow-[8px_8px_20px_rgba(0,0,0,0.04)] dark:shadow-[8px_8px_20px_rgba(0,0,0,0.25)] max-w-md w-full p-6 relative animate-scale-in">
             {/* Close Button */}
             <button
               onClick={() => setShowResultModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute top-4 right-4 text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -250,46 +248,46 @@ export default function AdminNotificationsPage() {
             {/* Icon */}
             <div className="text-center mb-4">
               {result.failedCount === 0 ? (
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-8 h-8 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               ) : result.successCount === 0 ? (
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
               ) : (
-                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
               )}
               
-              <h3 className="text-xl font-bold text-gray-900">
-                {result.failedCount === 0 ? 'Success!' : result.successCount === 0 ? 'Failed' : 'Partial Success'}
+              <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                {result.failedCount === 0 ? 'Success!' : result.successCount === 0 ? 'Failed' : 'Partial success'}
               </h3>
             </div>
 
             {/* Stats */}
             <div className="space-y-3 mb-6">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm font-medium text-gray-700">Total Recipients</span>
-                <span className="text-lg font-bold text-gray-900">{result.totalUsers}</span>
+              <div className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl">
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Total recipients</span>
+                <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{result.totalUsers}</span>
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                <span className="text-sm font-medium text-green-700">Sent Successfully</span>
-                <span className="text-lg font-bold text-green-700">{result.successCount}</span>
+              <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
+                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Sent successfully</span>
+                <span className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{result.successCount}</span>
               </div>
               
               {result.failedCount > 0 && (
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <span className="text-sm font-medium text-red-700">Failed</span>
-                  <span className="text-lg font-bold text-red-700">{result.failedCount}</span>
+                <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-500/10 rounded-xl">
+                  <span className="text-sm font-medium text-red-700 dark:text-red-400">Failed</span>
+                  <span className="text-lg font-semibold text-red-700 dark:text-red-400">{result.failedCount}</span>
                 </div>
               )}
             </div>
@@ -298,17 +296,17 @@ export default function AdminNotificationsPage() {
             {result.errors.length > 0 && (
               <div className="mb-6">
                 <details className="group">
-                  <summary className="cursor-pointer text-sm font-medium text-red-600 hover:text-red-700 flex items-center justify-between p-2 bg-red-50 rounded-lg">
-                    <span>View Error Details ({result.errors.length})</span>
+                  <summary className="cursor-pointer text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center justify-between p-2 bg-red-50 dark:bg-red-500/10 rounded-xl">
+                    <span>View error details ({result.errors.length})</span>
                     <svg className="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </summary>
                   <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
                     {result.errors.map((err, idx) => (
-                      <div key={idx} className="text-xs bg-white border border-red-200 p-2 rounded">
-                        <div className="font-medium text-gray-900">{err.email}</div>
-                        <div className="text-red-600">{err.error}</div>
+                      <div key={idx} className="text-xs bg-white dark:bg-neutral-900 border border-red-200 dark:border-red-500/30 p-2 rounded-lg">
+                        <div className="font-medium text-neutral-900 dark:text-neutral-100">{err.email}</div>
+                        <div className="text-red-600 dark:text-red-400">{err.error}</div>
                       </div>
                     ))}
                   </div>
@@ -319,7 +317,7 @@ export default function AdminNotificationsPage() {
             {/* Actions */}
             <button
               onClick={() => setShowResultModal(false)}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all"
+              className="w-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 py-3 rounded-full font-medium hover:opacity-85 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Close
             </button>
@@ -330,25 +328,25 @@ export default function AdminNotificationsPage() {
       <div>
         {/* Error Alert */}
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="mb-6 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl p-4">
             <div className="flex items-center">
-              <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
-              <span className="text-red-800 font-medium">{error}</span>
+              <span className="text-red-700 dark:text-red-400 font-medium">{error}</span>
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Notification Form */}
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-2xl shadow-[8px_8px_20px_rgba(0,0,0,0.04)] dark:shadow-[8px_8px_20px_rgba(0,0,0,0.25)] p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Create Notification</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Create notification</h2>
               <Link
                 href="/admin/notifications/history"
-                className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition-all text-sm sm:text-base"
-                title="View History"
+                className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2.5 sm:py-3 border border-neutral-300 dark:border-neutral-700 rounded-full font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-sm sm:text-base"
+                title="View history"
               >
                 <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -360,49 +358,49 @@ export default function AdminNotificationsPage() {
             <div className="space-y-4">
               {/* Title Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                   Title *
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:focus:ring-white/20 focus:border-neutral-500 transition-colors"
                   placeholder="Enter notification title"
                   maxLength={100}
                 />
-                <div className="text-xs text-gray-500 mt-1">{title.length}/100</div>
+                <div className="text-xs text-neutral-500 mt-1">{title.length}/100</div>
               </div>
 
               {/* Body Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                   Message *
                 </label>
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:focus:ring-white/20 focus:border-neutral-500 transition-colors"
                   placeholder="Enter notification message"
                   rows={4}
                   maxLength={500}
                 />
-                <div className="text-xs text-gray-500 mt-1">{body.length}/500</div>
+                <div className="text-xs text-neutral-500 mt-1">{body.length}/500</div>
               </div>
 
               {/* Custom Data */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Custom Data (JSON) - Optional
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                  Custom data (JSON) - optional
                 </label>
                 <textarea
                   value={customData}
                   onChange={(e) => setCustomData(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                  className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:focus:ring-white/20 focus:border-neutral-500 transition-colors font-mono"
                   placeholder='{"key": "value", "action": "open_screen"}'
                   rows={3}
                 />
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-neutral-500 mt-1">
                   Enter valid JSON for additional data
                 </div>
               </div>
@@ -419,47 +417,47 @@ export default function AdminNotificationsPage() {
                       setSelectedUsers([])
                     }
                   }}
-                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  className="w-4 h-4 accent-neutral-900 dark:accent-white border-neutral-300 dark:border-neutral-700 rounded focus:ring-neutral-900/10 dark:focus:ring-white/20"
                 />
-                <label htmlFor="sendToAll" className="ml-2 text-sm font-medium text-gray-700">
+                <label htmlFor="sendToAll" className="ml-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
                   Send to all users with FCM tokens
                 </label>
               </div>
 
               {/* Schedule Toggle */}
-              <div className="border-t border-gray-200 pt-4">
+              <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4">
                 <div className="flex items-center mb-3">
                   <input
                     type="checkbox"
                     id="scheduleEnabled"
                     checked={scheduleEnabled}
                     onChange={(e) => setScheduleEnabled(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    className="w-4 h-4 accent-neutral-900 dark:accent-white border-neutral-300 dark:border-neutral-700 rounded focus:ring-neutral-900/10 dark:focus:ring-white/20"
                   />
-                  <label htmlFor="scheduleEnabled" className="ml-2 text-sm font-medium text-gray-700">
-                    🕐 Schedule for later
+                  <label htmlFor="scheduleEnabled" className="ml-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Schedule for later
                   </label>
                 </div>
 
                 {scheduleEnabled && (
                   <div className="grid grid-cols-2 gap-3 pl-6">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                      <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Date</label>
                       <input
                         type="date"
                         value={scheduledDate}
                         onChange={(e) => setScheduledDate(e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:focus:ring-white/20 focus:border-neutral-500 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Time</label>
+                      <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Time</label>
                       <input
                         type="time"
                         value={scheduledTime}
                         onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl text-sm placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:focus:ring-white/20 focus:border-neutral-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -470,28 +468,28 @@ export default function AdminNotificationsPage() {
               <button
                 onClick={handleSendNotification}
                 disabled={loading || (!sendToAll && selectedUsers.length === 0)}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                className="w-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 py-3 rounded-full font-medium hover:opacity-85 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Sending...
                   </span>
                 ) : scheduleEnabled ? (
-                  `Schedule Notification${!sendToAll ? ` to ${selectedUsers.length} user(s)` : ' to All'}`
+                  `Schedule notification${!sendToAll ? ` to ${selectedUsers.length} user(s)` : ' to all'}`
                 ) : (
-                  `Send Notification${!sendToAll ? ` to ${selectedUsers.length} user(s)` : ' to All'}`
+                  `Send notification${!sendToAll ? ` to ${selectedUsers.length} user(s)` : ' to all'}`
                 )}
               </button>
             </div>
           </div>
 
           {/* User Selection */}
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Select Recipients</h2>
+          <div className="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-2xl shadow-[8px_8px_20px_rgba(0,0,0,0.04)] dark:shadow-[8px_8px_20px_rgba(0,0,0,0.25)] p-4 sm:p-6">
+            <h2 className="text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-100 mb-4 sm:mb-6">Select recipients</h2>
             
             {/* Search and Filter */}
             <div className="space-y-3 sm:space-y-4 mb-4">
@@ -501,12 +499,12 @@ export default function AdminNotificationsPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
+                  className="flex-1 px-4 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl text-sm sm:text-base placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:focus:ring-white/20 focus:border-neutral-500 transition-colors"
                   placeholder="Search by name or email"
                 />
                 <button
                   onClick={handleSearch}
-                  className="px-3 sm:px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+                  className="px-3 sm:px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-full font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                   title="Search"
                 >
                   <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -520,16 +518,16 @@ export default function AdminNotificationsPage() {
                 <select
                   value={filterTokens}
                   onChange={(e) => setFilterTokens(e.target.value as any)}
-                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base"
+                  className="flex-1 px-4 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl text-sm sm:text-base placeholder-neutral-400 dark:placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 dark:focus:ring-white/20 focus:border-neutral-500 transition-colors"
                 >
-                  <option value="all">All Users</option>
-                  <option value="with">With FCM Token</option>
-                  <option value="without">Without FCM Token</option>
+                  <option value="all">All users</option>
+                  <option value="with">With FCM token</option>
+                  <option value="without">Without FCM token</option>
                 </select>
                 <button
                   onClick={fetchUsers}
                   disabled={fetchingUsers}
-                  className="px-3 sm:px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  className="px-3 sm:px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-full font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   title="Refresh"
                 >
                   <svg className="w-5 h-5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -542,14 +540,14 @@ export default function AdminNotificationsPage() {
 
             {/* Select All */}
             {!sendToAll && users.length > 0 && (
-              <div className="mb-3 pb-3 border-b">
+              <div className="mb-3 pb-3 border-b border-neutral-200 dark:border-neutral-800">
                 <button
                   onClick={handleSelectAll}
-                  className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  className="text-sm text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100 font-medium transition-colors"
                 >
-                  {selectedUsers.length === users.length ? 'Deselect All' : 'Select All'}
+                  {selectedUsers.length === users.length ? 'Deselect all' : 'Select all'}
                 </button>
-                <span className="ml-3 text-sm text-gray-500">
+                <span className="ml-3 text-sm text-neutral-500">
                   {selectedUsers.length} of {users.length} selected
                 </span>
               </div>
@@ -558,19 +556,19 @@ export default function AdminNotificationsPage() {
             {/* Users List */}
             <div className="max-h-96 overflow-y-auto space-y-2">
               {fetchingUsers ? (
-                <div className="text-center py-8 text-gray-500">Loading users...</div>
+                <div className="text-center py-8 text-neutral-500">Loading users...</div>
               ) : users.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No users found</div>
+                <div className="text-center py-8 text-neutral-500">No users found</div>
               ) : (
                 users.map((user) => (
                   <div
                     key={user._id}
-                    className={`p-3 border rounded-lg transition-all ${
+                    className={`p-3 border rounded-xl transition-colors ${
                       sendToAll 
-                        ? 'bg-gray-50 border-gray-200 opacity-50' 
+                        ? 'bg-neutral-50 dark:bg-neutral-800/50 border-neutral-200 dark:border-neutral-800 opacity-50' 
                         : selectedUsers.includes(user._id)
-                        ? 'bg-purple-50 border-purple-300'
-                        : 'bg-white border-gray-200 hover:border-purple-200'
+                        ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-400 dark:border-neutral-600'
+                        : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-600'
                     }`}
                   >
                     <label className="flex items-start cursor-pointer">
@@ -579,24 +577,24 @@ export default function AdminNotificationsPage() {
                         checked={sendToAll || selectedUsers.includes(user._id)}
                         onChange={() => handleSelectUser(user._id)}
                         disabled={sendToAll}
-                        className="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 disabled:opacity-50"
+                        className="mt-1 w-4 h-4 accent-neutral-900 dark:accent-white border-neutral-300 dark:border-neutral-700 rounded focus:ring-neutral-900/10 dark:focus:ring-white/20 disabled:opacity-50"
                       />
                       <div className="ml-3 flex-1">
-                        <div className="font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-600">{user.email}</div>
+                        <div className="font-medium text-neutral-900 dark:text-neutral-100">{user.name}</div>
+                        <div className="text-sm text-neutral-600 dark:text-neutral-400">{user.email}</div>
                         <div className="flex gap-2 mt-1">
                           {user.isVerified && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
                               Verified
                             </span>
                           )}
                           {user.fcmToken ? (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                              Has FCM Token
+                            <span className="text-xs bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
+                              Has FCM token
                             </span>
                           ) : (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
-                              No FCM Token
+                            <span className="text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-2 py-0.5 rounded-full">
+                              No FCM token
                             </span>
                           )}
                         </div>
@@ -610,9 +608,9 @@ export default function AdminNotificationsPage() {
         </div>
 
         {/* Info Section */}
-        <div className="mt-6 sm:mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">📱 Information</h3>
-          <ul className="text-xs sm:text-sm text-blue-800 space-y-1">
+        <div className="mt-6 sm:mt-8 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">Information</h3>
+          <ul className="text-xs sm:text-sm text-blue-800 dark:text-blue-300 space-y-1">
             <li>• Only users with FCM tokens can receive push notifications</li>
             <li>• Custom data should be in valid JSON format</li>
             <li>• Notifications are sent asynchronously and may take a few moments</li>
