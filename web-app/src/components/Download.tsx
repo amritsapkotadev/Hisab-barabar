@@ -1,62 +1,87 @@
+import { FaMobileAlt, FaQrcode, FaShieldAlt, FaGooglePlay, FaApple } from 'react-icons/fa'
+
+const points = [
+  { icon: FaMobileAlt, title: 'Built for thumbs', body: 'Log a bill in seconds.' },
+  { icon: FaQrcode, title: 'Join by QR or code', body: 'Friends join instantly.' },
+  { icon: FaShieldAlt, title: 'Private by default', body: 'Free, no card required.' },
+]
+
+const stats = [
+  { value: '10k+', label: 'active groups' },
+  { value: 'Rs. 50Cr+', label: 'expenses tracked' },
+  { value: '4.8', label: 'average rating' },
+]
+
 export default function Download() {
   return (
-    <section id="download" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-gradient-to-br from-purple-600 to-pink-500 rounded-3xl p-12 text-center text-white shadow-2xl">
-          <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-            Ready to Get Started?
+    <section id="download" className="py-16 px-4 sm:px-6">
+      <div className="max-w-6xl mx-auto grid gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-center bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-3xl shadow-[8px_8px_20px_rgba(0,0,0,0.04)] dark:shadow-[8px_8px_20px_rgba(0,0,0,0.25)] p-6 sm:p-10 relative overflow-hidden">
+        <FaGooglePlay
+          aria-hidden="true"
+          className="absolute -bottom-8 -right-8 w-40 h-40 sm:w-52 sm:h-52 text-neutral-900/[0.09] dark:text-white/[0.06] rotate-[12deg] blur-[4px] pointer-events-none select-none"
+        />
+        <FaGooglePlay
+          aria-hidden="true"
+          className="absolute top-8 left-1/3 w-14 h-14 text-neutral-900/[0.10] dark:text-white/[0.08] rotate-[-12deg] blur-[5px] pointer-events-none select-none"
+        />
+        <FaApple
+          aria-hidden="true"
+          className="absolute top-4 right-2 w-16 h-16 sm:w-20 sm:h-20 text-neutral-900/[0.11] dark:text-white/[0.08] rotate-[10deg] blur-[4px] pointer-events-none select-none"
+        />
+        <FaGooglePlay
+          aria-hidden="true"
+          className="absolute bottom-16 left-8 w-10 h-10 text-neutral-900/[0.09] dark:text-white/[0.07] rotate-[20deg] blur-[6px] pointer-events-none select-none"
+        />
+        <div>
+          <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-balance">
+            Start your first group tonight
           </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Download Hisab Barabar now and start splitting bills the smart way
+          <p className="mt-3 text-neutral-600 dark:text-neutral-400 leading-relaxed max-w-lg">
+            Android is ready now, iOS follows via TestFlight.
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <a
-              href="#"
-              className="bg-white text-purple-600 px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transition transform hover:scale-105 flex items-center gap-2"
+              href="https://expo.dev/artifacts/eas/oMnPFe91ANAudPC9gG89tT.apk"
+              download
+              className="inline-flex items-center justify-center gap-2.5 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-7 py-3.5 rounded-full font-medium hover:opacity-85 transition-opacity"
             >
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-              </svg>
-              App Store
+              <FaGooglePlay className="w-4 h-4" aria-hidden="true" />
+              Download Android APK
             </a>
-            <a
-              href="#"
-              className="bg-white text-purple-600 px-8 py-4 rounded-full text-lg font-semibold hover:shadow-xl transition transform hover:scale-105 flex items-center gap-2"
-            >
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
-              </svg>
-              Play Store
-            </a>
+            <span className="inline-flex items-center justify-center gap-2.5 border border-neutral-300 dark:border-neutral-700 px-7 py-3.5 rounded-full text-neutral-600 dark:text-neutral-300">
+              <FaApple className="w-4 h-4" aria-hidden="true" />
+              iOS: join the waitlist
+            </span>
           </div>
 
-          <div className="text-sm opacity-75">
-            Also available on Web • No credit card required • Free forever
-          </div>
+          <dl className="mt-8 flex gap-8">
+            {stats.map((s) => (
+              <div key={s.label}>
+                <dt className="sr-only">{s.label}</dt>
+                <dd className="text-2xl font-semibold tracking-tight">{s.value}</dd>
+                <dd className="text-sm text-neutral-500">{s.label}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
 
-        {/* Stats Section */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          <div>
-            <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent mb-2">
-              10K+
-            </div>
-            <div className="text-gray-600">Active Users</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent mb-2">
-              रु 50Cr+
-            </div>
-            <div className="text-gray-600">Expenses Tracked</div>
-          </div>
-          <div>
-            <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent mb-2">
-              4.8★
-            </div>
-            <div className="text-gray-600">Average Rating</div>
-          </div>
-        </div>
+        <ul className="grid gap-3">
+          {points.map((p) => (
+            <li
+              key={p.title}
+              className="flex gap-4 items-start bg-white dark:bg-neutral-800/50 border border-neutral-300 dark:border-neutral-700 rounded-2xl p-4 sm:p-5 shadow-[4px_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[4px_4px_12px_rgba(0,0,0,0.15)]"
+            >
+              <span className="w-10 h-10 shrink-0 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center">
+                <p.icon className="w-5 h-5" aria-hidden="true" />
+              </span>
+              <span>
+                <span className="block font-semibold">{p.title}</span>
+                <span className="block mt-0.5 text-sm text-neutral-600 dark:text-neutral-400">{p.body}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )

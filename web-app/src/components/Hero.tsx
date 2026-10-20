@@ -1,160 +1,131 @@
 import Link from 'next/link'
+import { FaHome, FaUsers, FaExchangeAlt, FaUser, FaWifi, FaBatteryFull, FaSignal } from 'react-icons/fa'
+
+const groups = [
+  { name: 'Weekend Trip', members: 4, amount: '+Rs 1,240', tone: 'text-emerald-600', avatars: ['A', 'S', 'P'] },
+  { name: 'Flat 3B', members: 3, amount: '-Rs 520', tone: 'text-red-500', avatars: ['R', 'M', 'K'] },
+  { name: 'Office Lunch', members: 6, amount: 'Settled', tone: 'text-[#64748B]', avatars: ['N', 'B', 'T'] },
+]
+
+const avatarBg = ['bg-[#4361EE]', 'bg-[#3A0CA3]', 'bg-[#4CC9F0]']
 
 export default function Hero() {
   return (
-    <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-1/2 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-      </div>
+    <section className="relative pt-28 pb-16 px-4 sm:px-6 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.08)_1px,transparent_0)] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_35%,black,transparent)]"
+      />
 
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-full px-4 py-2 mb-8 animate-fadeIn">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-            </span>
-            <span className="text-sm font-medium text-purple-700">Now available on iOS & Android</span>
-          </div>
-
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold text-gray-900 mb-6 leading-tight">
-            Split Bills,{' '}
-            <br className="hidden sm:block" />
-            <span className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 bg-clip-text text-transparent animate-gradient">
-              Not Friendships
-            </span>
+      <div className="max-w-6xl mx-auto grid gap-14 lg:grid-cols-2 lg:items-center">
+        <div className="text-center lg:text-left">
+          <h1 className="text-4xl min-[480px]:text-5xl lg:text-6xl font-semibold tracking-tight text-balance">
+            Split the bill.
+            <br />
+            Keep the friendship.
           </h1>
-          <p className="text-xl sm:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
-            Track shared expenses, split bills fairly, and settle up easily.
-            <br className="hidden sm:block" />
-            <span className="font-semibold text-gray-700">The smart way to manage group expenses.</span>
+          <p className="mt-6 text-lg sm:text-xl text-neutral-600 dark:text-neutral-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+            Groups, flexible splits, and the fewest payments to settle up. Free on Android, iOS coming soon.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
             <a
               href="https://expo.dev/artifacts/eas/oMnPFe91ANAudPC9gG89tT.apk"
-              className="group relative bg-gradient-to-r from-purple-600 to-pink-600 text-white px-10 py-4 rounded-full text-lg font-semibold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
               download
+              className="bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-8 py-3.5 rounded-full font-medium hover:opacity-85 transition-opacity text-center"
             >
-              <span className="relative z-10 flex items-center gap-2">
-                Download Now
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
+              Download for Android
             </a>
             <Link
               href="#how-it-works"
-              className="group border-2 border-gray-300 text-gray-700 px-10 py-4 rounded-full text-lg font-semibold hover:border-purple-600 hover:text-purple-600 hover:bg-purple-50 transition-all duration-300"
+              className="border border-neutral-300 dark:border-neutral-700 px-8 py-3.5 rounded-full font-medium hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors text-center"
             >
-              <span className="flex items-center gap-2">
-                Learn More
-                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </span>
+              How it works
             </Link>
           </div>
+        </div>
 
-          {/* Stats */}
-          <div className="flex flex-wrap justify-center gap-8 mb-16 text-sm">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="text-gray-600">Free Forever</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="text-gray-600">No Credit Card Required</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="text-gray-600">10K+ Active Users</span>
-            </div>
-          </div>
+        <div aria-hidden="true" className="relative justify-self-center py-6 order-first lg:order-none">
+          <div className="relative w-48 max-w-full sm:w-72">
+            <div
+              className="absolute overflow-hidden bg-[#F8F9FA] flex flex-col"
+              style={{ left: '4.36%', top: '1.88%', width: '91.28%', height: '96.38%', borderRadius: '13.76% / 6.36%' }}
+            >
+              <div className="absolute inset-0 z-20 pointer-events-none rounded-[inherit] bg-[linear-gradient(135deg,rgba(255,255,255,0.26)_0%,rgba(255,255,255,0.09)_16%,rgba(255,255,255,0)_36%,rgba(255,255,255,0)_70%,rgba(255,255,255,0.05)_100%)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.18)]" />
 
-          {/* Hero Visual */}
-          <div className="mt-16 relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-3xl blur-3xl opacity-20"></div>
-            <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl p-4 sm:p-8 shadow-2xl max-w-5xl mx-auto border border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                {/* Card 1 - Groups */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 transform hover:scale-105 transition-all duration-300 hover:shadow-xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                    </div>
-                    <span className="text-xs font-semibold text-purple-600 bg-purple-200 px-3 py-1 rounded-full">Active</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">Weekend Trip</h3>
-                  <p className="text-sm text-gray-600 mb-3">5 members</p>
-                  <div className="space-y-2">
-                    <div className="h-2 bg-purple-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-500 rounded-full w-3/4"></div>
-                    </div>
-                    <p className="text-xs text-gray-500">₹12,450 total expenses</p>
-                  </div>
+              <div className="bg-gradient-to-br from-[#4361EE] to-[#3A0CA3] px-5 pt-3 pb-12 rounded-b-[32px] text-white">
+                <div className="flex items-center justify-between text-[10px] font-medium">
+                  <span>9:41</span>
+                  <span className="flex items-center gap-1.5">
+                    <FaSignal className="w-2.5 h-2.5" />
+                    <FaWifi className="w-2.5 h-2.5" />
+                    <FaBatteryFull className="w-3 h-3" />
+                  </span>
                 </div>
-
-                {/* Card 2 - Expenses */}
-                <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl p-6 transform hover:scale-105 transition-all duration-300 hover:shadow-xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <span className="text-xs font-semibold text-pink-600 bg-pink-200 px-3 py-1 rounded-full">Recent</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">Dinner Split</h3>
-                  <p className="text-sm text-gray-600 mb-3">Split equally</p>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-2xl font-bold text-gray-800">₹2,400</p>
-                      <p className="text-xs text-gray-500">4 people</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-pink-600">You owe</p>
-                      <p className="text-lg font-bold text-pink-600">₹600</p>
-                    </div>
-                  </div>
+                <div className="mt-6">
+                  <p className="text-[11px] text-white/70">Namaste</p>
+                  <p className="text-sm font-semibold">Aashish</p>
                 </div>
+                <p className="mt-5 text-[10px] text-white/70">Net balance</p>
+                <p className="text-2xl font-semibold tracking-tight">Rs. 720</p>
+                <p className="text-[10px] text-white/70">owed to you</p>
+              </div>
 
-                {/* Card 3 - Settlements */}
-                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-6 transform hover:scale-105 transition-all duration-300 hover:shadow-xl">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <span className="text-xs font-semibold text-green-600 bg-green-200 px-3 py-1 rounded-full">Settled</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">All Balanced</h3>
-                  <p className="text-sm text-gray-600 mb-3">No pending dues</p>
-                  <div className="flex items-center gap-2 text-green-600">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                      <p className="text-sm font-semibold">Great job!</p>
-                      <p className="text-xs text-gray-600">All expenses settled</p>
-                    </div>
-                  </div>
+              <div className="-mt-8 px-4 grid grid-cols-2 gap-2">
+                <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 shadow-sm">
+                  <p className="text-[10px] text-[#64748B]">Owed to you</p>
+                  <p className="text-sm font-semibold text-emerald-600">Rs. 1,240</p>
+                </div>
+                <div className="bg-white rounded-xl border border-[#E2E8F0] p-3 shadow-sm">
+                  <p className="text-[10px] text-[#64748B]">You owe</p>
+                  <p className="text-sm font-semibold text-red-500">Rs. 520</p>
                 </div>
               </div>
+
+              <div className="px-4 mt-4 flex-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-[#1E293B]">Your groups</p>
+                  <p className="text-[10px] text-[#4361EE]">See all</p>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {groups.map((g) => (
+                    <div key={g.name} className="bg-white rounded-xl border border-[#E2E8F0] p-3 flex items-center gap-3">
+                      <div className="flex -space-x-2 shrink-0">
+                        {g.avatars.map((a, i) => (
+                          <span
+                            key={a}
+                            className={`w-6 h-6 rounded-full border-2 border-white text-[8px] font-semibold text-white flex items-center justify-center ${avatarBg[i % avatarBg.length]}`}
+                          >
+                            {a}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold text-[#1E293B] truncate">{g.name}</p>
+                        <p className="text-[9px] text-[#64748B]">{g.members} members</p>
+                      </div>
+                      <span className={`text-[10px] font-semibold shrink-0 ${g.tone}`}>{g.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-auto bg-white border-t border-[#E2E8F0] px-7 py-3 flex items-center justify-between">
+                <FaHome className="w-4 h-4 text-[#4361EE]" />
+                <FaUsers className="w-4 h-4 text-[#CBD5E1]" />
+                <FaExchangeAlt className="w-4 h-4 text-[#CBD5E1]" />
+                <FaUser className="w-4 h-4 text-[#CBD5E1]" />
+              </div>
             </div>
+
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-6 w-[78%] rounded-[100%] bg-black/25 blur-xl dark:bg-black/50" />
+
+            <img
+              src="/phone-frame.png"
+              alt=""
+              className="relative w-full h-auto pointer-events-none select-none [filter:drop-shadow(0_3px_5px_rgba(0,0,0,0.32))_drop-shadow(0_16px_28px_rgba(0,0,0,0.18))] dark:[filter:drop-shadow(0_3px_5px_rgba(0,0,0,0.5))_drop-shadow(0_16px_28px_rgba(0,0,0,0.35))]"
+              draggable={false}
+            />
           </div>
         </div>
       </div>

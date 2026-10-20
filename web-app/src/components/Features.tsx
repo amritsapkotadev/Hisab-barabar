@@ -1,146 +1,148 @@
+'use client'
+
+import { useRef, useState, useEffect, useCallback } from 'react'
+import { FaUsers, FaChartPie, FaBalanceScale, FaExchangeAlt, FaWallet, FaBell, FaReceipt, FaCalculator, FaQrcode, FaUserPlus, FaMoneyBill, FaPercent, FaShareAlt, FaCoins, FaPiggyBank, FaEnvelope, FaMobileAlt, FaClock } from 'react-icons/fa'
+import type { IconType } from 'react-icons'
+
+// Pool of related ghost icons; each card samples a different trio (deterministic by index)
+const DECOR: IconType[] = [FaReceipt, FaCalculator, FaQrcode, FaUserPlus, FaMoneyBill, FaPercent, FaShareAlt, FaCoins, FaPiggyBank, FaEnvelope, FaMobileAlt, FaClock]
+
+const features: { title: string; body: string; icon: IconType }[] = [
+  {
+    title: 'True-to-life groups',
+    body: 'Trips, flats, family. Invite by code or QR without breaking history.',
+    icon: FaUsers,
+  },
+  {
+    title: 'Any split shape',
+    body: 'Equal, unequal, percentage, or shares, with more than one payer per bill.',
+    icon: FaChartPie,
+  },
+  {
+    title: 'Balances at a glance',
+    body: 'Who gets back and who owes, per friend and per group.',
+    icon: FaBalanceScale,
+  },
+  {
+    title: 'Fewest payments',
+    body: 'An optimizer finds the shortest path to zero and logs every settle.',
+    icon: FaExchangeAlt,
+  },
+  {
+    title: 'Budgets that warn',
+    body: 'A monthly cap with a nudge before you cross it.',
+    icon: FaWallet,
+  },
+  {
+    title: 'Quiet reminders',
+    body: 'Push and email when an expense lands or a settle completes.',
+    icon: FaBell,
+  },
+]
+
+const AUTOPLAY_MS = 4500
+
+function deckStyle(offset: number): { className: string; active: boolean } {
+  switch (offset) {
+    case 0:
+      return { className: 'opacity-100 scale-100 rotate-0 blur-0 z-20', active: true }
+    case 1:
+      return { className: 'translate-x-3 sm:translate-x-5 translate-y-3 scale-[0.96] rotate-[2deg] opacity-95 blur-[1px] z-10', active: false }
+    case 2:
+      return { className: 'translate-x-6 sm:translate-x-10 translate-y-6 scale-[0.92] rotate-[4deg] opacity-65 blur-[2.5px] z-0', active: false }
+    default:
+      return { className: 'translate-x-8 translate-y-8 scale-90 opacity-0 blur-sm pointer-events-none z-0', active: false }
+  }
+}
+
 export default function Features() {
-  const features = [
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-      title: 'Group Expenses',
-      description: 'Create groups for trips, roommates, or any shared expenses. Invite friends with a simple code or QR scan.',
-      color: 'from-purple-500 to-purple-600',
-      bgColor: 'from-purple-50 to-purple-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      title: 'Smart Splitting',
-      description: 'Split bills equally, unequally, by percentage, or by shares. Handle multiple payers with ease.',
-      color: 'from-pink-500 to-pink-600',
-      bgColor: 'from-pink-50 to-pink-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
-      title: 'Track Everything',
-      description: 'Keep track of who owes what. See your balance with each friend at a glance.',
-      color: 'from-indigo-500 to-indigo-600',
-      bgColor: 'from-indigo-50 to-indigo-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-      ),
-      title: 'Easy Settlement',
-      description: 'Optimized settlement algorithm minimizes the number of transactions needed to settle up.',
-      color: 'from-green-500 to-green-600',
-      bgColor: 'from-green-50 to-green-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-      ),
-      title: 'Cross-Platform',
-      description: 'Available on iOS, Android, and Web. Your data syncs seamlessly across all devices.',
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'from-blue-50 to-blue-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-        </svg>
-      ),
-      title: 'Secure & Private',
-      description: 'Your data is encrypted and secure. We never share your information with third parties.',
-      color: 'from-red-500 to-red-600',
-      bgColor: 'from-red-50 to-red-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-        </svg>
-      ),
-      title: 'Budget Tracking',
-      description: 'Set personal budgets and get alerts when you\'re approaching your limits.',
-      color: 'from-yellow-500 to-yellow-600',
-      bgColor: 'from-yellow-50 to-yellow-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      title: 'Multi-Currency',
-      description: 'Support for multiple currencies and payment methods for international groups.',
-      color: 'from-teal-500 to-teal-600',
-      bgColor: 'from-teal-50 to-teal-100',
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
-      ),
-      title: 'Smart Notifications',
-      description: 'Get notified when expenses are added or when someone settles up with you.',
-      color: 'from-orange-500 to-orange-600',
-      bgColor: 'from-orange-50 to-orange-100',
-    },
-  ]
+  const pauseRef = useRef(false)
+  const [active, setActive] = useState(0)
+
+  const goTo = useCallback((index: number) => {
+    setActive((index + features.length) % features.length)
+  }, [])
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = setInterval(() => {
+      if (pauseRef.current || document.hidden) return
+      setActive((prev) => (prev + 1) % features.length)
+    }, AUTOPLAY_MS)
+    return () => clearInterval(id)
+  }, [pauseRef])
 
   return (
-    <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <span className="inline-block px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold mb-4">
-            FEATURES
-          </span>
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-6">
-            Everything You Need to{' '}
-            <span className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 bg-clip-text text-transparent">
-              Manage Expenses
-            </span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Powerful features designed to make splitting bills and tracking expenses effortless
-          </p>
+    <section id="features" className="p-5 sm:p-8 w-full min-w-0">
+      <div className="grid gap-5 sm:gap-6 min-w-0">
+        <div className="flex items-start justify-between gap-4 min-w-0">
+          <div className="text-left min-w-0">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight">Features</h2>
+          </div>
+          <div className="flex gap-2 pt-2 shrink-0" role="tablist" aria-label="Feature slides">
+            {features.map((f, i) => (
+              <button
+                key={f.title}
+                role="tab"
+                aria-selected={i === active}
+                aria-label={`Go to ${f.title}`}
+                onClick={() => goTo(i)}
+                className={`h-2 rounded-full transition-all ${
+                  i === active ? 'w-6 bg-neutral-900 dark:bg-white' : 'w-2 bg-neutral-300 dark:bg-neutral-700'
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="group relative bg-white p-8 rounded-2xl border border-gray-200 hover:border-transparent hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
-            >
-              {/* Gradient Background on Hover */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${feature.bgColor} rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
-              
-              {/* Content */}
-              <div className="relative z-10">
-                <div className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-xl flex items-center justify-center mb-5 text-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-              </div>
-
-              {/* Decorative Element */}
-              <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-200 to-pink-200 rounded-bl-full opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-            </div>
-          ))}
+        <div
+          onMouseEnter={() => (pauseRef.current = true)}
+          onMouseLeave={() => (pauseRef.current = false)}
+          onFocus={() => (pauseRef.current = true)}
+          onBlur={() => (pauseRef.current = false)}
+          className="min-w-0"
+        >
+          <div className="relative min-h-[320px] sm:min-h-[360px]" style={{ perspective: '1200px' }}>
+            {features.map((f, i) => {
+              const offset = (i - active + features.length) % features.length
+              const { className, active: isFront } = deckStyle(offset)
+              const D2 = DECOR[(i * 3 + 5) % DECOR.length]
+              const D3 = DECOR[(i * 3 + 9) % DECOR.length]
+              return (
+                <article
+                  key={f.title}
+                  aria-label={`${i + 1} of ${features.length}: ${f.title}`}
+                  aria-hidden={!isFront}
+                  onClick={() => {
+                    if (!isFront) goTo(i)
+                  }}
+                  className={`absolute inset-0 border border-neutral-300 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-950 rounded-2xl shadow-[8px_8px_20px_rgba(0,0,0,0.04)] dark:shadow-[8px_8px_20px_rgba(0,0,0,0.25)] px-5 py-8 sm:px-10 sm:py-12 text-left overflow-hidden flex flex-col transition-all duration-500 ease-out ${className} ${
+                    isFront ? '' : 'cursor-pointer'
+                  }`}
+                  style={{ transformStyle: 'preserve-3d' }}
+                >
+                  <f.icon
+                    aria-hidden="true"
+                    className="absolute -bottom-4 -right-4 w-44 h-44 sm:w-56 sm:h-56 text-neutral-900/[0.18] dark:text-white/[0.15] rotate-[-8deg] pointer-events-none select-none"
+                  />
+                  <D2
+                    aria-hidden="true"
+                    className="absolute top-8 right-8 w-12 h-12 sm:w-14 sm:h-14 text-neutral-900/[0.14] dark:text-white/[0.11] rotate-[18deg] blur-[3px] pointer-events-none select-none"
+                  />
+                  <D3
+                    aria-hidden="true"
+                    className="absolute top-1/2 left-4 w-9 h-9 sm:w-11 sm:h-11 text-neutral-900/[0.09] dark:text-white/[0.07] rotate-[-14deg] blur-[3px] pointer-events-none select-none"
+                  />
+                  <div className="relative">
+                    <h3 className="text-4xl sm:text-5xl font-semibold tracking-tight text-balance">{f.title}</h3>
+                    <p className="mt-3 text-sm sm:text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                      {f.body}
+                    </p>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
         </div>
       </div>
     </section>
