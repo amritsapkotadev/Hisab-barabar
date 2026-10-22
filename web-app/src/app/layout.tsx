@@ -17,6 +17,12 @@ export const metadata: Metadata = {
     type: 'website',
     images: ['/logo.jpeg'],
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Hisab Barabar - Split Bills & Track Expenses',
+    description: 'Split bills easily with friends and family. Track expenses, settle up, and keep your finances organized.',
+    images: ['/logo.jpeg'],
+  },
 }
 
 const themeInit = `(function(){try{var t=localStorage.getItem('hb-theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){}})();`
