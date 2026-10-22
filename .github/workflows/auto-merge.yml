@@ -1,0 +1,34 @@
+name: Auto PR and Merge as Owner
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auto-pr-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create PR if none exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          existing=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number')
+          if [ -z "$existing" ]; then
+            gh pr create --base main --head "$BRANCH" --title "Auto: $BRANCH" --body "Automated PR"
+          fi
+
+      - name: Merge PR as owner
+        env:
+          GH_TOKEN: ${{ secrets.FRIEND_PAT }}
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          pr_number=$(gh pr list --head "$BRANCH" --base main --json number --jq '.[0].number')
+          gh pr merge "$pr_number" --merge --admin
