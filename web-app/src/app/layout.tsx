@@ -1,7 +1,8 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://hisabbarabar.qzz.io'),
   title: 'Hisab Barabar - Split Bills & Track Expenses',
   description: 'Split bills easily with friends and family. Track expenses, settle up, and keep your finances organized.',
   keywords: ['expense tracker', 'bill splitting', 'shared expenses', 'split bills', 'group expenses'],
@@ -19,6 +20,13 @@ export const metadata: Metadata = {
 }
 
 const themeInit = `(function(){try{var t=localStorage.getItem('hb-theme');if(t!=='light'){document.documentElement.classList.add('dark')}}catch(e){}})();`
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
+}
 
 export default function RootLayout({
   children,
