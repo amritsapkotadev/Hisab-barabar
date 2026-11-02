@@ -4,9 +4,16 @@ on:
   push:
     paths:
       - 'mobile-app/**'
+      - '.github/workflows/mobile-ci.yml'
+      - '.github/workflows/android-apk.yml'
   pull_request:
     paths:
       - 'mobile-app/**'
+      - '.github/workflows/mobile-ci.yml'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: read
 
 jobs:
   typecheck:
@@ -35,3 +42,8 @@ jobs:
 
       - name: Unit tests
         run: npm test -- --runInBand
+
+  android-apks:
+    needs: typecheck
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/android-apk.yml

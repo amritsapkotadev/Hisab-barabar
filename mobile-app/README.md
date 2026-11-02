@@ -88,15 +88,18 @@ launcher rather than Expo Go or the development-client loading screen.
 
 ## Android APKs without EAS
 
-The manually triggered `Android testing APKs` GitHub Actions workflow builds two
+The reusable `Android testing APKs` GitHub Actions workflow builds two
 downloadable APKs using Node, Java 17, the Android SDK, and the checked-in Gradle
-project. No EAS login or Expo token is required.
+project. Mobile CI calls it automatically after typecheck, lint, and tests pass
+for a push to `main`. Pull requests run checks only. No EAS login or Expo token
+is required.
 
 1. Commit and push the mobile implementation, native resources, lockfile, and
    `.github/workflows/android-apk.yml`. The workflow must exist on the default
    branch before GitHub shows its Run workflow button.
-2. In GitHub, enable Actions if needed, then select Actions -> Android testing
-   APKs -> Run workflow. Select the branch containing the app changes.
+2. In GitHub, enable Actions if needed, then open the Mobile CI run for your push
+   to `main`. Its APK job starts after checks pass. To build manually instead,
+   select Actions -> Android testing APKs -> Run workflow and choose a branch.
 3. After the run succeeds, download an artifact from the run's summary and unzip
    it. Transfer the APK to your Android phone and allow installation from the
    browser or file manager when prompted.

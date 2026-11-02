@@ -2,6 +2,7 @@ name: Android testing APKs
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
