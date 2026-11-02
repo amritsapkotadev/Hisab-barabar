@@ -7,8 +7,9 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB()
 
-    const { email, otp } = await request.json()
-    const user = await User.findOne({ email })
+    const { email, otp, purpose } = await request.json()
+    const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : ''
+    const user = await User.findOne({ email: normalizedEmail })
 
     if (!user) {
       return NextResponse.json(
@@ -17,18 +18,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (user.isVerified) {
+    if (user.isVerified && purpose !== 'reset') {
       return NextResponse.json(
         { message: 'User already verified' },
         { status: 400 }
       )
     }
 
-    if (user.otp !== otp || !user.otpExpires || user.otpExpires < new Date()) {
+    if (
+      !user.otp ||
+      user.otp !== String(otp || '').trim() ||
+      !user.otpExpires ||
+      user.otpExpires < new Date()
+    ) {
       return NextResponse.json(
         { message: 'Invalid or expired OTP' },
         { status: 400 }
       )
+    }
+
+    if (purpose === 'reset') {
+      // Do not consume the OTP here; reset-password verifies and clears it.
+      return NextResponse.json({
+        success: true,
+        message: 'OTP verified. You can now set a new password.',
+      })
     }
 
     user.isVerified = true

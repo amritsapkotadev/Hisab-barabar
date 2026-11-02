@@ -1,9 +1,13 @@
-import User from "@/models/User";
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import type { NextRequest } from 'next/server';
 import Settlement from '@/models/Settlement';
 import Group from '@/models/Group';
+import Expense from '@/models/Expense';
+import { calculateNetSettlements } from '@/utils/netSettlements';
+import { authenticateUser } from '@/middleware/auth';
+import { findMemberByUserId } from '@/utils/groupMembers';
+import { calculateGroupBalances } from '@/utils/groupBalances';
 
 // Type definitions
 interface SettlementInput {
@@ -32,6 +36,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   try {
+    const auth = await authenticateUser(request);
+    if ('error' in auth) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     // Parse and validate request body
     const body: RequestBody = await request.json();
     const { settlements, settledAt, notes } = body;
@@ -77,7 +89,29 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         { status: 404 }
       );
     }
-    // Prepare settlements with dates, groupId, and members
+
+    const hasAccess =
+      group.createdBy.toString() === auth.userId ||
+      !!findMemberByUserId(group.members, auth.userId);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { success: false, error: 'Not authorized to settle this group' },
+        { status: 403 }
+      );
+    }
+
+    const memberIds = new Set(group.members.map((member) => member.id));
+    const invalidMemberErrors = settlements
+      .filter((s) => !memberIds.has(s.fromUserId) || !memberIds.has(s.toUserId))
+      .map((_s, index) => `Settlement ${index + 1}: fromUserId/toUserId must be group members`);
+    if (invalidMemberErrors.length > 0) {
+      return NextResponse.json(
+        { success: false, error: 'Validation failed', details: invalidMemberErrors },
+        { status: 400 }
+      );
+    }
+
+    // Prepare settlements with dates and groupId
     const settlementsWithDates = settlements.map(settlement => ({
       fromUserId: settlement.fromUserId,
       toUserId: settlement.toUserId,
@@ -85,42 +119,48 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       date: new Date(),
       description: settlement.description || `Settlement from ${settlement.fromUserId} to ${settlement.toUserId}`,
       groupId: id,
-      members: group.members,
     }));
-
-    // Save each settlement to the global Settlement collection
-    await Settlement.insertMany(settlementsWithDates);
 
     // Update balances based on settlements
     // Ensure balances is always a plain object for Map
-    const balancesObj =
-      group && group.balances && typeof group.balances === 'object' && !Array.isArray(group.balances)
-        ? group.balances
-        : {};
-    const updatedBalances = new Map(Object.entries(balancesObj));
+    const expenses = await Expense.find({ groupId: group._id });
+    const currentBalances = calculateGroupBalances(
+      group.members.map(member => member.id),
+      expenses,
+      group.settlements ?? [],
+    );
+    const updatedBalances = new Map(Object.entries(currentBalances));
 
-    // Correct logic: Deduct from payer, add to payee
-    settlementsWithDates.forEach(settlement => {
-      // Deduct from payer (fromUserId)
+    // Balances are payer-positive: money paid by `from` reduces their debt
+    // (balance moves up toward zero), and money received by `to` reduces
+    // their credit (balance moves down toward zero).
+    for (const settlement of settlementsWithDates) {
       const currentFromBalance = Number(updatedBalances.get(settlement.fromUserId) ?? 0);
+      const currentToBalance = Number(updatedBalances.get(settlement.toUserId) ?? 0);
+      if (currentFromBalance >= 0 || currentToBalance <= 0 ||
+          settlement.amount > Math.min(-currentFromBalance, currentToBalance) + 0.01) {
+        return NextResponse.json(
+          { success: false, error: 'Settlement exceeds the current debt between group members' },
+          { status: 400 }
+        );
+      }
       updatedBalances.set(
         settlement.fromUserId,
-        parseFloat((currentFromBalance - settlement.amount).toFixed(2))
+        parseFloat((currentFromBalance + settlement.amount).toFixed(2))
       );
 
-      // Add to payee (toUserId)
-      const currentToBalance = Number(updatedBalances.get(settlement.toUserId) ?? 0);
       updatedBalances.set(
         settlement.toUserId,
-        parseFloat((currentToBalance + settlement.amount).toFixed(2))
+        parseFloat((currentToBalance - settlement.amount).toFixed(2))
       );
-    });
+    }
+
+    // Save only after the entire request is confirmed against current balances.
+    await Settlement.insertMany(settlementsWithDates);
 
     // Recalculate netSettlements after updating balances
-    // Import the netSettlements utility if not already
-    // (Assume it's imported as netSettlements)
     const balancesObjForNet = Object.fromEntries(updatedBalances);
-    const netSettlementsArr = require('@/utils/netSettlements').default(balancesObjForNet);
+    const netSettlementsArr = calculateNetSettlements(balancesObjForNet);
 
     // Update the group
     const update: any = {
@@ -220,16 +260,34 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
+    const auth = await authenticateUser(request);
+    if ('error' in auth) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
     await connectToDatabase();
     
     const group = await Group.findById(id)
-      .select('name settlements settled settledAt balances totalExpenses')
+      .select('name settlements settled settledAt balances totalExpenses createdBy members')
       .lean();
     
     if (!group) {
       return NextResponse.json(
         { success: false, error: 'Group not found' },
         { status: 404 }
+      );
+    }
+
+    const hasAccess =
+      group.createdBy.toString() === auth.userId ||
+      !!findMemberByUserId(group.members, auth.userId);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { success: false, error: 'Not authorized to view this group' },
+        { status: 403 }
       );
     }
 

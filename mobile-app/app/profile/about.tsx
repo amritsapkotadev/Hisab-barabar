@@ -22,22 +22,25 @@ import {
   Smartphone,
   ExternalLink
 } from 'lucide-react-native';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 export default function AboutScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const handleOpenWebsite = () => {
-    Linking.openURL('https://hisabkitab.com');
+    Linking.openURL('https://hisabbarabar.qzz.io');
   };
 
   const handleOpenPrivacy = () => {
-    Linking.openURL('https://hisabkitab.com/privacy');
+    Linking.openURL('https://hisabbarabar.qzz.io/privacy-policy');
   };
 
   const handleOpenTerms = () => {
-    Linking.openURL('https://hisabkitab.com/terms');
+    Linking.openURL('https://hisabbarabar.qzz.io/terms-of-service');
   };
 
   const handleContactUs = () => {
-    Linking.openURL('mailto:hello@hisabkitab.com');
+    Linking.openURL('mailto:support@hisabbarabar.com');
   };
 
   const renderFeatureItem = (icon: React.ReactNode, title: string, description: string) => (
@@ -58,7 +61,7 @@ export default function AboutScreen() {
         {icon}
       </View>
       <Text style={styles.linkTitle}>{title}</Text>
-      <ExternalLink size={16} color="#9ca3af" />
+      <ExternalLink size={16} color={COLORS.textTertiary} />
     </TouchableOpacity>
   );
 
@@ -68,27 +71,27 @@ export default function AboutScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#374151" />
+         accessibilityRole="button" accessibilityLabel="Go back">
+          <ArrowLeft size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>About Hisab Kitab</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.title} numberOfLines={1}>About Hisab Barabar</Text>
+        <View style={styles.backButton} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* App Logo and Info */}
         <View style={styles.appInfoSection}>
           <View style={styles.appLogo}>
-            <Smartphone size={40} color="#2563eb" />
+            <Smartphone size={40} color={COLORS.text} />
           </View>
-          <Text style={styles.appName}>Hisab Kitab</Text>
+          <Text style={styles.appName}>Hisab Barabar</Text>
           <Text style={styles.appTagline}>Smart Expense Sharing for Nepal</Text>
           <Text style={styles.appVersion}>Version 1.0.0</Text>
           
           <View style={styles.madeInNepal}>
             <Text style={styles.madeInNepalText}>Made with </Text>
-            <Heart size={16} color="#dc2626" />
-            <Text style={styles.madeInNepalText}> in Nepal 🇳🇵</Text>
+            <Heart size={16} color={COLORS.negative} />
+            <Text style={styles.madeInNepalText}> in Nepal</Text>
           </View>
         </View>
 
@@ -96,7 +99,7 @@ export default function AboutScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Our Mission</Text>
           <Text style={styles.missionText}>
-            Hisab Kitab makes it easy for friends, families, and groups in Nepal to track and split shared expenses. 
+            Hisab Barabar makes it easy for friends, families, and groups in Nepal to track and split shared expenses. 
             Whether you're planning a trip to Pokhara, sharing apartment rent in Kathmandu, or organizing a family event, 
             we help you keep track of who owes what, so money never comes between relationships.
           </Text>
@@ -107,22 +110,22 @@ export default function AboutScreen() {
           <Text style={styles.sectionTitle}>Key Features</Text>
           <View style={styles.featuresGrid}>
             {renderFeatureItem(
-              <Users size={20} color="#2563eb" />,
+              <Users size={20} color={COLORS.text} />,
               'Group Management',
               'Create groups for different occasions and track expenses together'
             )}
             {renderFeatureItem(
-              <Smartphone size={20} color="#059669" />,
+              <Smartphone size={20} color={COLORS.text} />,
               'eSewa Integration',
               'Seamless integration with Nepal\'s leading digital wallet'
             )}
             {renderFeatureItem(
-              <Shield size={20} color="#7c3aed" />,
+              <Shield size={20} color={COLORS.text} />,
               'Secure & Private',
               'Your financial data is encrypted and stored securely'
             )}
             {renderFeatureItem(
-              <Star size={20} color="#ea580c" />,
+              <Star size={20} color={COLORS.text} />,
               'Smart Splitting',
               'Automatically calculate fair splits and track balances'
             )}
@@ -134,33 +137,14 @@ export default function AboutScreen() {
           <Text style={styles.sectionTitle}>About the Company</Text>
           <View style={styles.companyCard}>
             <View style={styles.companyHeader}>
-              <MapPin size={20} color="#2563eb" />
+              <MapPin size={20} color={COLORS.text} />
               <Text style={styles.companyLocation}>Kathmandu, Nepal</Text>
             </View>
             <Text style={styles.companyDescription}>
-              Hisab Kitab is developed by a team of passionate developers in Nepal who understand the local culture 
+              Hisab Barabar is developed by a team of passionate developers in Nepal who understand the local culture 
               of sharing expenses and the need for transparent financial tracking. We're committed to building 
               technology that serves the Nepali community.
             </Text>
-          </View>
-        </View>
-
-        {/* Statistics */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Impact</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>1000+</Text>
-              <Text style={styles.statLabel}>Active Users</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>5000+</Text>
-              <Text style={styles.statLabel}>Expenses Tracked</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>₹50L+</Text>
-              <Text style={styles.statLabel}>Money Managed</Text>
-            </View>
           </View>
         </View>
 
@@ -169,22 +153,22 @@ export default function AboutScreen() {
           <Text style={styles.sectionTitle}>Learn More</Text>
           <View style={styles.linksGroup}>
             {renderLinkItem(
-              <Globe size={20} color="#6b7280" />,
+              <Globe size={20} color={COLORS.textTertiary} />,
               'Visit Our Website',
               handleOpenWebsite
             )}
             {renderLinkItem(
-              <Shield size={20} color="#6b7280" />,
+              <Shield size={20} color={COLORS.textTertiary} />,
               'Privacy Policy',
               handleOpenPrivacy
             )}
             {renderLinkItem(
-              <Shield size={20} color="#6b7280" />,
+              <Shield size={20} color={COLORS.textTertiary} />,
               'Terms of Service',
               handleOpenTerms
             )}
             {renderLinkItem(
-              <Mail size={20} color="#6b7280" />,
+              <Mail size={20} color={COLORS.textTertiary} />,
               'Contact Us',
               handleContactUs
             )}
@@ -197,7 +181,7 @@ export default function AboutScreen() {
           <View style={styles.creditsCard}>
             <Text style={styles.creditsText}>
               Special thanks to the open-source community and all the libraries that made this app possible. 
-              Built with React Native, Expo, and lots of chai ☕
+              Built with React Native, Expo, and lots of chai
             </Text>
           </View>
         </View>
@@ -205,7 +189,7 @@ export default function AboutScreen() {
         {/* Copyright */}
         <View style={styles.copyrightSection}>
           <Text style={styles.copyrightText}>
-            © 2024 Hisab Kitab. All rights reserved.
+            © 2026 Hisab Barabar. All rights reserved.
           </Text>
           <Text style={styles.copyrightSubtext}>
             Proudly serving the Nepali community
@@ -216,10 +200,10 @@ export default function AboutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -227,20 +211,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  placeholder: {
-    width: 32,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
   content: {
     flex: 1,
@@ -255,57 +245,63 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#eff6ff',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#bfdbfe',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   appName: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 4,
   },
   appTagline: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 15,
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     marginBottom: 8,
     textAlign: 'center',
   },
   appVersion: {
-    fontSize: 14,
-    color: '#9ca3af',
+    fontSize: 13,
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     marginBottom: 16,
   },
   madeInNepal: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: `${COLORS.negative}10`,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: `${COLORS.negative}30`,
   },
   madeInNepalText: {
-    fontSize: 14,
-    color: '#dc2626',
+    fontSize: 13,
+    color: COLORS.negative,
+    fontFamily: 'Inter-SemiBold',
     fontWeight: '600',
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 12,
   },
   missionText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 22,
     textAlign: 'justify',
   },
@@ -315,20 +311,22 @@ const styles = StyleSheet.create({
   featureItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   featureIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -337,24 +335,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 4,
   },
   featureDescription: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
   companyCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   companyHeader: {
@@ -363,51 +365,27 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   companyLocation: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#2563eb',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
   },
   companyDescription: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 20,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2563eb',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
   linksGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   linkItem: {
@@ -415,33 +393,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: COLORS.border,
   },
   linkIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   linkTitle: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-Medium',
   },
   creditsCard: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   creditsText: {
     fontSize: 12,
-    color: '#166534',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 18,
     textAlign: 'center',
   },
@@ -449,16 +434,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 24,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COLORS.border,
     marginTop: 24,
   },
   copyrightText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     marginBottom: 4,
   },
   copyrightSubtext: {
     fontSize: 10,
-    color: '#d1d5db',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
   },
 });

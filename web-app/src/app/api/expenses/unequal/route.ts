@@ -5,9 +5,16 @@ import Group from '@/models/Group'
 import { authenticateUser } from '@/middleware/auth'
 import { sendPushNotification } from '@/lib/firebase' // Add this import
 import User from '@/models/User'
+import { canAccessGroup } from '@/utils/groupMembers'
+import { withExpenseIdempotency } from '@/lib/expenseIdempotency'
+import { calculateGroupBalances } from '@/utils/groupBalances'
 
 
 export async function POST(request: NextRequest) {
+  return withExpenseIdempotency(request, () => createExpense(request))
+}
+
+async function createExpense(request: NextRequest) {
   try {
     const auth = await authenticateUser(request)
     if ('error' in auth) {
@@ -19,14 +26,16 @@ export async function POST(request: NextRequest) {
       await request.json()
 
     // Validation
-    if (!groupId || !description || !amount || !date) {
+    if (typeof groupId !== 'string' || typeof description !== 'string' ||
+        !description.trim() || typeof date !== 'string' || !date ||
+        (paidBy !== undefined && typeof paidBy !== 'string')) {
       return NextResponse.json(
         { message: 'All required fields must be provided' },
         { status: 400 }
       )
     }
 
-    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
         { message: 'Amount must be a valid number greater than 0' },
         { status: 400 }
@@ -34,15 +43,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate payers if provided
-    if (payers && Array.isArray(payers)) {
-      for (const payer of payers) {
-        if (typeof payer.amountPaid !== 'number' || isNaN(payer.amountPaid)) {
-          return NextResponse.json(
-            { message: `Payer amountPaid for ${payer.name} must be a valid number` },
-            { status: 400 }
-          )
-        }
-      }
+    if (payers !== undefined && (!Array.isArray(payers) || payers.some((payer: unknown) =>
+      !payer || typeof payer !== 'object' || !('name' in payer) ||
+      typeof payer.name !== 'string' || !('amountPaid' in payer) ||
+      typeof payer.amountPaid !== 'number' || !Number.isFinite(payer.amountPaid)))) {
+      return NextResponse.json({ message: 'Payers must include a member id and numeric amount' }, { status: 400 })
     }
 
     // Check if group exists and user has access
@@ -51,7 +56,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Group not found' }, { status: 404 })
     }
 
-    if (!group.members.includes(auth.user.name)) {
+    if (!canAccessGroup(group, auth.userId)) {
       return NextResponse.json(
         { message: 'Not authorized: you must be a group member to add expenses' },
         { status: 403 }
@@ -59,7 +64,59 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract participants from splits
-    const participants = splits ? splits.map((s: any) => s.participant) : []
+    if (!Array.isArray(splits) || splits.length === 0) {
+      return NextResponse.json({ message: 'At least one valid participant split is required' }, { status: 400 })
+    }
+    if (splits.some((split: unknown) =>
+      !split || typeof split !== 'object' || !('participant' in split) ||
+      typeof split.participant !== 'string' || !('amount' in split) ||
+      typeof split.amount !== 'number' || !Number.isFinite(split.amount))) {
+      return NextResponse.json({ message: 'Participant splits must have unique members and numeric amounts' }, { status: 400 })
+    }
+    const participants = splits.map((split: { participant: string }) => split.participant)
+    if (new Set(participants).size !== participants.length) {
+      return NextResponse.json({ message: 'Participant splits must have unique members and numeric amounts' }, { status: 400 })
+    }
+
+    // Validate that paidBy, participants, and payers are real group member ids
+    const validMemberIds = group.members.map((member) => member.id)
+    if (paidBy && !validMemberIds.includes(paidBy.trim())) {
+      return NextResponse.json({ message: 'Payer must be a group member' }, { status: 400 })
+    }
+    const invalidParticipants = participants.filter((p: string) => !validMemberIds.includes((p || '').trim()))
+    if (invalidParticipants.length > 0) {
+      return NextResponse.json(
+        { message: `Invalid participants: ${invalidParticipants.join(', ')}` },
+        { status: 400 }
+      )
+    }
+    if (payers) {
+      if (new Set(payers.map((payer: { name: string }) => payer.name)).size !== payers.length) {
+        return NextResponse.json({ message: 'Payers must be unique group members' }, { status: 400 })
+      }
+      const invalidPayers = payers.filter((payer: any) => !validMemberIds.includes((payer.name || '').trim()))
+      if (invalidPayers.length > 0) {
+        return NextResponse.json(
+          { message: 'Invalid payers: must be group members' },
+          { status: 400 }
+        )
+      }
+    }
+
+    try {
+      calculateGroupBalances(validMemberIds, [{
+        amount,
+        paidBy,
+        participants: participants as string[],
+        splits,
+        payers,
+        splitType,
+      }])
+    } catch (error) {
+      return NextResponse.json({
+        message: error instanceof Error ? error.message : 'Expense allocations are invalid',
+      }, { status: 400 })
+    }
 
     // Create expense
     const expense = new Expense({
@@ -79,9 +136,10 @@ export async function POST(request: NextRequest) {
     const savedExpense = await expense.save()
 
     try {
-      const members = await User.find({ name: { $in: group.members } })
+      const linkedUserIds = group.members.filter((member) => member.userId).map((member) => member.userId)
+      const members = await User.find({ _id: { $in: linkedUserIds } })
       for (const member of members) {
-      if (member.fcmToken && member.name !== auth.user.name) {
+      if (member.fcmToken && member._id.toString() !== auth.userId) {
         await sendPushNotification(
         member.fcmToken,
         'New Expense Added',
@@ -115,6 +173,12 @@ export async function POST(request: NextRequest) {
           splitType: savedExpense.splitType,
           date: savedExpense.date,
           createdAt: savedExpense.createdAt,
+          updatedAt: savedExpense.updatedAt,
+          revision: savedExpense.revision ?? 0,
+          type: savedExpense.type,
+          createdBy: savedExpense.createdBy,
+          category: savedExpense.category,
+          paymentMethod: savedExpense.paymentMethod,
         },
       },
       { status: 201 }

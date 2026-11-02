@@ -9,7 +9,12 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useToast } from '@/components/Toast';
+import { useTranslation } from 'react-i18next';
+import { setLanguage } from '@/i18n';
 import { router } from 'expo-router';
+import { type ThemeColors, type ThemePreference } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/hooks/useTheme';
 import { 
   ArrowLeft, 
   DollarSign, 
@@ -24,11 +29,14 @@ import {
 } from 'lucide-react-native';
 
 export default function SettingsScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const { preference, setPreference } = useTheme();
+  const toast = useToast();
+  const { t } = useTranslation();
   const [settings, setSettings] = useState({
-    currency: 'USD',
+    currency: 'NPR (रु)',
     dateFormat: 'MM/DD/YYYY',
-    language: 'English',
-    theme: 'System',
+    language: 'en' as 'en' | 'ne',
     autoBackup: true,
     offlineMode: false,
     smartNotifications: true,
@@ -41,100 +49,98 @@ export default function SettingsScreen() {
 
   const handleCurrencyChange = () => {
     Alert.alert(
-      'Currency',
-      'Choose your preferred currency',
+      t('settings.currency'),
+      t('settings.currencyPrompt'),
       [
-        { text: 'USD ($)', onPress: () => updateSetting('currency', 'USD') },
-        { text: 'EUR (€)', onPress: () => updateSetting('currency', 'EUR') },
-        { text: 'GBP (£)', onPress: () => updateSetting('currency', 'GBP') },
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'NPR (रु)', onPress: () => updateSetting('currency', 'NPR (रु)') },
+        { text: 'USD ($)', onPress: () => updateSetting('currency', 'USD ($)') },
+        { text: 'EUR (€)', onPress: () => updateSetting('currency', 'EUR (€)') },
+        { text: t('common.cancel'), style: 'cancel' },
       ]
     );
   };
 
   const handleDateFormatChange = () => {
     Alert.alert(
-      'Date Format',
-      'Choose your preferred date format',
+      t('settings.dateFormat'),
+      t('settings.dateFormatPrompt'),
       [
-        { text: 'MM/DD/YYYY', onPress: () => updateSetting('dateFormat', 'MM/DD/YYYY') },
-        { text: 'DD/MM/YYYY', onPress: () => updateSetting('dateFormat', 'DD/MM/YYYY') },
         { text: 'YYYY-MM-DD', onPress: () => updateSetting('dateFormat', 'YYYY-MM-DD') },
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'DD/MM/YYYY', onPress: () => updateSetting('dateFormat', 'DD/MM/YYYY') },
+        { text: 'MM/DD/YYYY', onPress: () => updateSetting('dateFormat', 'MM/DD/YYYY') },
+        { text: t('common.cancel'), style: 'cancel' },
       ]
     );
   };
 
   const handleLanguageChange = () => {
     Alert.alert(
-      'Language',
-      'Choose your preferred language',
+      t('settings.language'),
+      t('settings.languagePrompt'),
       [
-        { text: 'English', onPress: () => updateSetting('language', 'English') },
-        { text: 'Spanish', onPress: () => updateSetting('language', 'Spanish') },
-        { text: 'French', onPress: () => updateSetting('language', 'French') },
-        { text: 'German', onPress: () => updateSetting('language', 'German') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  };
-
-  const handleThemeChange = () => {
-    Alert.alert(
-      'Theme',
-      'Choose your preferred theme',
-      [
-        { text: 'Light', onPress: () => updateSetting('theme', 'Light') },
-        { text: 'Dark', onPress: () => updateSetting('theme', 'Dark') },
-        { text: 'System', onPress: () => updateSetting('theme', 'System') },
-        { text: 'Cancel', style: 'cancel' },
+        {
+          text: t('settings.english'),
+          onPress: () => {
+            updateSetting('language', 'en');
+            void setLanguage('en');
+          },
+        },
+        {
+          text: t('settings.nepali'),
+          onPress: () => {
+            updateSetting('language', 'ne');
+            void setLanguage('ne');
+          },
+        },
+        { text: t('common.cancel'), style: 'cancel' },
       ]
     );
   };
 
   const handleExportData = () => {
     Alert.alert(
-      'Export Data',
-      'This will create a CSV file with all your expense data.',
+      t('settings.exportData'),
+      t('settings.exportPrompt'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Export', onPress: () => Alert.alert('Success', 'Data exported successfully!') },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('settings.export'), onPress: () => toast.success(t('settings.exportSuccess')) },
       ]
     );
   };
 
   const handleClearCache = () => {
     Alert.alert(
-      'Clear Cache',
-      'This will clear temporary files and may improve app performance.',
+      t('settings.clearCache'),
+      t('settings.clearCachePrompt'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', onPress: () => Alert.alert('Success', 'Cache cleared successfully!') },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('settings.clear'), onPress: () => toast.success(t('settings.clearSuccess')) },
       ]
     );
   };
 
   const handleResetSettings = () => {
     Alert.alert(
-      'Reset Settings',
-      'This will reset all app settings to their default values. Your data will not be affected.',
+      t('settings.resetSettings'),
+      t('settings.resetPrompt'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.reset'),
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            if (!await setPreference('system')) return;
             setSettings({
-              currency: 'USD',
-              dateFormat: 'MM/DD/YYYY',
-              language: 'English',
-              theme: 'System',
+              currency: 'NPR (रु)',
+              dateFormat: 'YYYY-MM-DD',
+              language: 'en',
               autoBackup: true,
               offlineMode: false,
               smartNotifications: true,
               weeklyDigest: true,
             });
-            Alert.alert('Success', 'Settings reset to defaults!');
+            void setLanguage('en');
+            toast.success(t('settings.resetSuccess'));
           }
         },
       ]
@@ -156,7 +162,7 @@ export default function SettingsScreen() {
         <Text style={styles.settingTitle}>{title}</Text>
         <Text style={styles.settingSubtitle}>{subtitle}</Text>
       </View>
-      {rightElement || <ChevronRight size={20} color="#9ca3af" />}
+      {rightElement || <ChevronRight size={20} color={COLORS.textTertiary} />}
     </TouchableOpacity>
   );
 
@@ -177,8 +183,9 @@ export default function SettingsScreen() {
       <Switch
         value={settings[settingKey as keyof typeof settings] as boolean}
         onValueChange={(value) => updateSetting(settingKey, value)}
-        trackColor={{ false: '#f3f4f6', true: '#bfdbfe' }}
-        thumbColor={settings[settingKey as keyof typeof settings] ? '#2563eb' : '#9ca3af'}
+        trackColor={{ false: COLORS.switchTrackOff, true: COLORS.switchTrackOn }}
+        thumbColor={COLORS.switchThumb}
+        ios_backgroundColor={COLORS.switchTrackOff}
       />
     </View>
   );
@@ -189,71 +196,96 @@ export default function SettingsScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#374151" />
+         accessibilityRole="button" accessibilityLabel={t('common.back')}>
+          <ArrowLeft size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>App Settings</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.title} numberOfLines={1}>{t('settings.title')}</Text>
+        <View style={styles.backButton} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>{t('settings.about')}</Text>
+          <Text style={styles.infoText}>
+            {t('settings.aboutText')}
+          </Text>
+        </View>
+
         {/* Display Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Display & Format</Text>
+          <Text style={styles.sectionTitle}>{t('settings.displayFormat')}</Text>
           <View style={styles.settingsGroup}>
             {renderSettingItem(
-              <DollarSign size={20} color="#6b7280" />,
-              'Currency',
+              <DollarSign size={20} color={COLORS.textTertiary} />,
+              t('settings.currency'),
               settings.currency,
               handleCurrencyChange
             )}
             {renderSettingItem(
-              <Calendar size={20} color="#6b7280" />,
-              'Date Format',
+              <Calendar size={20} color={COLORS.textTertiary} />,
+              t('settings.dateFormat'),
               settings.dateFormat,
               handleDateFormatChange
             )}
             {renderSettingItem(
-              <Globe size={20} color="#6b7280" />,
-              'Language',
-              settings.language,
+              <Globe size={20} color={COLORS.textTertiary} />,
+              t('settings.language'),
+              settings.language === 'ne' ? t('settings.nepali') : t('settings.english'),
               handleLanguageChange
             )}
-            {renderSettingItem(
-              <Palette size={20} color="#6b7280" />,
-              'Theme',
-              settings.theme,
-              handleThemeChange
-            )}
+            <View style={styles.settingItem}>
+              <View style={styles.settingIcon}>
+                <Palette size={20} color={COLORS.textTertiary} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>{t('settings.theme')}</Text>
+                <Text style={styles.settingSubtitle}>{t('settings.themePrompt')}</Text>
+              </View>
+            </View>
+            <View style={styles.themeOptions} accessibilityRole="radiogroup">
+              {(['system', 'light', 'dark'] as const).map((option: ThemePreference) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.themeOption, preference === option && styles.themeOptionSelected]}
+                  onPress={() => { void setPreference(option); }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: preference === option }}
+                >
+                  <Text style={[styles.themeOptionText, preference === option && styles.themeOptionTextSelected]}>
+                    {t(`settings.${option}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
 
         {/* App Behavior */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Behavior</Text>
+          <Text style={styles.sectionTitle}>{t('settings.appBehavior')}</Text>
           <View style={styles.settingsGroup}>
             {renderSwitchItem(
-              <Download size={20} color="#6b7280" />,
-              'Auto Backup',
-              'Automatically backup your data to cloud',
+              <Download size={20} color={COLORS.textTertiary} />,
+              t('settings.autoBackup'),
+              t('settings.autoBackupSubtitle'),
               'autoBackup'
             )}
             {renderSwitchItem(
-              <Globe size={20} color="#6b7280" />,
-              'Offline Mode',
-              'Allow app to work without internet',
+              <Globe size={20} color={COLORS.textTertiary} />,
+              t('settings.offlineMode'),
+              t('settings.offlineModeSubtitle'),
               'offlineMode'
             )}
             {renderSwitchItem(
-              <Bell size={20} color="#6b7280" />,
-              'Smart Notifications',
-              'Intelligent notification timing',
+              <Bell size={20} color={COLORS.textTertiary} />,
+              t('settings.smartNotifications'),
+              t('settings.smartNotificationsSubtitle'),
               'smartNotifications'
             )}
             {renderSwitchItem(
-              <Calendar size={20} color="#6b7280" />,
-              'Weekly Digest',
-              'Receive weekly expense summaries',
+              <Calendar size={20} color={COLORS.textTertiary} />,
+              t('settings.weeklyDigest'),
+              t('settings.weeklyDigestSubtitle'),
               'weeklyDigest'
             )}
           </View>
@@ -261,18 +293,18 @@ export default function SettingsScreen() {
 
         {/* Data Management */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Management</Text>
+          <Text style={styles.sectionTitle}>{t('settings.dataManagement')}</Text>
           <View style={styles.settingsGroup}>
             {renderSettingItem(
-              <Download size={20} color="#6b7280" />,
-              'Export Data',
-              'Download your data as CSV',
+              <Download size={20} color={COLORS.textTertiary} />,
+              t('settings.exportData'),
+              t('settings.exportDataSubtitle'),
               handleExportData
             )}
             {renderSettingItem(
-              <RefreshCw size={20} color="#6b7280" />,
-              'Clear Cache',
-              'Free up storage space',
+              <RefreshCw size={20} color={COLORS.textTertiary} />,
+              t('settings.clearCache'),
+              t('settings.clearCacheSubtitle'),
               handleClearCache
             )}
           </View>
@@ -280,33 +312,52 @@ export default function SettingsScreen() {
 
         {/* Advanced */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Advanced</Text>
+          <Text style={styles.sectionTitle}>{t('settings.advanced')}</Text>
           <View style={styles.settingsGroup}>
             {renderSettingItem(
-              <Trash2 size={20} color="#dc2626" />,
-              'Reset Settings',
-              'Reset all settings to defaults',
+              <Trash2 size={20} color={COLORS.negative} />,
+              t('settings.resetSettings'),
+              t('settings.resetSettingsSubtitle'),
               handleResetSettings
             )}
           </View>
         </View>
 
-        {/* Info */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>About Settings</Text>
-          <Text style={styles.infoText}>
-            These settings are synced across all your devices. Changes may take a few moments to apply.
-          </Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
+  themeOptions: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 8,
+  },
+  themeOption: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  themeOptionSelected: {
+    backgroundColor: COLORS.action,
+    borderColor: COLORS.action,
+  },
+  themeOptionText: {
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
+  },
+  themeOptionTextSelected: {
+    color: COLORS.actionText,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -314,42 +365,53 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  placeholder: {
-    width: 32,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 32,
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 12,
   },
   settingsGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   settingItem: {
@@ -357,13 +419,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: COLORS.surfaceSecondary,
   },
   settingIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -372,32 +434,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   settingSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
   },
   infoCard: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: COLORS.card,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
-    marginTop: 8,
+    borderColor: COLORS.border,
+    marginBottom: 24,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   infoTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e40af',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 8,
   },
   infoText: {
     fontSize: 12,
-    color: '#1e40af',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
 });

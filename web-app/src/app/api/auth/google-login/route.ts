@@ -25,7 +25,11 @@ export async function POST(request: NextRequest) {
     if (!user) {
       // Auto-create user if they don't exist (unified sign-in/sign-up)
       const userPhone = `google_${googleId}_${Date.now()}`
-      
+
+      if (fcmToken) {
+        await User.updateMany({ fcmToken }, { $unset: { fcmToken: 1 } })
+      }
+
       user = await User.create({
         name: name.trim(),
         email: email.toLowerCase().trim(),
@@ -41,8 +45,13 @@ export async function POST(request: NextRequest) {
       // Update existing user
       let updated = false
       
-      // Update FCM token if new token is provided
+      // Update FCM token if new token is provided. The token is unique, so
+      // release it from any previous account first.
       if (fcmToken && user.fcmToken !== fcmToken) {
+        await User.updateMany(
+          { fcmToken, _id: { $ne: user._id } },
+          { $unset: { fcmToken: 1 } }
+        )
         user.fcmToken = fcmToken
         updated = true
         console.log('Updated FCM token for existing Google user:', user.email)

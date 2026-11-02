@@ -4,6 +4,7 @@ import Group from '@/models/Group'
 import User from '@/models/User'
 import { authenticateUser } from '@/middleware/auth'
 import { sendPushNotification } from '@/lib/firebase'
+import { addOrClaimMember, findMemberByUserId } from '@/utils/groupMembers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,15 +32,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is already a member
-    if (group.members.includes(username)) {
+    if (findMemberByUserId(group.members, auth.userId)) {
       return NextResponse.json(
         { message: 'You are already a member of this group' },
         { status: 400 }
       )
     }
 
-    // Add user to group members
-    group.members.push(username)
+    // Add (or claim an existing ghost entry for) this user
+    addOrClaimMember(group.members, { id: auth.userId, name: username })
     await group.save()
 
     // Send notification to group creator
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         id: group._id,
         name: group.name,
         description: group.description,
-        members: group.members,
+        members: group.members.map((member) => ({ id: member.id, name: member.name, userId: member.userId })),
         emoji: group.emoji,
         inviteCode: group.inviteCode,
       },

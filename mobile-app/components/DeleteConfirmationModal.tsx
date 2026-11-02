@@ -6,11 +6,13 @@ import {
   StyleSheet,
   Modal,
   TextInput,
-  Alert,
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import { X, Trash2, AlertTriangle } from 'lucide-react-native';
+import { Trash2, AlertTriangle } from 'lucide-react-native';
+import { useToast } from '@/components/Toast';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 interface DeleteConfirmationModalProps {
   visible: boolean;
@@ -35,6 +37,8 @@ export default function DeleteConfirmationModal({
   confirmationText = '',
   isDangerous = true,
 }: DeleteConfirmationModalProps) {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
   const [confirmationInput, setConfirmationInput] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -56,7 +60,7 @@ export default function DeleteConfirmationModal({
 
   const handleConfirm = async () => {
     if (!isConfirmationValid) {
-      Alert.alert('Error', `Please type "${confirmationText}" to confirm`);
+      toast.error(`Please type "${confirmationText}" to confirm`);
       return;
     }
 
@@ -66,7 +70,7 @@ export default function DeleteConfirmationModal({
       setConfirmationInput('');
       onClose();
     } catch (error) {
-      Alert.alert('Error', 'Failed to delete. Please try again.');
+      toast.error('Failed to delete. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -89,21 +93,15 @@ export default function DeleteConfirmationModal({
     >
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <View style={styles.container} accessibilityRole="alert" aria-modal={true}>
-          <View style={styles.header}>
-            <View style={[styles.iconContainer, isDangerous && styles.dangerIconContainer]}>
-              {isDangerous ? (
-                <AlertTriangle size={24} color="#dc2626" accessibilityLabel="Danger" />
-              ) : (
-                <Trash2 size={24} color="#6b7280" accessibilityLabel="Delete" />
-              )}
-            </View>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose} accessibilityLabel="Close Modal">
-              <X size={20} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
-
           <View style={styles.content}>
-            <Text style={styles.title}>{title}</Text>
+            <View style={styles.titleRow}>
+              <Trash2
+                size={22}
+                color={isDangerous ? COLORS.negative : COLORS.textSecondary}
+                accessibilityLabel="Delete"
+              />
+              <Text style={styles.title}>{title}</Text>
+            </View>
             <Text style={styles.message}>{message}</Text>
 
             {requiresConfirmation && (
@@ -116,7 +114,7 @@ export default function DeleteConfirmationModal({
                   value={confirmationInput}
                   onChangeText={setConfirmationInput}
                   placeholder={confirmationText}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={COLORS.textTertiary}
                   autoCapitalize="none"
                   autoCorrect={false}
                   accessibilityLabel="Confirmation Input"
@@ -126,10 +124,9 @@ export default function DeleteConfirmationModal({
             )}
 
             {isDangerous && (
-              <View style={styles.warningCard}>
-                <Text style={styles.warningText}>
-                  ⚠️ This action cannot be undone. All data will be permanently deleted.
-                </Text>
+              <View style={styles.dangerBox}>
+                <AlertTriangle size={16} color={COLORS.negative} />
+                <Text style={styles.dangerText}>This action cannot be undone.</Text>
               </View>
             )}
           </View>
@@ -149,7 +146,6 @@ export default function DeleteConfirmationModal({
                 styles.confirmButton,
                 isDangerous && styles.dangerButton,
                 (!isConfirmationValid || isDeleting) && styles.disabledButton,
-                isDangerous && { shadowColor: '#dc2626', shadowOpacity: 0.3, shadowRadius: 6, elevation: 6 },
               ]}
               onPress={handleConfirm}
               disabled={!isConfirmationValid || isDeleting}
@@ -157,12 +153,9 @@ export default function DeleteConfirmationModal({
               accessibilityRole="button"
             >
               {isDeleting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color={COLORS.actionText} />
               ) : (
-                <>
-                  <Trash2 size={16} color="#ffffff" />
-                  <Text style={styles.confirmButtonText}>{confirmText}</Text>
-                </>
+                <Text style={styles.confirmButtonText}>{confirmText}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -172,91 +165,88 @@ export default function DeleteConfirmationModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     width: '100%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    maxWidth: 360,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
     elevation: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingBottom: 0,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dangerIconContainer: {
-    backgroundColor: '#fef2f2',
-  },
-  closeButton: {
-    padding: 4,
   },
   content: {
     padding: 20,
+    paddingBottom: 18,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
   },
   title: {
+    flexShrink: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
   },
   message: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
     lineHeight: 20,
-    marginBottom: 16,
+    fontFamily: 'Inter-Regular',
   },
   confirmationSection: {
-    marginBottom: 16,
+    marginTop: 14,
   },
   confirmationLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.text,
     marginBottom: 8,
+    fontFamily: 'Inter-SemiBold',
   },
   confirmationInput: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: COLORS.surfaceSecondary,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: COLORS.borderStrong,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-Regular',
   },
-  warningCard: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 8,
-    padding: 12,
+  dangerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: `${COLORS.negative}0F`,
     borderWidth: 1,
-    borderColor: '#fbbf24',
+    borderColor: `${COLORS.negative}33`,
   },
-  warningText: {
-    fontSize: 12,
-    color: '#92400e',
-    lineHeight: 16,
+  dangerText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.negative,
+    fontFamily: 'Inter-SemiBold',
   },
   footer: {
     flexDirection: 'row',
@@ -266,35 +256,38 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.surfaceSecondary,
+    paddingVertical: 9,
+    borderRadius: 999,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   cancelButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#6b7280',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.action,
+    paddingVertical: 9,
+    borderRadius: 999,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
   dangerButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: COLORS.negative,
   },
   disabledButton: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: COLORS.surfaceMuted,
   },
   confirmButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.actionText,
+    fontFamily: 'Inter-SemiBold',
   },
 });

@@ -7,12 +7,12 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB()
 
-    const { email, newPassword } = await request.json()
+    const { email, otp, newPassword } = await request.json()
 
     // Validate input
-    if (!email || !newPassword) {
+    if (!email || !otp || !newPassword) {
       return NextResponse.json(
-        { message: 'Email and new password are required' },
+        { message: 'Email, OTP, and new password are required' },
         { status: 400 }
       )
     }
@@ -28,7 +28,20 @@ export async function POST(request: NextRequest) {
     const user = await User.findOne({ email: email.toLowerCase().trim() })
     if (!user) {
       return NextResponse.json(
-        { message: 'User not found' },
+        { message: 'Invalid email or OTP' },
+        { status: 400 }
+      )
+    }
+
+    // The reset OTP must have been issued by forgot-password and still be valid
+    if (
+      !user.otp ||
+      user.otp !== String(otp).trim() ||
+      !user.otpExpires ||
+      user.otpExpires < new Date()
+    ) {
+      return NextResponse.json(
+        { message: 'Invalid or expired OTP' },
         { status: 400 }
       )
     }

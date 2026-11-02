@@ -22,9 +22,12 @@ export interface IExpense extends Document {
   groupId?: mongoose.Types.ObjectId | null
   paidBy?: string
   participants?: string[]
+  category?: string
+  paymentMethod?: string
   splits?: ISplit[]
   payers?: IPayer[]
   splitType: 'equal' | 'unequal' | 'percentage' | 'shares'
+  revision: number
   createdAt: Date
   updatedAt: Date
 }
@@ -71,6 +74,14 @@ const expenseSchema = new Schema<IExpense>(
         trim: true,
       },
     ],
+    category: {
+      type: String,
+      trim: true,
+    },
+    paymentMethod: {
+      type: String,
+      trim: true,
+    },
     splits: [
       {
         participant: {
@@ -104,6 +115,13 @@ const expenseSchema = new Schema<IExpense>(
       type: String,
       enum: ['equal', 'unequal', 'percentage', 'shares'],
       default: 'equal',
+    },
+    revision: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: Number.MAX_SAFE_INTEGER,
+      validate: Number.isSafeInteger,
     },
   },
   {

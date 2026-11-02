@@ -16,14 +16,17 @@ import { router } from 'expo-router';
 import { apiService } from '@/services/api';
 import { useLocalSearchParams } from 'expo-router';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 export default function ResetPasswordScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
-    const { email } = useLocalSearchParams();
+    const { email, otp } = useLocalSearchParams<{ email: string; otp: string }>();
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
     const handleResetPassword = async () => {
@@ -40,9 +43,18 @@ export default function ResetPasswordScreen() {
             return;
         }
 
+        if (!email || !otp) {
+            setError('Your reset code is missing or expired. Please request a new one.');
+            return;
+        }
+
         setLoading(true);
         try {
-            const res = await apiService.resetPassword({ email: Array.isArray(email) ? email[0] : email, newPassword: newPassword });
+            const res = await apiService.resetPassword({
+                email: Array.isArray(email) ? email[0] : email,
+                otp: Array.isArray(otp) ? otp[0] : otp,
+                newPassword: newPassword,
+            });
             if (res.success) {
                 setShowConfirmationModal(true);
             } else {
@@ -62,8 +74,8 @@ export default function ResetPasswordScreen() {
                 style={styles.keyboardView}
             >
                 <View style={styles.card}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                        <ArrowLeft size={22} color="#4f46e5" />
+                    <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+                        <ArrowLeft size={22} color={COLORS.text} />
                     </TouchableOpacity>
                     <Text style={styles.title}>Reset Password</Text>
                     <View style={styles.inputGroup}>
@@ -73,7 +85,7 @@ export default function ResetPasswordScreen() {
                             value={newPassword}
                             onChangeText={setNewPassword}
                             placeholder="Enter new password"
-                            placeholderTextColor="#94A3B8"
+                            placeholderTextColor={COLORS.textTertiary}
                             secureTextEntry
                         />
                     </View>
@@ -84,7 +96,7 @@ export default function ResetPasswordScreen() {
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             placeholder="Confirm new password"
-                            placeholderTextColor="#94A3B8"
+                            placeholderTextColor={COLORS.textTertiary}
                             secureTextEntry
                         />
                     </View>
@@ -105,7 +117,7 @@ export default function ResetPasswordScreen() {
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#fff" size="small" />
+                            <ActivityIndicator color={COLORS.actionText} size="small" />
                         ) : (
                             <Text style={styles.buttonText}>Reset Password</Text>
                         )}
@@ -119,10 +131,10 @@ export default function ResetPasswordScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: COLORS.background,
         justifyContent: 'center',
     },
     keyboardView: {
@@ -130,30 +142,34 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.card,
         marginHorizontal: 24,
-        borderRadius: 20,
+        borderRadius: 16,
         padding: 28,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: COLORS.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
+        elevation: 1,
         alignItems: 'center',
     },
     title: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#1e293b',
+        color: COLORS.text,
         marginBottom: 30,
         textAlign: 'center',
         marginTop: -15,
+        fontFamily: 'Inter-Bold',
     },
     subtitle: {
         fontSize: 15,
-        color: '#64748b',
+        color: COLORS.textSecondary,
         marginBottom: 18,
         textAlign: 'center',
+        fontFamily: 'Inter-Regular',
     },
     inputGroup: {
         width: '100%',
@@ -161,44 +177,47 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 14,
-        color: '#475569',
-        marginBottom: 4,
+        color: COLORS.text,
+        marginBottom: 6,
         fontWeight: '500',
+        fontFamily: 'Inter-Medium',
     },
     input: {
         height: 44,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: COLORS.border,
         borderRadius: 10,
-        paddingHorizontal: 10,
+        paddingHorizontal: 12,
         fontSize: 16,
-        color: '#1e293b',
-        backgroundColor: '#f1f5f9',
+        color: COLORS.text,
+        backgroundColor: COLORS.surfaceSecondary,
+        fontFamily: 'Inter-Regular',
     },
     button: {
-        backgroundColor: '#4f46e5',
-        borderRadius: 10,
+        backgroundColor: COLORS.action,
+        borderRadius: 999,
         paddingVertical: 14,
         alignItems: 'center',
         marginTop: 10,
         width: '100%',
     },
     buttonDisabled: {
-        opacity: 0.7,
+        opacity: 0.6,
     },
     buttonText: {
-        color: '#fff',
+        color: COLORS.actionText,
         fontSize: 16,
         fontWeight: '600',
+        fontFamily: 'Inter-SemiBold',
     },
     error: {
-        color: '#ef4444',
+        color: COLORS.negative,
         marginBottom: 6,
         textAlign: 'center',
         fontSize: 14,
     },
     success: {
-        color: '#22c55e',
+        color: COLORS.positive,
         marginBottom: 6,
         textAlign: 'center',
         fontSize: 14,
@@ -207,10 +226,11 @@ const styles = StyleSheet.create({
         marginTop: 18,
     },
     loginLinkText: {
-        color: '#4f46e5',
+        color: COLORS.text,
         fontWeight: '500',
         fontSize: 15,
         textAlign: 'center',
+        fontFamily: 'Inter-Medium',
     },
     backButton: {
         position: 'absolute',

@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
     await connectDB()
 
     const { email } = await request.json()
-    const user = await User.findOne({ email })
+    const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : ''
+    const user = await User.findOne({ email: normalizedEmail })
 
     if (!user) {
       return NextResponse.json(

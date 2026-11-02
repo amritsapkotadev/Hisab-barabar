@@ -12,6 +12,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Download, FileText, Calendar, Users, DollarSign, CircleCheck as CheckCircle, Clock, Share2, Mail } from 'lucide-react-native';
 import { apiService } from '@/services/api';
+import { Group } from '@/types';
+import { useToast } from '@/components/Toast';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
+
+const getMemberName = (group: Group | undefined, memberId: string): string => {
+  return group?.members.find(m => m.id === memberId)?.name || memberId;
+};
 
 interface ExportOption {
   id: string;
@@ -23,6 +31,8 @@ interface ExportOption {
 }
 
 export default function ExportDataScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
   const [exporting, setExporting] = useState<string | null>(null);
   const [lastExport, setLastExport] = useState<Date | null>(null);
 
@@ -31,7 +41,7 @@ export default function ExportDataScreen() {
       id: 'all-csv',
       title: 'Complete Data Export (CSV)',
       description: 'All transactions, groups, and balances in spreadsheet format',
-      icon: <FileText size={24} color="#2563eb" />,
+      icon: <FileText size={24} color={COLORS.text} />,
       format: 'csv',
       dataType: 'all'
     },
@@ -39,7 +49,7 @@ export default function ExportDataScreen() {
       id: 'expenses-csv',
       title: 'Expenses Only (CSV)',
       description: 'All expense transactions with details',
-      icon: <DollarSign size={24} color="#059669" />,
+      icon: <DollarSign size={24} color={COLORS.text} />,
       format: 'csv',
       dataType: 'expenses'
     },
@@ -47,7 +57,7 @@ export default function ExportDataScreen() {
       id: 'groups-csv',
       title: 'Groups Data (CSV)',
       description: 'Group information and member details',
-      icon: <Users size={24} color="#ea580c" />,
+      icon: <Users size={24} color={COLORS.text} />,
       format: 'csv',
       dataType: 'groups'
     },
@@ -55,7 +65,7 @@ export default function ExportDataScreen() {
       id: 'balances-csv',
       title: 'Current Balances (CSV)',
       description: 'Who owes whom and settlement status',
-      icon: <CheckCircle size={24} color="#7c3aed" />,
+      icon: <CheckCircle size={24} color={COLORS.text} />,
       format: 'csv',
       dataType: 'balances'
     }
@@ -100,15 +110,17 @@ export default function ExportDataScreen() {
     // Add expenses
     expenses.forEach(expense => {
       const group = groups.find(g => g.id === expense.groupId);
-      const participants = expense.participants.join(';');
-      csv += `Expense,${expense.date},"${group?.name || 'Unknown'}","${expense.description}",${expense.amount},"${expense.paidBy}","${participants}",Active\n`;
+      const paidBy = getMemberName(group, expense.paidBy);
+      const participants = expense.participants.map(p => getMemberName(group, p)).join(';');
+      csv += `Expense,${expense.date},"${group?.name || 'Unknown'}","${expense.description}",${expense.amount},"${paidBy}","${participants}",Active\n`;
     });
 
     // Add group balances
     groups.forEach(group => {
-      Object.entries(group.balances).forEach(([member, balance]) => {
+      Object.entries(group.balances).forEach(([memberId, balance]) => {
         if (balance !== 0) {
           const status = balance > 0 ? 'Owed' : 'Owes';
+          const member = getMemberName(group, memberId);
           csv += `Balance,${new Date().toISOString().split('T')[0]},"${group.name}","Balance for ${member}",${Math.abs(balance)},"${member}","${member}",${status}\n`;
         }
       });
@@ -127,9 +139,10 @@ export default function ExportDataScreen() {
     
     expenses.forEach(expense => {
       const group = groups.find(g => g.id === expense.groupId);
-      const participants = expense.participants.join(';');
+      const paidBy = getMemberName(group, expense.paidBy);
+      const participants = expense.participants.map(p => getMemberName(group, p)).join(';');
       const splitAmount = expense.amount / expense.participants.length;
-      csv += `${expense.date},"${group?.name || 'Unknown'}","${expense.description}",${expense.amount},"${expense.paidBy}","${participants}",${splitAmount.toFixed(2)},${expense.createdAt}\n`;
+      csv += `${expense.date},"${group?.name || 'Unknown'}","${expense.description}",${expense.amount},"${paidBy}","${participants}",${splitAmount.toFixed(2)},${expense.createdAt}\n`;
     });
 
     return csv;
@@ -141,7 +154,7 @@ export default function ExportDataScreen() {
     let csv = 'Group Name,Description,Members,Total Expenses,Created At,Member Count\n';
     
     groups.forEach(group => {
-      const members = group.members.join(';');
+      const members = group.members.map(m => m.name).join(';');
       csv += `"${group.name}","${group.description}","${members}",${group.totalExpenses},${group.createdAt},${group.members.length}\n`;
     });
 
@@ -154,10 +167,10 @@ export default function ExportDataScreen() {
     let csv = 'Group,Member,Balance,Status,Settlement Required\n';
     
     groups.forEach(group => {
-      Object.entries(group.balances).forEach(([member, balance]) => {
+      Object.entries(group.balances).forEach(([memberId, balance]) => {
         const status = balance > 0 ? 'Owed' : balance < 0 ? 'Owes' : 'Settled';
         const settlementRequired = balance !== 0 ? 'Yes' : 'No';
-        csv += `"${group.name}","${member}",${balance},${status},${settlementRequired}\n`;
+        csv += `"${group.name}","${getMemberName(group, memberId)}",${balance},${status},${settlementRequired}\n`;
       });
     });
 
@@ -182,7 +195,7 @@ export default function ExportDataScreen() {
       document.body.removeChild(link);
     } else {
       // Mobile implementation would go here
-      Alert.alert('Export Complete', `${filename} has been generated and saved to your device.`);
+      toast.success(`${filename} has been generated and saved to your device.`);
     }
   };
 
@@ -197,26 +210,16 @@ export default function ExportDataScreen() {
       downloadCSV(csvContent, filename);
       setLastExport(new Date());
       
-      Alert.alert(
-        'Export Successful',
-        `Your ${option.title.toLowerCase()} has been exported successfully.`,
-        [
-          { text: 'OK' },
-          { 
-            text: 'Share', 
-            onPress: () => handleShare(filename)
-          }
-        ]
-      );
+      toast.success(`Your ${option.title.toLowerCase()} has been exported successfully.`);
     } catch (error) {
-      Alert.alert('Export Failed', 'There was an error exporting your data. Please try again.');
+      toast.error('There was an error exporting your data. Please try again.');
     } finally {
       setExporting(null);
     }
   };
 
   const handleShare = (filename: string) => {
-    Alert.alert('Share Export', `Share ${filename} via email or messaging apps.`);
+    toast.info(`Share ${filename} via email or messaging apps.`);
   };
 
   const handleEmailExport = () => {
@@ -228,7 +231,7 @@ export default function ExportDataScreen() {
         { 
           text: 'Send', 
           onPress: () => {
-            Alert.alert('Email Sent', 'Your data export has been sent to your registered email address.');
+            toast.success('Your data export has been sent to your registered email address.');
           }
         }
       ]
@@ -251,9 +254,9 @@ export default function ExportDataScreen() {
       </View>
       <View style={styles.exportAction}>
         {exporting === option.id ? (
-          <ActivityIndicator size="small" color="#2563eb" />
+          <ActivityIndicator size="small" color={COLORS.action} />
         ) : (
-          <Download size={20} color="#6b7280" />
+          <Download size={20} color={COLORS.textTertiary} />
         )}
       </View>
     </TouchableOpacity>
@@ -265,15 +268,17 @@ export default function ExportDataScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#374151" />
+         accessibilityRole="button" accessibilityLabel="Go back">
+          <ArrowLeft size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Export Data</Text>
+        <Text style={styles.title} numberOfLines={1}>Export Data</Text>
         <TouchableOpacity
           style={styles.emailButton}
           onPress={handleEmailExport}
+          accessibilityRole="button"
+          accessibilityLabel="Email export"
         >
-          <Mail size={20} color="#2563eb" />
+          <Mail size={18} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
@@ -282,7 +287,7 @@ export default function ExportDataScreen() {
         {lastExport && (
           <View style={styles.statusCard}>
             <View style={styles.statusIcon}>
-              <CheckCircle size={20} color="#059669" />
+              <CheckCircle size={20} color={COLORS.positive} />
             </View>
             <View style={styles.statusContent}>
               <Text style={styles.statusTitle}>Last Export</Text>
@@ -305,7 +310,7 @@ export default function ExportDataScreen() {
           
           <TouchableOpacity style={styles.quickActionCard} onPress={handleEmailExport}>
             <View style={styles.quickActionIcon}>
-              <Mail size={24} color="#2563eb" />
+              <Mail size={24} color={COLORS.text} />
             </View>
             <View style={styles.quickActionContent}>
               <Text style={styles.quickActionTitle}>Email Export</Text>
@@ -320,7 +325,7 @@ export default function ExportDataScreen() {
             onPress={() => handleShare('hisab-kitab-export.csv')}
           >
             <View style={styles.quickActionIcon}>
-              <Share2 size={24} color="#059669" />
+              <Share2 size={24} color={COLORS.text} />
             </View>
             <View style={styles.quickActionContent}>
               <Text style={styles.quickActionTitle}>Share Data</Text>
@@ -351,7 +356,7 @@ export default function ExportDataScreen() {
           <Text style={styles.privacyTitle}>Privacy & Security</Text>
           <Text style={styles.privacyText}>
             Your exported data contains sensitive financial information. Please store and share it securely. 
-            Hisab Kitab does not store copies of your exported files.
+            Hisab Barabar does not store copies of your exported files.
           </Text>
         </View>
       </ScrollView>
@@ -359,10 +364,10 @@ export default function ExportDataScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -370,20 +375,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
   emailButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
@@ -392,12 +411,17 @@ const styles = StyleSheet.create({
   statusCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   statusIcon: {
     marginRight: 12,
@@ -408,40 +432,45 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#166534',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   statusTime: {
     fontSize: 12,
-    color: '#166534',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 12,
   },
   exportCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   exportIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -450,14 +479,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   exportTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   exportDescription: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
   exportAction: {
@@ -466,18 +497,23 @@ const styles = StyleSheet.create({
   quickActionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   quickActionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -486,33 +522,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   quickActionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   quickActionSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
   infoCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   infoTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1e40af',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 8,
   },
   infoText: {
     fontSize: 14,
-    color: '#1e40af',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -521,26 +566,34 @@ const styles = StyleSheet.create({
   },
   infoFeature: {
     fontSize: 12,
-    color: '#1e40af',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 18,
     marginBottom: 2,
   },
   privacyCard: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#fbbf24',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   privacyTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#92400e',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 8,
   },
   privacyText: {
     fontSize: 12,
-    color: '#92400e',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
 });

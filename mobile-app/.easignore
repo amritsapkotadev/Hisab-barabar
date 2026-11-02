@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+
+# expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# native build output
+android/.gradle/
+android/app/build/
+android/build/
+ios/build/
+ios/Pods/
+
+# local env files (prod API URL comes from EAS environment)
+.env
+.env*.local
+
+# docs and dev-only files
+docs/
+*.md
+*.log
+*.tsbuildinfo
+
+# macos
+.DS_Store
+
+# firebase service account key
+firebaseConfig.json

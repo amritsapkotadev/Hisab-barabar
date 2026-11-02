@@ -12,46 +12,27 @@ import {
   FlatList,
   Animated,
   Easing,
-  Alert,
   StatusBar,
 } from 'react-native';
 
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { ArrowLeft } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
+import { deleteExpenseDraft, loadExpenseDraft, saveExpenseDraft } from '@/services/dataClient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useToast } from '@/components/Toast';
 
-// Premium Design System
-const COLORS = {
-  primary: '#7C3AED',
-  primaryLight: '#A78BFA',
-  secondary: '#EC4899',
-  accent: '#06B6D4',
-  success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F1F5F9',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textTertiary: '#94A3B8',
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
-  shadow: 'rgba(0, 0, 0, 0.08)',
-  glass: 'rgba(255, 255, 255, 0.95)',
-  gradient1: ['#7C3AED', '#A78BFA'] as any,
-  gradient2: ['#EC4899', '#F472B6'] as any,
-  gradient3: ['#06B6D4', '#22D3EE'] as any,
-  gradient4: ['#10B981', '#34D399'] as any,
-  gradient5: ['#F59E0B', '#FBBF24'] as any,
-  gradient6: ['#8B5CF6', '#A78BFA'] as any,
-};
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/hooks/useTheme';
 
 const AddExpenseScreen = () => {
+  const draftKey = 'personal-expense-create';
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const toast = useToast();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [category, setCategory] = useState('');
@@ -62,9 +43,51 @@ const AddExpenseScreen = () => {
   const [animation] = useState(new Animated.Value(0));
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<{ id: string; name: string } | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
 
   const params = useLocalSearchParams();
   const isEditMode = !!params.expenseId;
+
+  useEffect(() => {
+    let active = true;
+    if (isEditMode) {
+      setDraftReady(true);
+      return () => { active = false; };
+    }
+    void loadExpenseDraft<{
+      amount: string;
+      note: string;
+      category: string;
+      date: string;
+      paymentMethod: string;
+    }>(draftKey).then(draft => {
+      if (!active) return;
+      if (draft) {
+        setAmount(draft.amount);
+        setNote(draft.note);
+        setCategory(draft.category);
+        const restoredDate = new Date(draft.date);
+        if (Number.isFinite(restoredDate.getTime())) setDate(restoredDate);
+        setPaymentMethod(draft.paymentMethod);
+      }
+      setDraftReady(true);
+    }).catch(error => {
+      if (!active) return;
+      console.error('Unable to restore personal expense draft:', error);
+      setDraftReady(true);
+    });
+    return () => { active = false; };
+  }, [isEditMode]);
+
+  useEffect(() => {
+    if (!draftReady || isEditMode) return;
+    const timer = setTimeout(() => {
+      void saveExpenseDraft(draftKey, {
+        amount, note, category, date: date.toISOString(), paymentMethod,
+      }).catch(error => console.error('Unable to save personal expense draft:', error));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [draftReady, isEditMode, amount, note, category, date, paymentMethod]);
 
   useEffect(() => {
     if (isEditMode) {
@@ -81,7 +104,13 @@ const AddExpenseScreen = () => {
     }
   }, []);
 
-  const categories = [
+  const categories: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+    gradient: readonly [string, string];
+  }> = [
     { id: '1', name: 'Food', icon: 'fast-food', color: '#FF6B6B', gradient: ['#FF6B6B', '#FF8E8E'] },
     { id: '2', name: 'Transport', icon: 'car', color: '#4ECDC4', gradient: ['#4ECDC4', '#6EE7DF'] },
     { id: '3', name: 'Shopping', icon: 'cart', color: '#FFA07A', gradient: ['#FFA07A', '#FFB894'] },
@@ -94,11 +123,11 @@ const AddExpenseScreen = () => {
   ];
 
   const paymentMethods = [
-    { name: 'Cash', icon: 'wallet' },
-    { name: 'Credit Card', icon: 'card' },
-    { name: 'Debit Card', icon: 'card' },
-    { name: 'Bank Transfer', icon: 'business' },
-    { name: 'Digital Wallet', icon: 'phone-portrait' },
+    { name: 'Cash', icon: 'wallet', color: '#2E9E6B' },
+    { name: 'Credit Card', icon: 'card', color: '#5B6CE0' },
+    { name: 'Debit Card', icon: 'card', color: '#2F9BD6' },
+    { name: 'Bank Transfer', icon: 'business', color: '#E0894A' },
+    { name: 'Digital Wallet', icon: 'phone-portrait', color: '#A569BD' },
   ];
 
   const handleBackPress = () => {
@@ -106,10 +135,10 @@ const AddExpenseScreen = () => {
     router.back();
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || date;
-    setShowDatePicker(false);
-    setDate(currentDate);
+  const handleDateChange = (_event: any, selectedDate?: Date) => {
+    // Android shows a one-shot dialog; the iOS spinner stays open until "Done".
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (selectedDate) setDate(selectedDate);
   };
 
   const triggerAnimation = () => {
@@ -133,7 +162,7 @@ const AddExpenseScreen = () => {
     if (!amount || isNaN(Number(amount)) || !category || !note || !user) {
       triggerAnimation();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Missing Field', 'Please fill all fields.');
+      toast.error('Please fill all fields.');
       return;
     }
 
@@ -151,10 +180,11 @@ const AddExpenseScreen = () => {
             participants: [user.name],
             paymentMethod,
             category,
-          }
+          },
+          Number(Array.isArray(params.revision) ? params.revision[0] : params.revision)
         );
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Success', 'Expense updated successfully!');
+        toast.success('Expense updated successfully!');
         router.replace('/(tabs)');
       }
       else {
@@ -169,17 +199,27 @@ const AddExpenseScreen = () => {
           category,
           createdBy: user.id,
         });
+        void deleteExpenseDraft(draftKey).catch(error =>
+          console.error('Unable to clear saved personal expense draft:', error));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Success', 'Expense added successfully!');
+        toast.success('Expense added successfully!');
         router.replace('/(tabs)');
       }
-      setAmount('');
-      setNote('');
-      setCategory('');
     } catch (err: any) {
       console.error('Add expense error:', err);
+      if (err.code === 'OFFLINE_QUEUED') {
+        if (!isEditMode) {
+          void deleteExpenseDraft(draftKey).catch(error =>
+            console.error('Unable to clear queued personal expense draft:', error));
+        }
+        toast.info(isEditMode
+          ? 'Edit saved locally, pending sync.'
+          : 'Expense saved locally, pending sync. It is not included in your balance yet.');
+        router.replace('/profile/offline-sync');
+        return;
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', err.message || 'Failed to add expense.');
+      toast.error(err.message || 'Failed to add expense.');
     } finally {
       setLoading(false);
     }
@@ -202,38 +242,19 @@ const AddExpenseScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
       
-      {/* Premium Header */}
-      <LinearGradient
-        colors={COLORS.gradient1}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleBackPress}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          
-          <View style={styles.headerTitle}>
-            <Text style={styles.headerTitleText}>
-              {isEditMode ? 'Edit Expense' : 'Add Expense'}
-            </Text>
-            <Text style={styles.headerSubtitle}>
-              {isEditMode ? 'Update your expense details' : 'Track your personal spending'}
-            </Text>
-          </View>
-          
-          <View style={styles.headerIcon}>
-            <Ionicons name="add-circle" size={24} color="#fff" />
-          </View>
-        </View>
-      </LinearGradient>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleBackPress}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <ArrowLeft size={24} color={COLORS.action} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{isEditMode ? 'Edit Expense' : 'Add Expense'}</Text>
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -246,22 +267,22 @@ const AddExpenseScreen = () => {
         >
           {/* Amount Input Card */}
           <Animated.View style={[styles.card, styles.amountCard, animatedStyle]}>
-            <View style={styles.cardHeader}>
+            <View style={[styles.cardHeader, styles.dateRow]}>
               <Ionicons name="wallet" size={20} color={COLORS.primary} />
               <Text style={styles.cardTitle}>Amount</Text>
-            </View>
-            <View style={styles.amountContainer}>
-              <Text style={styles.currency}>रु</Text>
-              <TextInput
-                style={styles.amountInput}
-                placeholder="0.00"
-                placeholderTextColor={COLORS.textTertiary}
-                keyboardType="decimal-pad"
-                value={amount}
-                onChangeText={setAmount}
-                autoFocus
-                editable={!loading}
-              />
+              <View style={styles.amountContainer}>
+                <Text style={styles.currency}>रु</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  placeholder="0.00"
+                  placeholderTextColor={COLORS.textTertiary}
+                  keyboardType="decimal-pad"
+                  value={amount}
+                  onChangeText={setAmount}
+                  autoFocus={!isEditMode}
+                  editable={!loading}
+                />
+              </View>
             </View>
           </Animated.View>
 
@@ -272,30 +293,30 @@ const AddExpenseScreen = () => {
             activeOpacity={0.8}
             disabled={loading}
           >
-            <View style={styles.cardHeader}>
+            <View style={[styles.cardHeader, styles.dateRow]}>
               <Ionicons name="grid" size={20} color={COLORS.secondary} />
               <Text style={styles.cardTitle}>Category</Text>
-            </View>
-            <View style={styles.categoryPreview}>
-              {category ? (
-                <View style={styles.categoryBadge}>
-                  <LinearGradient
-                    colors={categories.find((c) => c.name === category)?.gradient || COLORS.gradient1}
-                    style={styles.categoryGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Ionicons
-                      name={categories.find((c) => c.name === category)?.icon as any || 'help'}
-                      size={18}
-                      color="#fff"
-                    />
-                    <Text style={styles.categoryText}>{category}</Text>
-                  </LinearGradient>
-                </View>
-              ) : (
-                <Text style={styles.placeholderText}>Select category</Text>
-              )}
+              <View style={styles.categoryValue}>
+                {category ? (
+                  <View style={styles.categoryBadge}>
+                    <View
+                      style={[
+                        styles.categoryGradient,
+                        { backgroundColor: categories.find((c) => c.name === category)?.color || COLORS.action },
+                      ]}
+                    >
+                      <Ionicons
+                        name={categories.find((c) => c.name === category)?.icon as any || 'help'}
+                        size={16}
+                        color={COLORS.actionText}
+                      />
+                      <Text style={styles.categoryText}>{category}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.placeholderText}>Select category</Text>
+                )}
+              </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.textTertiary} />
             </View>
           </TouchableOpacity>
@@ -324,15 +345,10 @@ const AddExpenseScreen = () => {
             activeOpacity={0.8}
             disabled={loading}
           >
-            <View style={styles.cardHeader}>
+            <View style={[styles.cardHeader, styles.dateRow]}>
               <Ionicons name="calendar" size={20} color={COLORS.success} />
               <Text style={styles.cardTitle}>Date</Text>
-            </View>
-            <View style={styles.datePreview}>
-              <View style={styles.dateIcon}>
-                <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
-              </View>
-              <Text style={styles.dateText}>
+              <Text style={[styles.dateText, styles.dateValue]}>
                 {date.toLocaleDateString('en-US', {
                   weekday: 'short',
                   month: 'short',
@@ -341,16 +357,36 @@ const AddExpenseScreen = () => {
                 })}
               </Text>
             </View>
-            {showDatePicker && (
+          </TouchableOpacity>
+          {showDatePicker && Platform.OS === 'android' && (
+            <DateTimePicker
+              themeVariant={isDark ? 'dark' : 'light'}
+              value={date}
+              mode="date"
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+          {showDatePicker && Platform.OS === 'ios' && (
+            <View style={[styles.card, styles.pickerCard]}>
               <DateTimePicker
+                themeVariant={isDark ? 'dark' : 'light'}
                 value={date}
                 mode="date"
                 display="spinner"
                 onChange={handleDateChange}
                 maximumDate={new Date()}
               />
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.pickerDone}
+                onPress={() => setShowDatePicker(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm date"
+              >
+                <Text style={styles.pickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Payment Method Card */}
           <View style={styles.card}>
@@ -364,7 +400,7 @@ const AddExpenseScreen = () => {
                   key={method.name}
                   style={[
                     styles.paymentMethod,
-                    paymentMethod === method.name && styles.selectedPaymentMethod
+                    paymentMethod === method.name && { backgroundColor: method.color, borderColor: method.color },
                   ]}
                   onPress={() => {
                     setPaymentMethod(method.name);
@@ -376,7 +412,7 @@ const AddExpenseScreen = () => {
                   <Ionicons 
                     name={method.icon as any} 
                     size={16} 
-                    color={paymentMethod === method.name ? '#fff' : COLORS.textSecondary} 
+                    color={paymentMethod === method.name ? COLORS.actionText : method.color}
                   />
                   <Text
                     style={[
@@ -398,21 +434,16 @@ const AddExpenseScreen = () => {
             activeOpacity={0.8}
             disabled={loading}
           >
-            <LinearGradient
-              colors={COLORS.gradient1}
-              style={styles.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Ionicons 
-                name={loading ? "hourglass" : (isEditMode ? "checkmark" : "add")} 
-                size={24} 
-                color="white" 
+            <View style={styles.gradient}>
+              <Ionicons
+                name={loading ? "hourglass" : (isEditMode ? "checkmark" : "add")}
+                size={24}
+                color={COLORS.actionText}
               />
               <Text style={styles.addButtonText}>
                 {loading ? 'Processing...' : (isEditMode ? 'Update Expense' : 'Add Expense')}
               </Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </ScrollView>
 
@@ -434,6 +465,8 @@ const AddExpenseScreen = () => {
                   onPress={() => setShowCategoryModal(false)} 
                   style={styles.closeButton}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close category picker"
                 >
                   <Ionicons name="close-circle" size={28} color={COLORS.textSecondary} />
                 </TouchableOpacity>
@@ -455,14 +488,9 @@ const AddExpenseScreen = () => {
                     }}
                     activeOpacity={0.7}
                   >
-                                         <LinearGradient
-                       colors={item.gradient as any}
-                       style={styles.categoryIconContainer}
-                       start={{ x: 0, y: 0 }}
-                       end={{ x: 1, y: 1 }}
-                     >
-                      <Ionicons name={item.icon as any} size={24} color="#fff" />
-                    </LinearGradient>
+                    <View style={[styles.categoryIconContainer, { backgroundColor: item.color }]}>
+                      <Ionicons name={item.icon as any} size={24} color={COLORS.actionText} />
+                    </View>
                     <Text style={styles.categoryName}>{item.name}</Text>
                   </TouchableOpacity>
                 )}
@@ -475,58 +503,30 @@ const AddExpenseScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
   header: {
-    paddingTop: 20,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: COLORS.card,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginRight: 16,
+    padding: 4,
   },
   headerTitle: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitleText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.text,
     fontFamily: 'Inter-Bold',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontFamily: 'Inter-Regular',
-    marginTop: 2,
-  },
-  headerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   keyboardContainer: {
     flex: 1,
@@ -536,27 +536,37 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: COLORS.border,
+  },
+  pickerCard: {
+    paddingVertical: 8,
+  },
+  pickerDone: {
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: COLORS.action,
+  },
+  pickerDoneText: {
+    fontSize: 14,
+    color: COLORS.actionText,
+    fontFamily: 'Inter-SemiBold',
   },
   amountCard: {
-    borderWidth: 2,
-    borderColor: COLORS.primaryLight,
-    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
     gap: 8,
   },
   cardTitle: {
@@ -566,32 +576,35 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
   },
   amountContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   currency: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: COLORS.text,
     fontFamily: 'Inter-Bold',
     marginRight: 8,
   },
   amountInput: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
     flex: 1,
+    textAlign: 'right',
     paddingVertical: 0,
   },
-  categoryPreview: {
+  categoryValue: {
+    flex: 1,
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
   },
   categoryBadge: {
-    borderRadius: 20,
+    borderRadius: 999,
     overflow: 'hidden',
   },
   categoryGradient: {
@@ -599,9 +612,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
+    backgroundColor: COLORS.action,
   },
   categoryText: {
-    color: '#fff',
+    color: COLORS.actionText,
     marginLeft: 8,
     fontWeight: '600',
     fontSize: 14,
@@ -616,23 +630,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     fontFamily: 'Inter-Regular',
-    paddingVertical: 8,
-    minHeight: 40,
+    paddingVertical: 4,
+    minHeight: 32,
     lineHeight: 22,
   },
-  datePreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
+  dateRow: {
+    marginBottom: 0,
   },
-  dateIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  dateValue: {
+    flex: 1,
+    textAlign: 'right',
   },
   dateText: {
     color: COLORS.text,
@@ -642,7 +649,7 @@ const styles = StyleSheet.create({
   paymentMethods: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
+    marginTop: 0,
     gap: 8,
   },
   paymentMethod: {
@@ -650,15 +657,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 20,
+    borderRadius: 999,
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 6,
-    backgroundColor: COLORS.surface,
-  },
-  selectedPaymentMethod: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: COLORS.card,
   },
   paymentMethodText: {
     color: COLORS.textSecondary,
@@ -667,17 +670,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
   },
   selectedPaymentMethodText: {
-    color: '#fff',
+    color: COLORS.actionText,
   },
   addButton: {
-    borderRadius: 20,
-    marginTop: 24,
+    borderRadius: 999,
     overflow: 'hidden',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
   },
   addButtonDisabled: {
     opacity: 0.6,
@@ -687,9 +684,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: COLORS.action,
   },
   addButtonText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontSize: 18,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
@@ -697,20 +695,17 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     padding: 24,
     maxHeight: '75%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -747,11 +742,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: COLORS.action,
   },
   categoryName: {
     fontSize: 14,

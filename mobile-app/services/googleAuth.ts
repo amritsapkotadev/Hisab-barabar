@@ -149,7 +149,8 @@ class GoogleAuthService {
   }
 
   async isSignedIn(): Promise<boolean> {
-    return await GoogleSignin.isSignedIn();
+    const user = await this.getCurrentUser();
+    return user !== null;
   }
 }
 

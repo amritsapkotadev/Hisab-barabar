@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useServerRefresh } from '@/hooks/useServerRefresh';
 import {
   View,
   Text,
@@ -7,7 +8,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Share,
-  Dimensions,
   Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,94 +19,38 @@ import {
   HelpCircle, 
   LogOut, 
   ChevronRight, 
-  DollarSign, 
   Users as UsersIcon, 
-  FileText, 
   Trash2,
   Lock,
   Edit2,
   PieChart,
-  Heart,
-  Calendar,
-  HandCoins
+  Settings,
+  Download,
+  Heart
 } from 'lucide-react-native';
 import { apiService } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { User as UserType } from '@/types';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
+import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
-const { width } = Dimensions.get('window');
-
-// Refined Color Palette
-const COLORS = {
-  primary: '#6366F1',
-  primaryLight: '#818CF8',
-  secondary: '#8B5CF6',
-  accent: '#0EA5E9',
-  success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F1F5F9',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textTertiary: '#94A3B8',
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
-  shadow: 'rgba(0, 0, 0, 0.05)',
-  glass: 'rgba(255, 255, 255, 0.95)',
-  gradient1: ['#6366F1', '#818CF8'],
-  gradient2: ['#8B5CF6', '#A78BFA'],
-  gradient3: ['#0EA5E9', '#38BDF8'],
-  gradient4: ['#10B981', '#34D399'],
-  headerGradient: ['#667EEA', '#764BA2'],
-};
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 export default function ProfileScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const { signOut } = useAuth();
+  const { t } = useTranslation();
   const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalGroups: 0,
-    totalExpenses: 0,
-    totalTransactions: 0,
-    monthlySpending: 0,
-  });
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
+  useServerRefresh(async () => { await fetchUserData(); });
 
   const fetchUserData = async () => {
     try {
       setLoading(true);
-      const [userProfile, groups, expenses] = await Promise.all([
-        apiService.getUserProfile(),
-        apiService.getGroups(),
-        apiService.getAllExpenses(),
-      ]);
-
-      setUser(userProfile);
-      
-      const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
-      
-      const monthlyExpenses = expenses.filter(expense => {
-        const expenseDate = new Date(expense.createdAt);
-        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-      });
-      
-      const monthlySpending = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-      setStats({
-        totalGroups: groups.length,
-        totalExpenses,
-        totalTransactions: expenses.length,
-        monthlySpending,
-      });
+      setUser(await apiService.getUserProfile());
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
@@ -114,9 +58,9 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    apiService.clearAuthToken();
+    await signOut();
     router.replace('/(auth)/login');
   };
 
@@ -154,33 +98,13 @@ export default function ProfileScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Share.share({
-        message: 'Check out Hisab Barabar - the best app for splitting expenses with friends! and adding personal expenses!',
+        message: t('profile.shareMessage'),
         title: 'Hisab Barabar'
       });
     } catch (error) {
       console.error('Sharing failed', error);
     }
   };
-
-  const renderStatCard = (icon: React.ReactNode, label: string, value: string | number, gradient: string[], color: string) => (
-    <Animated.View 
-      style={styles.statCard}
-      entering={FadeInDown.duration(800).delay(200)}
-    >
-      <LinearGradient
-        colors={gradient}
-        style={styles.statCardGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.statIconContainer}>
-          {icon}
-        </View>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-      </LinearGradient>
-    </Animated.View>
-  );
 
   const renderSettingItem = (
     icon: React.ReactNode,
@@ -215,8 +139,8 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading your profile...</Text>
+          <ActivityIndicator size="large" color={COLORS.action} />
+          <Text style={styles.loadingText}>{t('profile.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -230,16 +154,11 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Clean Header Section */}
-        <Animated.View 
+        <Animated.View
           style={styles.headerSection}
-          entering={FadeIn.duration(600)}
+          entering={FadeInDown.duration(280).delay(40).easing(Easing.out(Easing.cubic))}
         >
-          <LinearGradient
-            colors={COLORS.headerGradient}
-            style={styles.headerCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.headerCard}>
             <View style={styles.headerContent}>
               <View style={styles.userInfoContainer}>
                 <View style={styles.avatarContainer}>
@@ -250,91 +169,53 @@ export default function ProfileScreen() {
                     />
                   ) : (
                     <View style={styles.avatarPlaceholder}>
-                      <User size={28} color="#fff" />
+                      <User size={28} color={COLORS.textSecondary} />
                     </View>
                   )}
                 </View>
                 
                 <View style={styles.userInfo}>
                   <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">
-                    {user?.name || 'User Name'}
+                    {user?.name || t('profile.defaultName')}
                   </Text>
                   <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">
-                    {user?.email || 'user@example.com'}
+                    {user?.email || t('profile.defaultEmail')}
                   </Text>
                 </View>
                 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.editButton}
                   onPress={handleEditProfile}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('profile.editProfile')}
                 >
-                  <Edit2 size={18} color="#fff" />
+                  <Edit2 size={18} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
             </View>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Stats Grid */}
-        <Animated.View 
-          style={styles.statsContainer}
-          entering={FadeInDown.duration(800).delay(300)}
-        >
-          <View style={styles.statsGrid}>
-            {renderStatCard(
-              <HandCoins size={20} color="#fff" />,
-              'Total Spent',
-              `रु ${stats.totalExpenses.toFixed(0)}`,
-              COLORS.gradient1,
-              COLORS.primary
-            )}
-            
-            {renderStatCard(
-              <UsersIcon size={20} color="#fff" />,
-              'Groups',
-              stats.totalGroups,
-              COLORS.gradient2,
-              COLORS.secondary
-            )}
-            
-            {renderStatCard(
-              <FileText size={20} color="#fff" />,
-              'Transactions',
-              stats.totalTransactions,
-              COLORS.gradient3,
-              COLORS.accent
-            )}
-            
-            {renderStatCard(
-              <Calendar size={20} color="#fff" />,
-              'This Month',
-              `रु ${stats.monthlySpending.toFixed(0)}`,
-              COLORS.gradient4,
-              COLORS.success
-            )}
           </View>
         </Animated.View>
 
         {/* Account Settings */}
         <Animated.View 
           style={styles.settingsSection}
-          entering={SlideInRight.duration(800).delay(500)}
+          entering={FadeInDown.duration(280).delay(160).easing(Easing.out(Easing.cubic))}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Account</Text>
+            <Text style={styles.sectionTitle}>{t('profile.account')}</Text>
           </View>
           <View style={styles.settingsCard}>
             {renderSettingItem(
-              <User size={20} color={COLORS.primary} />,
-              "Edit Profile",
-              "Update your personal information",
+              <User size={20} color={COLORS.textSecondary} />,
+              t('profile.editProfile'),
+              t('profile.editProfileSubtitle'),
               handleEditProfile
             )}
             
             {renderSettingItem(
-              <Lock size={20} color={COLORS.primary} />,
-              "Change Password",
-              "Update your password",
+              <Lock size={20} color={COLORS.textSecondary} />,
+              t('profile.changePassword'),
+              t('profile.changePasswordSubtitle'),
               handleChangePassword
             )}
           </View>
@@ -343,23 +224,35 @@ export default function ProfileScreen() {
         {/* Preferences */}
         <Animated.View 
           style={styles.settingsSection}
-          entering={SlideInRight.duration(800).delay(600)}
+          entering={FadeInDown.duration(280).delay(220).easing(Easing.out(Easing.cubic))}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Preferences</Text>
+            <Text style={styles.sectionTitle}>{t('profile.preferences')}</Text>
           </View>
           <View style={styles.settingsCard}>
             {renderSettingItem(
-              <Bell size={20} color={COLORS.primary} />,
-              "Notifications",
-              "Manage your notifications",
+              <Settings size={20} color={COLORS.textSecondary} />,
+              t('settings.title'),
+              t('settings.themePrompt'),
+              () => router.push('/profile/settings')
+            )}
+            {renderSettingItem(
+              <Download size={20} color={COLORS.textSecondary} />,
+              t('profile.offlineSync'),
+              t('profile.offlineSyncSubtitle'),
+              () => router.push('/profile/offline-sync')
+            )}
+            {renderSettingItem(
+              <Bell size={20} color={COLORS.textSecondary} />,
+              t('profile.notifications'),
+              t('profile.notificationsSubtitle'),
               handleNotificationSettings
             )}
             
             {renderSettingItem(
-              <Shield size={20} color={COLORS.primary} />,
-              "Privacy",
-              "Control your privacy settings",
+              <Shield size={20} color={COLORS.textSecondary} />,
+              t('profile.privacy'),
+              t('profile.privacySubtitle'),
               handlePrivacySettings
             )}
           </View>
@@ -368,23 +261,23 @@ export default function ProfileScreen() {
         {/* Support */}
         <Animated.View 
           style={styles.settingsSection}
-          entering={SlideInRight.duration(800).delay(700)}
+          entering={FadeInDown.duration(280).delay(280).easing(Easing.out(Easing.cubic))}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Support</Text>
+            <Text style={styles.sectionTitle}>{t('profile.support')}</Text>
           </View>
           <View style={styles.settingsCard}>
             {renderSettingItem(
-              <HelpCircle size={20} color={COLORS.primary} />,
-              "Help Center",
-              "Get help and support",
+              <HelpCircle size={20} color={COLORS.textSecondary} />,
+              t('profile.helpCenter'),
+              t('profile.helpCenterSubtitle'),
               handleHelp
             )}
             
             {renderSettingItem(
-              <UsersIcon size={20} color={COLORS.primary} />,
-              "Share App",
-              "Share with friends",
+              <UsersIcon size={20} color={COLORS.textSecondary} />,
+              t('profile.shareApp'),
+              t('profile.shareAppSubtitle'),
               handleShareApp
             )}
           </View>
@@ -393,24 +286,24 @@ export default function ProfileScreen() {
         {/* Danger Zone */}
         <Animated.View 
           style={styles.settingsSection}
-          entering={SlideInRight.duration(800).delay(800)}
+          entering={FadeInDown.duration(280).delay(340).easing(Easing.out(Easing.cubic))}
         >
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>Account</Text>
+            <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>{t('profile.account')}</Text>
           </View>
           <View style={styles.settingsCard}>
             {renderSettingItem(
               <Trash2 size={20} color={COLORS.danger} />,
-              "Delete Account",
-              "Permanently delete your account",
+              t('profile.deleteAccount'),
+              t('profile.deleteAccountSubtitle'),
               handleDeleteAccount,
               true
             )}
             
             {renderSettingItem(
               <LogOut size={20} color={COLORS.danger} />,
-              "Logout",
-              "Sign out of your account",
+              t('profile.logout'),
+              t('profile.logoutSubtitle'),
               handleLogout,
               true
             )}
@@ -420,16 +313,16 @@ export default function ProfileScreen() {
         {/* App Footer */}
         <Animated.View 
           style={styles.appFooter}
-          entering={FadeInDown.duration(800).delay(900)}
+          entering={FadeInDown.duration(280).delay(400).easing(Easing.out(Easing.cubic))}
         >
           <View style={styles.appLogo}>
-            <PieChart size={28} color={COLORS.primary} />
+            <PieChart size={28} color={COLORS.text} />
             <Text style={styles.appName}>Hisab Barabar</Text>
           </View>
           <Text style={styles.appVersion}>v1.0.0</Text>
           <View style={styles.appFooterContent}>
-            <Heart size={14} color="#F87171" />
-            <Text style={styles.appFooterText}>Made with love in Nepal</Text>
+            <Heart size={14} color={COLORS.negative} />
+            <Text style={styles.appFooterText}>{t('profile.madeWithLove')}</Text>
           </View>
         </Animated.View>
       </ScrollView>
@@ -437,7 +330,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -466,16 +359,19 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headerCard: {
-    borderRadius: 24,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    borderRadius: 16,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 1,
     overflow: 'hidden',
   },
   headerContent: {
-    padding: 24,
+    padding: 20,
   },
   userInfoContainer: {
     flexDirection: 'row',
@@ -485,37 +381,37 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   avatarPlaceholder: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   userInfo: {
     flex: 1,
     marginRight: 12,
   },
   userName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.text,
     fontFamily: 'Inter-Bold',
     marginBottom: 4,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   userEmail: {
     fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: COLORS.textSecondary,
     fontFamily: 'Inter-Medium',
   },
   editButton: {
@@ -524,54 +420,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: COLORS.surfaceSecondary,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  statsContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 28,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    width: (width - 64) / 2,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  statCardGradient: {
-    padding: 20,
-    alignItems: 'flex-start',
-    minHeight: 120,
-  },
-  statIconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    fontFamily: 'Inter-Bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontFamily: 'Inter-Medium',
+    borderColor: COLORS.border,
   },
   settingsSection: {
     paddingHorizontal: 24,
@@ -590,15 +441,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Bold',
   },
   settingsCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
+    elevation: 1,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: COLORS.border,
     overflow: 'hidden',
   },
   settingItem: {
@@ -612,14 +463,14 @@ const styles = StyleSheet.create({
   settingIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: COLORS.borderLight,
+    borderRadius: 12,
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
   dangerIcon: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: `${COLORS.negative}10`,
   },
   settingContent: {
     flex: 1,
@@ -640,15 +491,15 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
   },
   badge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.action,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 999,
     marginRight: 8,
   },
   badgeText: {
     fontSize: 11,
-    color: '#fff',
+    color: COLORS.actionText,
     fontFamily: 'Inter-Bold',
   },
   appFooter: {
@@ -665,7 +516,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: COLORS.text,
     fontFamily: 'Inter-Bold',
   },
   appVersion: {

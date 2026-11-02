@@ -16,13 +16,16 @@ import {
   Dimensions,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, DollarSign, Users, Calculator, Percent, Hash, Plus, Minus, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Users, Calculator, Percent, Hash, Plus, Minus, Calendar } from 'lucide-react-native';
 import { Group } from '@/types';
 import { apiService } from '@/services/api';
+import { deleteExpenseDraft, loadExpenseDraft, saveExpenseDraft } from '@/services/dataClient';
+import { useToast } from '@/components/Toast';
 import { limitService } from '@/services/limitService';
 import AdModal from '@/components/AdModal';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/hooks/useTheme';
 
 const SPLIT_METHODS = [
   { key: 'equal', label: 'Equal', icon: Users },
@@ -30,6 +33,36 @@ const SPLIT_METHODS = [
   { key: 'percentage', label: 'Percent', icon: Percent },
   { key: 'shares', label: 'Shares', icon: Hash },
 ];
+
+const isSplitType = (value: unknown): value is 'equal' | 'unequal' | 'percentage' | 'shares' =>
+  value === 'equal' || value === 'unequal' || value === 'percentage' || value === 'shares';
+
+interface AdvancedExpenseDraft {
+  groupId: string;
+  description: string;
+  totalAmount: string;
+  payers: Array<{ memberId: string; amountPaid: string }>;
+  splitType: 'equal' | 'unequal' | 'percentage' | 'shares';
+  participants: Array<{ memberId: string; share: string }>;
+  date: string;
+}
+
+function isAdvancedExpenseDraft(value: unknown): value is AdvancedExpenseDraft {
+  if (!value || typeof value !== 'object' ||
+      !('groupId' in value) || typeof value.groupId !== 'string' ||
+      !('description' in value) || typeof value.description !== 'string' ||
+      !('totalAmount' in value) || typeof value.totalAmount !== 'string' ||
+      !('date' in value) || typeof value.date !== 'string' ||
+      !('splitType' in value) || !isSplitType(value.splitType) ||
+      !('payers' in value) || !Array.isArray(value.payers) ||
+      !('participants' in value) || !Array.isArray(value.participants)) return false;
+  return value.payers.every(payer => payer && typeof payer === 'object' &&
+    'memberId' in payer && typeof payer.memberId === 'string' &&
+    'amountPaid' in payer && typeof payer.amountPaid === 'string') &&
+    value.participants.every(participant => participant && typeof participant === 'object' &&
+      'memberId' in participant && typeof participant.memberId === 'string' &&
+      'share' in participant && typeof participant.share === 'string');
+}
 
 function getInitials(name: string): string {
   return name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
@@ -55,14 +88,17 @@ function calculatePercentageSplit(total: number, percentages: number[]): number[
 }
 
 export default function AddAdvancedExpenseScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
+  const toast = useToast();
   const { groupId } = useLocalSearchParams<{ groupId?: string }>();
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
-  const [payers, setPayers] = useState<{ name: string; amountPaid: string }[]>([]);
+  const [payers, setPayers] = useState<{ memberId: string; amountPaid: string }[]>([]);
   const [splitType, setSplitType] = useState<'equal' | 'unequal' | 'percentage' | 'shares'>('equal');
-  const [participants, setParticipants] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<{ memberId: string; share: string }[]>([]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -73,27 +109,45 @@ export default function AddAdvancedExpenseScreen() {
   const [groupModalVisible, setGroupModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
 
   useEffect(() => {
     const fetchGroups = async () => {
       try {
         const groupsData = await apiService.getGroups();
         setGroups(groupsData);
+        const draft = await loadExpenseDraft<unknown>(`advanced-expense:${groupId || 'all'}`);
         if (groupId) {
           const group = groupsData.find(g => g.id === groupId);
           if (group) {
             setSelectedGroup(group);
-            setPayers([{ name: group.members[0], amountPaid: '' }]);
-            setParticipants(group.members.map(m => ({ name: m, share: '' })));
+            setPayers([{ memberId: group.members[0].id, amountPaid: '' }]);
+            setParticipants(group.members.map(m => ({ memberId: m.id, share: '' })));
           }
         } else if (groupsData.length > 0) {
           setSelectedGroup(groupsData[0]);
-          setPayers([{ name: groupsData[0].members[0], amountPaid: '' }]);
-          setParticipants(groupsData[0].members.map(m => ({ name: m, share: '' })));
+          setPayers([{ memberId: groupsData[0].members[0].id, amountPaid: '' }]);
+          setParticipants(groupsData[0].members.map(m => ({ memberId: m.id, share: '' })));
+        }
+        if (isAdvancedExpenseDraft(draft)) {
+          const draftGroup = groupsData.find(group => group.id === draft.groupId);
+          if (draftGroup &&
+              draft.payers.every(payer => draftGroup.members.some(member => member.id === payer.memberId)) &&
+              draft.participants.every(participant =>
+                draftGroup.members.some(member => member.id === participant.memberId))) {
+            setSelectedGroup(draftGroup);
+            setDescription(draft.description);
+            setTotalAmount(draft.totalAmount);
+            setPayers(draft.payers);
+            setSplitType(draft.splitType);
+            setParticipants(draft.participants);
+            setDate(draft.date);
+          }
         }
       } catch (error) {
-        Alert.alert('Error', 'Failed to load groups');
+        toast.error('Failed to load groups');
       } finally {
+        setDraftReady(true);
         setLoading(false);
       }
     };
@@ -107,27 +161,43 @@ export default function AddAdvancedExpenseScreen() {
   }, [groupId]);
 
   useEffect(() => {
+    if (!draftReady || !selectedGroup) return;
+    const timer = setTimeout(() => {
+      void saveExpenseDraft(`advanced-expense:${groupId || 'all'}`, {
+        groupId: selectedGroup.id,
+        description,
+        totalAmount,
+        payers,
+        splitType,
+        participants,
+        date,
+      }).catch(error => console.error('Unable to save group expense draft:', error));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [draftReady, groupId, selectedGroup, description, totalAmount, payers, splitType, participants, date]);
+
+  useEffect(() => {
     if (!selectedGroup) return;
     
     const total = parseFloat(totalAmount) || 0;
     if (splitType === 'equal' && total > 0) {
       const amounts = calculateEqualSplit(total, selectedGroup.members.length);
-      setParticipants(selectedGroup.members.map((m, i) => ({ name: m, share: amounts[i].toFixed(2) })));
+      setParticipants(selectedGroup.members.map((m, i) => ({ memberId: m.id, share: amounts[i].toFixed(2) })));
     }
   }, [totalAmount, splitType, selectedGroup]);
 
   const handleSelectGroup = (group: Group) => {
     setSelectedGroup(group);
-    setPayers([{ name: group.members[0], amountPaid: '' }]);
-    setParticipants(group.members.map(m => ({ name: m, share: '' })));
+    setPayers([{ memberId: group.members[0].id, amountPaid: '' }]);
+    setParticipants(group.members.map(m => ({ memberId: m.id, share: '' })));
     setGroupModalVisible(false);
   };
 
   const handleAddPayer = () => {
     if (!selectedGroup) return;
-    const available = selectedGroup.members.filter(m => !payers.some(p => p.name === m));
+    const available = selectedGroup.members.filter(m => !payers.some(p => p.memberId === m.id));
     if (available.length > 0) {
-      setPayers([...payers, { name: available[0], amountPaid: '' }]);
+      setPayers([...payers, { memberId: available[0].id, amountPaid: '' }]);
     }
   };
 
@@ -135,9 +205,8 @@ export default function AddAdvancedExpenseScreen() {
     if (payers.length > 1) setPayers(payers.filter((_, i) => i !== idx));
   };
 
-  const handlePayerName = (idx: number, name: string) => {
-    if (payers.some((p, i) => p.name === name && i !== idx)) return;
-    setPayers(payers.map((p, i) => (i === idx ? { ...p, name } : p)));
+  const getMemberName = (memberId: string): string => {
+    return selectedGroup?.members.find(m => m.id === memberId)?.name || memberId;
   };
 
   const handlePayerAmount = (idx: number, value: string) => {
@@ -151,13 +220,13 @@ export default function AddAdvancedExpenseScreen() {
     const total = parseFloat(totalAmount) || 0;
     if (type === 'equal' && total > 0) {
       const amounts = calculateEqualSplit(total, selectedGroup.members.length);
-      setParticipants(selectedGroup.members.map((m, i) => ({ name: m, share: amounts[i].toFixed(2) })));
+      setParticipants(selectedGroup.members.map((m, i) => ({ memberId: m.id, share: amounts[i].toFixed(2) })));
     } else if (type === 'percentage') {
-      setParticipants(selectedGroup.members.map(m => ({ name: m, share: (100 / selectedGroup.members.length).toFixed(1) })));
+      setParticipants(selectedGroup.members.map(m => ({ memberId: m.id, share: (100 / selectedGroup.members.length).toFixed(1) })));
     } else if (type === 'shares') {
-      setParticipants(selectedGroup.members.map(m => ({ name: m, share: '1' })));
+      setParticipants(selectedGroup.members.map(m => ({ memberId: m.id, share: '1' })));
     } else {
-      setParticipants(selectedGroup.members.map(m => ({ name: m, share: '' })));
+      setParticipants(selectedGroup.members.map(m => ({ memberId: m.id, share: '' })));
     }
   };
 
@@ -201,14 +270,14 @@ export default function AddAdvancedExpenseScreen() {
     
     // Validate paid amount
     if (Math.abs(paid - total) > 0.01) {
-      errors.paid = `Total paid ($${paid.toFixed(2)}) must match total amount ($${total.toFixed(2)})`;
+      errors.paid = `Total paid (रु ${paid.toFixed(2)}) must match total amount (रु ${total.toFixed(2)})`;
     }
     
     // Validate split amounts
     if (splitType === 'equal' || splitType === 'unequal') {
       const splitTotal = participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
       if (Math.abs(splitTotal - total) > 0.01) {
-        errors.split = `Total split ($${splitTotal.toFixed(2)}) must match total amount ($${total.toFixed(2)})`;
+        errors.split = `Total split (रु ${splitTotal.toFixed(2)}) must match total amount (रु ${total.toFixed(2)})`;
       }
     } else if (splitType === 'percentage') {
       const percentageTotal = participants.reduce((sum, p) => sum + (parseFloat(p.share) || 0), 0);
@@ -235,20 +304,20 @@ export default function AddAdvancedExpenseScreen() {
         groupId: selectedGroup!.id,
         description: description.trim(),
         amount: parseFloat(totalAmount),
-        paidBy: payers.length === 1 ? payers[0].name : 'Multiple',
-        payers: payers.map(p => ({ name: p.name, amountPaid: parseFloat(p.amountPaid) })),
-        participants: participants.map(p => p.name),
+        paidBy: payers.length === 1 ? payers[0].memberId : 'Multiple',
+        payers: payers.map(p => ({ name: p.memberId, amountPaid: parseFloat(p.amountPaid) })),
+        participants: participants.map(p => p.memberId),
         splits: participants.map(p => {
           // For shares and percentage, calculate actual amounts
           if (splitType === 'shares') {
             const shares = parseFloat(p.share) || 0;
             const totalShares = participants.reduce((sum, part) => sum + (parseFloat(part.share) || 0), 0);
-            return { participant: p.name, amount: parseFloat(totalAmount) * shares / totalShares };
+            return { participant: p.memberId, amount: parseFloat(totalAmount) * shares / totalShares };
           } else if (splitType === 'percentage') {
             const percentage = parseFloat(p.share) || 0;
-            return { participant: p.name, amount: parseFloat(totalAmount) * percentage / 100 };
+            return { participant: p.memberId, amount: parseFloat(totalAmount) * percentage / 100 };
           }
-          return { participant: p.name, amount: parseFloat(p.share) };
+          return { participant: p.memberId, amount: parseFloat(p.share) };
         }),
         splitType,
         date,
@@ -256,14 +325,24 @@ export default function AddAdvancedExpenseScreen() {
       };
       
       await apiService.createUnequalExpense(expenseData);
+      void deleteExpenseDraft(`advanced-expense:${groupId || 'all'}`).catch(error =>
+        console.error('Unable to clear group expense draft:', error));
       await limitService.incrementTransactions();
-      Alert.alert('Success', 'Expense added!', [{ text: 'OK', onPress: () => router.back() }]);
+      toast.success('Expense added!');
+      router.back();
     } catch (e: any) {
       console.error('Create unequal expense error:', e);
+      if (e.code === 'OFFLINE_QUEUED') {
+        void deleteExpenseDraft(`advanced-expense:${groupId || 'all'}`).catch(error =>
+          console.error('Unable to clear queued group expense draft:', error));
+        toast.info('Expense saved locally, pending sync. It is not included in balances yet.');
+        router.replace('/profile/offline-sync');
+        return;
+      }
       let message = 'Failed to add expense.';
       if (e?.response?.data?.message) message = e.response.data.message;
       else if (e?.message) message = e.message;
-      Alert.alert('Error', message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -287,9 +366,9 @@ export default function AddAdvancedExpenseScreen() {
                 onPress={() => handleSelectGroup(group)}
               >
                 <View style={styles.groupModalAvatars}>
-                  {group.members.slice(0, 3).map(m => (
-                    <View key={m} style={styles.groupModalAvatar}>
-                      <Text style={styles.groupModalAvatarText}>{getInitials(m)}</Text>
+                  {group.members.slice(0, 3).map(member => (
+                    <View key={member.id} style={styles.groupModalAvatar}>
+                      <Text style={styles.groupModalAvatarText}>{getInitials(member.name)}</Text>
                     </View>
                   ))}
                   {group.members.length > 3 && (
@@ -317,22 +396,17 @@ export default function AddAdvancedExpenseScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#7c3aed" />
+        <ActivityIndicator size="large" color={COLORS.action} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient 
-        colors={['#f8fafc', '#f1f5f9']} 
-        style={StyleSheet.absoluteFill} 
-      />
-      
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#4f46e5" />
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+          <ArrowLeft size={24} color={COLORS.action} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Expense</Text>
       </View>
@@ -344,9 +418,9 @@ export default function AddAdvancedExpenseScreen() {
       >
         <View style={styles.groupSelectorRow}>
           <View style={styles.groupSelectorAvatars}>
-            {selectedGroup?.members.slice(0, 3).map(m => (
-              <View key={m} style={styles.groupSelectorAvatar}>
-                <Text style={styles.groupSelectorAvatarText}>{getInitials(m)}</Text>
+            {selectedGroup?.members.slice(0, 3).map(member => (
+              <View key={member.id} style={styles.groupSelectorAvatar}>
+                <Text style={styles.groupSelectorAvatarText}>{getInitials(member.name)}</Text>
               </View>
             ))}
             {selectedGroup && selectedGroup.members.length > 3 && (
@@ -359,7 +433,7 @@ export default function AddAdvancedExpenseScreen() {
             <Text style={styles.groupSelectorName}>{selectedGroup?.name || 'Select Group'}</Text>
             <Text style={styles.groupSelectorMembers}>{selectedGroup?.members.length || 0} members</Text>
           </View>
-          <Text style={styles.groupSelectorDropdown}>▼</Text>
+          <Text style={styles.groupSelectorDropdown}>▾</Text>
         </View>
       </TouchableOpacity>
       
@@ -374,13 +448,13 @@ export default function AddAdvancedExpenseScreen() {
         {/* Expense Details */}
         <View style={styles.card}>
           <View style={styles.amountContainer}>
-            <DollarSign size={28} color="#7c3aed" />
+            <Text style={styles.currencySymbol}>रु</Text>
             <TextInput
               style={styles.amountInput}
               value={totalAmount}
               onChangeText={setTotalAmount}
               placeholder="0.00"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={COLORS.textTertiary}
               keyboardType="decimal-pad"
               maxLength={10}
               onFocus={() => setActiveField('amount')}
@@ -393,7 +467,7 @@ export default function AddAdvancedExpenseScreen() {
             value={description}
             onChangeText={setDescription}
             placeholder="Description (e.g. Dinner)"
-            placeholderTextColor="#94a3b8"
+                  placeholderTextColor={COLORS.textTertiary}
             maxLength={100}
             onFocus={() => setActiveField('description')}
             onBlur={() => setActiveField(null)}
@@ -403,7 +477,7 @@ export default function AddAdvancedExpenseScreen() {
             style={styles.dateRow} 
             onPress={() => setDatePickerVisible(true)}
           >
-            <Calendar size={18} color="#7c3aed" />
+            <Calendar size={18} color={COLORS.action} />
             <Text style={styles.dateText}>{date}</Text>
             <Text style={styles.dateEdit}>Edit</Text>
           </TouchableOpacity>
@@ -425,9 +499,9 @@ export default function AddAdvancedExpenseScreen() {
               <View key={idx} style={styles.payerRow}>
                 <View style={styles.payerInfo}>
                   <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{getInitials(payer.name)}</Text>
+                    <Text style={styles.avatarText}>{getInitials(getMemberName(payer.memberId))}</Text>
                   </View>
-                  <Text style={styles.payerName}>{payer.name}</Text>
+                  <Text style={styles.payerName}>{getMemberName(payer.memberId)}</Text>
                 </View>
                 
                 <View style={styles.payerAmountContainer}>
@@ -435,8 +509,8 @@ export default function AddAdvancedExpenseScreen() {
                     style={styles.payerAmountInput}
                     value={payer.amountPaid}
                     onChangeText={v => handlePayerAmount(idx, v)}
-                    placeholder="$0.00"
-                    placeholderTextColor="#94a3b8"
+                    placeholder="रु 0.00"
+                    placeholderTextColor={COLORS.textTertiary}
                     keyboardType="decimal-pad"
                     maxLength={10}
                     onFocus={() => setActiveField(`payer-${idx}`)}
@@ -447,7 +521,7 @@ export default function AddAdvancedExpenseScreen() {
                       style={styles.removePayerBtn} 
                       onPress={() => handleRemovePayer(idx)}
                     >
-                      <Minus size={16} color="#ef4444" />
+                      <Minus size={16} color={COLORS.negative} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -456,7 +530,7 @@ export default function AddAdvancedExpenseScreen() {
             
             {selectedGroup && payers.length < selectedGroup.members.length && (
               <TouchableOpacity style={styles.addPayerBtn} onPress={handleAddPayer}>
-                <Plus size={20} color="#7c3aed" />
+                <Plus size={20} color={COLORS.action} />
                 <Text style={styles.addPayerBtnText}>Add payer</Text>
               </TouchableOpacity>
             )}
@@ -469,13 +543,13 @@ export default function AddAdvancedExpenseScreen() {
               const total = parseFloat(totalAmount) || 0;
               const paid = getTotalPaid();
               const remaining = total - paid;
-              let color = '#f59e0b';
-              if (remaining === 0) color = '#10b981';
-              if (remaining < 0) color = '#ef4444';
+              let color: string = COLORS.warning;
+              if (remaining === 0) color = COLORS.positive;
+              if (remaining < 0) color = COLORS.negative;
               
               return (
                 <Text style={[styles.remainingAmount, { color }]}>
-                  {remaining >= 0 ? `$${remaining.toFixed(2)}` : `-$${Math.abs(remaining).toFixed(2)}`}
+                  {remaining >= 0 ? `रु ${remaining.toFixed(2)}` : `-रु ${Math.abs(remaining).toFixed(2)}`}
                 </Text>
               );
             })()}
@@ -503,7 +577,7 @@ export default function AddAdvancedExpenseScreen() {
                   style={[styles.splitMethodBtn, isActive && styles.splitMethodBtnActive]}
                   onPress={() => handleSplitType(method.key)}
                 >
-                  <Icon size={20} color={isActive ? '#fff' : '#7c3aed'} />
+                  <Icon size={20} color={isActive ? COLORS.actionText : COLORS.action} />
                   <Text style={[styles.splitMethodText, isActive && styles.splitMethodTextActive]}>
                     {method.label}
                   </Text>
@@ -527,22 +601,22 @@ export default function AddAdvancedExpenseScreen() {
           <FlatList
             data={participants}
             scrollEnabled={false}
-            keyExtractor={item => item.name}
+            keyExtractor={item => item.memberId}
             renderItem={({ item, index }) => (
               <View style={styles.participantRow}>
                 <View style={styles.participantInfo}>
                   <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{getInitials(item.name)}</Text>
+                    <Text style={styles.avatarText}>{getInitials(getMemberName(item.memberId))}</Text>
                   </View>
-                  <Text style={styles.participantName}>{item.name}</Text>
+                  <Text style={styles.participantName}>{getMemberName(item.memberId)}</Text>
                 </View>
                 
                 <TextInput
                   style={styles.participantShareInput}
                   value={item.share}
                   onChangeText={v => handleParticipantShare(index, v)}
-                  placeholder={splitType === 'percentage' ? '0%' : splitType === 'shares' ? '0' : '$0.00'}
-                  placeholderTextColor="#94a3b8"
+                  placeholder={splitType === 'percentage' ? '0%' : splitType === 'shares' ? '0' : 'रु 0.00'}
+                  placeholderTextColor={COLORS.textTertiary}
                   keyboardType="decimal-pad"
                   maxLength={10}
                   editable={splitType !== 'equal'}
@@ -558,7 +632,7 @@ export default function AddAdvancedExpenseScreen() {
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total paid:</Text>
-            <Text style={styles.summaryValue}>${getTotalPaid().toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>रु {getTotalPaid().toFixed(2)}</Text>
           </View>
           
           <View style={styles.summaryRow}>
@@ -583,6 +657,7 @@ export default function AddAdvancedExpenseScreen() {
       {/* Date Picker */}
       {datePickerVisible && (
         <DateTimePicker
+          themeVariant={isDark ? 'dark' : 'light'}
           value={new Date(date)}
           mode="date"
           display="default"
@@ -597,18 +672,13 @@ export default function AddAdvancedExpenseScreen() {
           onPress={handleSubmit}
           disabled={!canAddExpense || submitting}
         >
-          <LinearGradient
-            colors={['#7c3aed', '#6d28d9']}
-            style={styles.submitGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
+          <View style={styles.submitGradient}>
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={COLORS.actionText} />
             ) : (
               <Text style={styles.submitBtnText}>Add Expense</Text>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
       
@@ -622,16 +692,16 @@ export default function AddAdvancedExpenseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     marginTop:20,
@@ -641,9 +711,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     marginRight: 16,
@@ -653,22 +723,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     marginLeft:50,
     fontWeight: '700',
-    color: '#1e293b',
+    color: COLORS.text,
     fontFamily: 'Inter-Bold',
   },
   groupSelectorCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     marginHorizontal: 24,
     marginTop: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: COLORS.border,
   },
   groupSelectorRow: {
     flexDirection: 'row',
@@ -682,15 +747,15 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ede9fe',
+    backgroundColor: COLORS.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: -8,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.card,
   },
   groupSelectorAvatarText: {
-    color: '#7c3aed',
+    color: COLORS.action,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -700,45 +765,42 @@ const styles = StyleSheet.create({
   groupSelectorName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1e293b',
+    color: COLORS.text,
     fontFamily: 'Inter-SemiBold',
   },
   groupSelectorMembers: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.textTertiary,
     marginTop: 4,
     fontFamily: 'Inter-Regular',
   },
   groupSelectorDropdown: {
     fontSize: 18,
-    color: '#7c3aed',
+    color: COLORS.action,
     marginLeft: 8,
     fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   groupModalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 24,
     width: '100%',
     maxWidth: 400,
     maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   groupModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#7c3aed',
+    color: COLORS.text,
     marginBottom: 20,
     textAlign: 'center',
     fontFamily: 'Inter-Bold',
@@ -752,7 +814,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   groupModalItemSelected: {
-    backgroundColor: '#f5f3ff',
+    backgroundColor: COLORS.surfaceSecondary,
   },
   groupModalAvatars: {
     flexDirection: 'row',
@@ -762,33 +824,33 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ede9fe',
+    backgroundColor: COLORS.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: -6,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.card,
   },
   groupModalAvatarText: {
-    color: '#7c3aed',
+    color: COLORS.action,
     fontWeight: '700',
     fontSize: 12,
   },
   groupModalName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: COLORS.text,
     fontFamily: 'Inter-SemiBold',
   },
   groupModalMembers: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.textTertiary,
     marginTop: 2,
     fontFamily: 'Inter-Regular',
   },
   groupModalCheck: {
     fontSize: 18,
-    color: '#10b981',
+    color: COLORS.positive,
     fontWeight: '700',
     marginLeft: 8,
   },
@@ -797,11 +859,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingVertical: 12,
     paddingHorizontal: 32,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    borderRadius: 999,
+    backgroundColor: COLORS.surfaceSecondary,
   },
   groupModalCloseText: {
-    color: '#7c3aed',
+    color: COLORS.action,
     fontWeight: '600',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
@@ -814,38 +876,39 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     marginHorizontal: 24,
     marginTop: 16,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: COLORS.border,
   },
   amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
   },
+  currencySymbol: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.action,
+    fontFamily: 'Inter-Bold',
+  },
   amountInput: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#7c3aed',
+    color: COLORS.text,
     marginLeft: 12,
     flex: 1,
     fontFamily: 'Inter-Bold',
   },
   descInput: {
     fontSize: 18,
-    color: '#334155',
+    color: COLORS.textSecondary,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: COLORS.border,
     fontFamily: 'Inter-Medium',
   },
   dateRow: {
@@ -854,17 +917,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
   },
   dateText: {
     marginLeft: 12,
-    color: '#64748b',
+    color: COLORS.textTertiary,
     fontSize: 16,
     flex: 1,
     fontFamily: 'Inter-Medium',
   },
   dateEdit: {
-    color: '#7c3aed',
+    color: COLORS.action,
     fontWeight: '600',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
@@ -872,7 +935,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: COLORS.text,
     marginBottom: 16,
     fontFamily: 'Inter-SemiBold',
   },
@@ -883,7 +946,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -896,19 +959,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ede9fe',
+    backgroundColor: COLORS.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   avatarText: {
-    color: '#7c3aed',
+    color: COLORS.action,
     fontWeight: '700',
     fontSize: 16,
   },
   payerName: {
     fontSize: 16,
-    color: '#334155',
+    color: COLORS.textSecondary,
     fontFamily: 'Inter-Medium',
   },
   payerAmountContainer: {
@@ -918,10 +981,10 @@ const styles = StyleSheet.create({
   payerAmountInput: {
     width: 100,
     fontSize: 16,
-    color: '#1e293b',
-    backgroundColor: '#fff',
+    color: COLORS.text,
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: COLORS.border,
     borderRadius: 12,
     padding: 12,
     textAlign: 'right',
@@ -929,21 +992,21 @@ const styles = StyleSheet.create({
   },
   removePayerBtn: {
     marginLeft: 12,
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 999,
     padding: 8,
   },
   addPayerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ede9fe',
-    borderRadius: 16,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 999,
     padding: 16,
     justifyContent: 'center',
     marginTop: 8,
   },
   addPayerBtnText: {
-    color: '#7c3aed',
+    color: COLORS.action,
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
@@ -955,13 +1018,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 12,
     marginTop: 8,
   },
   remainingLabel: {
     fontSize: 16,
-    color: '#64748b',
+    color: COLORS.textTertiary,
     fontFamily: 'Inter-Medium',
   },
   remainingAmount: {
@@ -978,25 +1041,25 @@ const styles = StyleSheet.create({
   splitMethodBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 14,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 16,
     minWidth: 100,
     justifyContent: 'center',
   },
   splitMethodBtnActive: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: COLORS.action,
   },
   splitMethodText: {
     marginLeft: 8,
     fontSize: 15,
     fontWeight: '600',
-    color: '#7c3aed',
+    color: COLORS.action,
     fontFamily: 'Inter-SemiBold',
   },
   splitMethodTextActive: {
-    color: '#fff',
+    color: COLORS.actionText,
   },
   participantsHeader: {
     flexDirection: 'row',
@@ -1006,7 +1069,7 @@ const styles = StyleSheet.create({
   },
   splitTypeHint: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.textTertiary,
     fontFamily: 'Inter-Regular',
   },
   participantRow: {
@@ -1015,7 +1078,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: COLORS.border,
   },
   participantInfo: {
     flexDirection: 'row',
@@ -1023,34 +1086,29 @@ const styles = StyleSheet.create({
   },
   participantName: {
     fontSize: 16,
-    color: '#334155',
+    color: COLORS.textSecondary,
     fontFamily: 'Inter-Medium',
   },
   participantShareInput: {
     width: 100,
     fontSize: 16,
-    color: '#1e293b',
-    backgroundColor: '#fff',
+    color: COLORS.text,
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: COLORS.border,
     borderRadius: 12,
     padding: 12,
     textAlign: 'right',
     fontFamily: 'Inter-Medium',
   },
   summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     marginHorizontal: 24,
     marginTop: 16,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: COLORS.border,
     marginBottom: 24,
   },
   summaryRow: {
@@ -1060,23 +1118,23 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 16,
-    color: '#64748b',
+    color: COLORS.textTertiary,
     fontFamily: 'Inter-Medium',
   },
   summaryValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1e293b',
+    color: COLORS.text,
     fontFamily: 'Inter-Bold',
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 12,
     padding: 12,
     marginTop: 12,
   },
   errorText: {
-    color: '#ef4444',
+    color: COLORS.negative,
     fontSize: 14,
     fontFamily: 'Inter-Medium',
   },
@@ -1085,30 +1143,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     padding: 24,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
+    borderTopColor: COLORS.border,
   },
   submitBtn: {
-    borderRadius: 16,
+    borderRadius: 999,
     overflow: 'hidden',
   },
   submitGradient: {
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COLORS.action,
   },
   submitBtnDisabled: {
     opacity: 0.7,
   },
   submitBtnText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'Inter-Bold',

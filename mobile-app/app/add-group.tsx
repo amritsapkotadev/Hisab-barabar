@@ -10,23 +10,28 @@ import {
   Platform,
   Modal as RNModal,
   FlatList,
-  Alert,
   ActivityIndicator,
   Animated,
-  Dimensions
+  Dimensions,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   Plus, X, ArrowLeft, Users, Share2, Copy, ChevronRight, Sparkles, Key
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import * as Clipboard from 'expo-clipboard';
-import * as Sharing from 'expo-sharing';
 import { apiService } from '@/services/api';
+import { subscribeToGroupTopic } from '@/services/notifications';
+import { buildInviteUrl } from '@/utils/invite';
+import { useToast } from '@/components/Toast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
+import { createLocalId } from '@/utils/id';
+import { GroupMember } from '@/types';
 
 const EMOJIS = [
   '🎉', '👫', '✈️', '🏖️', '🍽️', '🏠', '🎂', '🛒', '🧑‍🤝‍🧑', 
@@ -36,10 +41,12 @@ const EMOJIS = [
 ];
 
 export default function AddGroupScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
   const [groupName, setGroupName] = useState('');
   const [groupEmoji, setGroupEmoji] = useState('🎉');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [members, setMembers] = useState<string[]>([]);
+  const [members, setMembers] = useState<GroupMember[]>([]);
   const [newMember, setNewMember] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -68,11 +75,11 @@ export default function AddGroupScreen() {
 
   const addMember = () => {
     if (!newMember.trim()) return;
-    if (members.some(m => m.toLowerCase() === newMember.trim().toLowerCase())) {
+    if (members.some(m => m.name.toLowerCase() === newMember.trim().toLowerCase())) {
       setError('Duplicate member names are not allowed');
       return;
     }
-    setMembers([...members, newMember.trim()]);
+    setMembers([...members, { id: createLocalId(), name: newMember.trim() }]);
     setNewMember('');
     setError(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -90,7 +97,7 @@ export default function AddGroupScreen() {
       setError('Group name must be at least 3 characters');
       return false;
     }
-    const validMembers = members.map(m => m.trim()).filter(Boolean);
+    const validMembers = members.map(m => m.name.trim()).filter(Boolean);
     const memberSet = new Set();
     for (let m of validMembers) {
       if (memberSet.has(m.toLowerCase())) {
@@ -106,18 +113,19 @@ export default function AddGroupScreen() {
   const handleCopyLink = async () => {
     if (!shareableLink) return;
     await Clipboard.setStringAsync(shareableLink);
-    Alert.alert('Copied!', 'Group invite link copied to clipboard');
+    toast.success('Group invite link copied to clipboard');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const handleShareLink = async () => {
     if (!shareableLink) return;
     try {
-      await Sharing.shareAsync(shareableLink, {
-        dialogTitle: 'Join my group on SplitSaathi',
+      await Share.share({
+        message: `Join my group on Hisab Barabar: ${shareableLink}`,
+        title: 'Join my group on Hisab Barabar',
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to share group link');
+      toast.error('Failed to share group link');
     }
   };
 
@@ -141,9 +149,9 @@ export default function AddGroupScreen() {
     setLoading(true);
     setError(null);
     try {
-      let validMembers = members.map(m => m.trim()).filter(Boolean);
-      if (currentUserName && !validMembers.some(m => m.toLowerCase() === currentUserName.toLowerCase())) {
-        validMembers = [currentUserName, ...validMembers];
+      let validMembers = members.map(m => ({ ...m, name: m.name.trim() })).filter(m => m.name);
+      if (currentUserName && !validMembers.some(m => m.name.toLowerCase() === currentUserName.toLowerCase())) {
+        validMembers = [{ id: createLocalId(), name: currentUserName }, ...validMembers];
       }
       const groupPayload = {
         name: groupName.trim(),
@@ -153,7 +161,8 @@ export default function AddGroupScreen() {
       };
       const createdGroup = await apiService.createGroup(groupPayload);
       setCreatedGroup(createdGroup);
-      setShareableLink(createdGroup.inviteLink || null);
+      setShareableLink(buildInviteUrl(createdGroup.id, createdGroup.inviteLink));
+      await subscribeToGroupTopic(createdGroup.id);
       setSuccess(true);
       setTimeout(() => confettiRef.current?.start(), 400);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -192,29 +201,24 @@ export default function AddGroupScreen() {
             explosionSpeed={500}
           />
           <View style={styles.successModalCard}>
-            <LinearGradient
-              colors={['#7C3AED', '#5B21B6']}
-              style={styles.successGradient}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 1}}
-            >
+            <View style={styles.successGradient}>
               <View style={styles.successEmojiCircle}>
                 <Text style={styles.successEmoji}>{createdGroup.emoji}</Text>
               </View>
               <Text style={styles.successTitle}>Group Created!</Text>
               <Text style={styles.successGroupName}>{createdGroup.name}</Text>
-            </LinearGradient>
+            </View>
             
             <View style={styles.successContent}>
               {createdGroup.members.length > 0 && (
                 <View style={styles.successMembersContainer}>
                   <Text style={styles.successMembersTitle}>MEMBERS</Text>
                   <View style={styles.successMembersList}>
-                    {createdGroup.members.map((member: string, index: number) => (
+                    {createdGroup.members.map((member: GroupMember, index: number) => (
                       <View key={index} style={styles.successMemberPill}>
-                        <Users size={14} color="#6366F1" />
-                        <Text style={styles.successMemberText}>{member}</Text>
-                        {member === currentUserName && (
+                        <Users size={14} color={COLORS.text} />
+                        <Text style={styles.successMemberText}>{member.name}</Text>
+                        {member.name === currentUserName && (
                           <View style={styles.youBadge}>
                             <Text style={styles.youBadgeText}>You</Text>
                           </View>
@@ -228,8 +232,8 @@ export default function AddGroupScreen() {
               <Text style={styles.successSubtitle}>Share invite link with friends:</Text>
               <View style={styles.successLinkBox}>
                 <Text style={styles.successLinkText} numberOfLines={1}>{shareableLink}</Text>
-                <TouchableOpacity onPress={handleCopyLink} style={styles.copyButton}>
-                  <Copy size={18} color="#6366F1" />
+                <TouchableOpacity onPress={handleCopyLink} style={styles.copyButton} accessibilityRole="button" accessibilityLabel="Copy invite link">
+                  <Copy size={18} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
               
@@ -238,7 +242,7 @@ export default function AddGroupScreen() {
                 onPress={handleShareLink}
                 activeOpacity={0.8}
               >
-                <Share2 size={20} color="#6366F1" />
+                <Share2 size={20} color={COLORS.text} />
                 <Text style={styles.successShareBtnText}>Share Invite</Text>
               </TouchableOpacity>
               
@@ -256,7 +260,7 @@ export default function AddGroupScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={styles.successActionPrimaryText}>Go to Group</Text>
-                  <ChevronRight size={20} color="#fff" />
+                  <ChevronRight size={20} color={COLORS.actionText} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -273,20 +277,15 @@ export default function AddGroupScreen() {
         style={styles.keyboardAvoidingView}
         keyboardVerticalOffset={80}
       >
-        <LinearGradient
-          colors={['#7C3AED', '#5B21B6']}
-          style={styles.headerGradient}
-          start={{x: 0, y: 0}}
-          end={{x: 1, y: 0}}
-        >
+        <View style={styles.headerGradient}>
           <View style={styles.topBar}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={24} color="#fff" />
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+              <ArrowLeft size={24} color={COLORS.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>Create Group</Text>
             <View style={{ width: 40 }} />
           </View>
-        </LinearGradient>
+        </View>
 
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
@@ -317,7 +316,7 @@ export default function AddGroupScreen() {
                   value={groupName}
                   onChangeText={setGroupName}
                   placeholder="e.g. Vacation, Roommates, etc."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={COLORS.textTertiary}
                   maxLength={32}
                   autoCapitalize="words"
                   onFocus={() => setIsFocused(true)}
@@ -343,9 +342,9 @@ export default function AddGroupScreen() {
               <View style={styles.chipRow}>
                 {members.map((member, idx) => (
                   <View key={idx} style={styles.chip}>
-                    <Text style={styles.chipText}>{member}</Text>
-                    <TouchableOpacity style={styles.chipRemove} onPress={() => removeMember(idx)}>
-                      <X size={14} color="#EF4444" />
+                    <Text style={styles.chipText}>{member.name}</Text>
+                    <TouchableOpacity style={styles.chipRemove} onPress={() => removeMember(idx)} accessibilityRole="button" accessibilityLabel={`Remove ${member.name}`}>
+                      <X size={14} color={COLORS.negative} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -356,19 +355,21 @@ export default function AddGroupScreen() {
                     value={newMember}
                     onChangeText={setNewMember}
                     placeholder={members.length === 0 ? 'Add member' : ''}
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={COLORS.textTertiary}
                     maxLength={18}
                     autoCapitalize="words"
                     onSubmitEditing={addMember}
                     returnKeyType="done"
                   />
-                  <TouchableOpacity 
-                    style={styles.addChipBtn} 
-                    onPress={addMember} 
+                  <TouchableOpacity
+                    style={styles.addChipBtn}
+                    onPress={addMember}
                     activeOpacity={0.7}
                     disabled={!newMember.trim()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add member"
                   >
-                    <Plus size={18} color={newMember.trim() ? "#7C3AED" : "#CBD5E1"} />
+                    <Plus size={18} color={newMember.trim() ? COLORS.action : COLORS.textTertiary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -382,7 +383,7 @@ export default function AddGroupScreen() {
           </View>
           
           <View style={styles.tipContainer}>
-            <Sparkles size={16} color="#7C3AED" />
+            <Sparkles size={16} color={COLORS.action} />
             <Text style={styles.tipText}>You can add more members later from group settings</Text>
           </View>
         </ScrollView>
@@ -393,15 +394,8 @@ export default function AddGroupScreen() {
             onPress={handleJoinByCode}
             activeOpacity={0.8}
           >
-            <LinearGradient 
-              colors={["#8B5CF6", "#7C3AED"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.joinByCodeButtonGradient}
-            >
-              <Key size={20} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.joinByCodeButtonText}>Join by Code</Text>
-            </LinearGradient>
+            <Key size={20} color={COLORS.actionText} style={{ marginRight: 8 }} />
+            <Text style={styles.joinByCodeButtonText}>Join by Code</Text>
           </TouchableOpacity>
 
           <Animated.View style={[styles.createButtonContainer, { transform: [{ scale: scaleAnim }], width: buttonWidth }]}> 
@@ -411,21 +405,14 @@ export default function AddGroupScreen() {
               disabled={!groupName.trim() || groupName.trim().length < 3 || loading}
               activeOpacity={0.8}
             >
-              <LinearGradient 
-                colors={["#10B981", "#059669"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.createButtonGradient}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <>
-                    <Plus size={20} color="#fff" style={{ marginRight: 8 }} />
-                    <Text style={styles.createButtonText}>Create Group</Text>
-                  </>
-                )}
-              </LinearGradient>
+              {loading ? (
+                <ActivityIndicator color={COLORS.actionText} size="small" />
+              ) : (
+                <>
+                  <Plus size={20} color={COLORS.actionText} style={{ marginRight: 8 }} />
+                  <Text style={styles.createButtonText}>Create Group</Text>
+                </>
+              )}
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -441,11 +428,13 @@ export default function AddGroupScreen() {
           <View style={styles.emojiPickerSheet}>
             <View style={styles.emojiPickerHeader}>
               <Text style={styles.emojiPickerTitle}>Select Group Emoji</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.emojiPickerCloseButton}
                 onPress={() => setShowEmojiPicker(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close emoji picker"
               >
-                <X size={24} color="#64748B" />
+                <X size={24} color={COLORS.textTertiary} />
               </TouchableOpacity>
             </View>
             
@@ -474,18 +463,18 @@ export default function AddGroupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background,
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   headerGradient: {
     paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   topBar: {
     flexDirection: 'row',
@@ -501,12 +490,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: COLORS.surfaceSecondary,
   },
   topBarTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.text,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -518,28 +507,24 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
     marginBottom: 24,
-    shadowColor: '#7C3AED',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    borderWidth: 3,
-    borderColor: '#EDE9FE',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   editEmojiBadge: {
     position: 'absolute',
     bottom: -8,
-    backgroundColor: '#7C3AED',
+    backgroundColor: COLORS.action,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
   editEmojiText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -547,14 +532,12 @@ const styles = StyleSheet.create({
     fontSize: 48,
   },
   formCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     width: '92%',
     padding: 24,
-    shadowColor: '#7C3AED',
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginBottom: 16,
   },
   inputGroup: {
@@ -563,36 +546,35 @@ const styles = StyleSheet.create({
   floatingLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7C3AED',
+    color: COLORS.text,
     marginBottom: 8,
     marginLeft: 4,
   },
   optionalText: {
-    color: '#94A3B8',
+    color: COLORS.textTertiary,
     fontWeight: 'normal',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
   },
   inputFocused: {
-    borderColor: '#7C3AED',
-    backgroundColor: '#F5F3FF',
+    borderColor: COLORS.action,
   },
   input: {
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    color: '#1E293B',
+    color: COLORS.text,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: COLORS.negative,
   },
   chipRow: {
     flexDirection: 'row',
@@ -604,7 +586,7 @@ const styles = StyleSheet.create({
   addMemberContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -612,19 +594,21 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EDE9FE',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   currentUserChip: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: COLORS.surfaceSecondary,
     marginBottom: 8,
   },
   chipText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#5B21B6',
+    color: COLORS.text,
     marginRight: 4,
   },
   chipRemove: {
@@ -635,7 +619,7 @@ const styles = StyleSheet.create({
     minWidth: 100,
     fontSize: 15,
     fontWeight: '500',
-    color: '#1E293B',
+    color: COLORS.text,
     paddingVertical: 0,
     paddingHorizontal: 4,
   },
@@ -644,27 +628,29 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   youBadge: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: COLORS.action,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
     marginLeft: 6,
   },
   youBadgeText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontSize: 10,
     fontWeight: '600',
   },
   errorContainer: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 12,
     padding: 12,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: COLORS.negative,
   },
   errorText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#EF4444',
+    color: COLORS.negative,
     textAlign: 'center',
   },
   bottomButtonsContainer: {
@@ -676,43 +662,32 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   joinByCodeButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#7C3AED',
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-  },
-  joinByCodeButtonGradient: {
-    paddingVertical: 18,
+    borderRadius: 999,
+    backgroundColor: COLORS.action,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    paddingVertical: 18,
   },
   joinByCodeButtonText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '600',
     fontSize: 16,
   },
   createButtonContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#10B981',
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
+    borderRadius: 999,
   },
   createButton: {
     width: '100%',
-  },
-  createButtonGradient: {
-    paddingVertical: 18,
+    borderRadius: 999,
+    backgroundColor: COLORS.action,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    paddingVertical: 18,
   },
   createButtonText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -720,7 +695,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 16,
     marginHorizontal: 24,
     gap: 8,
@@ -728,25 +703,25 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#5B21B6',
+    color: COLORS.textSecondary,
     flex: 1,
   },
   // Success Modal
   successModalBg: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   successModalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 32,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     width: '100%',
     maxWidth: 400,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
+    shadowColor: COLORS.shadow,
+    shadowOpacity: 0.06,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },
   },
@@ -762,12 +737,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#EDE9FE',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   successEmoji: {
     fontSize: 40,
@@ -775,13 +750,13 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.text,
     marginBottom: 4,
   },
   successGroupName: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.text,
   },
   successMembersContainer: {
     width: '100%',
@@ -790,7 +765,7 @@ const styles = StyleSheet.create({
   successMembersTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: COLORS.textTertiary,
     marginBottom: 8,
     letterSpacing: 1,
   },
@@ -802,7 +777,7 @@ const styles = StyleSheet.create({
   successMemberPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F3FF',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -811,31 +786,31 @@ const styles = StyleSheet.create({
   successMemberText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#5B21B6',
+    color: COLORS.text,
   },
   successSubtitle: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#64748B',
+    color: COLORS.textTertiary,
     textAlign: 'center',
     marginBottom: 16,
   },
   successLinkBox: {
     flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background,
     borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     width: '100%',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.border,
   },
   successLinkText: {
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
-    color: '#7C3AED',
+    color: COLORS.text,
   },
   copyButton: {
     padding: 4,
@@ -847,13 +822,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#EDE9FE',
+    borderColor: COLORS.border,
     marginBottom: 24,
   },
   successShareBtnText: {
-    color: '#7C3AED',
+    color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -864,8 +839,8 @@ const styles = StyleSheet.create({
   },
   successActionPrimary: {
     flex: 1,
-    backgroundColor: '#7C3AED',
-    borderRadius: 16,
+    backgroundColor: COLORS.action,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
@@ -873,31 +848,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   successActionPrimaryText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '600',
     fontSize: 16,
   },
   successActionSecondary: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 16,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
   },
   successActionSecondaryText: {
-    color: '#7C3AED',
+    color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,
   },
   // Emoji Picker
   emojiPickerContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   emojiPickerSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -913,7 +888,7 @@ const styles = StyleSheet.create({
   emojiPickerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
+    color: COLORS.text,
   },
   emojiPickerCloseButton: {
     padding: 4,
@@ -931,9 +906,9 @@ const styles = StyleSheet.create({
     margin: 4,
   },
   emojiOptionSelected: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: COLORS.surfaceSecondary,
     borderWidth: 2,
-    borderColor: '#7C3AED',
+    borderColor: COLORS.action,
   },
   emojiOptionText: {
     fontSize: 28,

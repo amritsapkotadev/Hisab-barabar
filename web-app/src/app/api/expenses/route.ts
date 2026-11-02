@@ -3,9 +3,16 @@ import connectDB from '@/lib/mongodb'
 import Expense from '@/models/Expense'
 import Group from '@/models/Group'
 import { authenticateUser } from '@/middleware/auth'
+import { canAccessGroup } from '@/utils/groupMembers'
+import { withExpenseIdempotency } from '@/lib/expenseIdempotency'
+import { calculateGroupBalances } from '@/utils/groupBalances'
 
 // Create a new group expense
 export async function POST(request: NextRequest) {
+  return withExpenseIdempotency(request, () => createExpense(request))
+}
+
+async function createExpense(request: NextRequest) {
   try {
     const auth = await authenticateUser(request)
     if ('error' in auth) {
@@ -16,20 +23,24 @@ export async function POST(request: NextRequest) {
     const { groupId, description, amount, paidBy, participants, date } = await request.json()
 
     // Validation
-    if (!groupId || !description || !amount || !paidBy || !participants || !date) {
+    if (typeof groupId !== 'string' || typeof description !== 'string' ||
+        !description.trim() || typeof paidBy !== 'string' || !paidBy.trim() ||
+        typeof date !== 'string' || !date || participants === undefined) {
       return NextResponse.json({ message: 'All fields are required' }, { status: 400 })
     }
 
-    if (!Array.isArray(participants) || participants.length === 0) {
+    if (!Array.isArray(participants) || participants.length === 0 ||
+        participants.some((participant: unknown) => typeof participant !== 'string') ||
+        new Set(participants).size !== participants.length) {
       return NextResponse.json(
-        { message: 'At least one participant is required' },
+        { message: 'Participants must be unique group member ids' },
         { status: 400 }
       )
     }
 
-    if (amount <= 0) {
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
-        { message: 'Amount must be greater than 0' },
+        { message: 'Amount must be a valid number greater than 0' },
         { status: 400 }
       )
     }
@@ -40,23 +51,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Group not found' }, { status: 404 })
     }
 
-    if (!group.members.includes(auth.user.name)) {
+    if (!canAccessGroup(group, auth.userId)) {
       return NextResponse.json(
         { message: 'Not authorized: you must be a group member to add expenses' },
         { status: 403 }
       )
     }
 
-    // Validate that paidBy and participants are group members
-    const validMembers = group.members
-    if (!validMembers.includes(paidBy.trim())) {
+    // Validate that paidBy and participants are real group member ids
+    const validMemberIds = group.members.map((member) => member.id)
+    if (!validMemberIds.includes(paidBy.trim())) {
       return NextResponse.json(
         { message: 'Payer must be a group member' },
         { status: 400 }
       )
     }
 
-    const invalidParticipants = participants.filter((p: string) => !validMembers.includes(p.trim()))
+    const invalidParticipants = participants.filter((p: string) => !validMemberIds.includes(p.trim()))
     if (invalidParticipants.length > 0) {
       return NextResponse.json(
         { message: `Invalid participants: ${invalidParticipants.join(', ')}` },
@@ -64,10 +75,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    try {
+      calculateGroupBalances(validMemberIds, [{
+        amount,
+        paidBy,
+        participants,
+        splitType: 'equal',
+      }])
+    } catch (error) {
+      return NextResponse.json({
+        message: error instanceof Error ? error.message : 'Expense allocations are invalid',
+      }, { status: 400 })
+    }
+
     // Create expense
     const expense = new Expense({
       description: description.trim(),
-      amount: parseFloat(amount),
+      amount,
       paidBy: paidBy.trim(),
       participants: participants.map((p: string) => p.trim()),
       groupId,
@@ -92,6 +116,14 @@ export async function POST(request: NextRequest) {
           splitType: savedExpense.splitType,
           date: savedExpense.date,
           createdAt: savedExpense.createdAt,
+          updatedAt: savedExpense.updatedAt,
+          revision: savedExpense.revision ?? 0,
+          type: savedExpense.type,
+          createdBy: savedExpense.createdBy,
+          category: savedExpense.category,
+          paymentMethod: savedExpense.paymentMethod,
+          splits: savedExpense.splits,
+          payers: savedExpense.payers,
         },
       },
       { status: 201 }
@@ -115,8 +147,10 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // Get all groups where the user is a member
-    const userGroups = await Group.find({ members: auth.user.name })
+    // Include creators even when a legacy group's creator has no member row.
+    const userGroups = await Group.find({
+      $or: [{ 'members.userId': auth.userId }, { createdBy: auth.userId }],
+    })
     const groupIds = userGroups.map((group) => group._id)
 
     // Get all group expenses
@@ -149,6 +183,11 @@ export async function GET(request: NextRequest) {
       date: expense.date,
       createdAt: expense.createdAt,
       type: expense.type,
+      updatedAt: expense.updatedAt,
+      revision: expense.revision ?? 0,
+      createdBy: expense.createdBy,
+      category: expense.category,
+      paymentMethod: expense.paymentMethod,
     }))
 
     return NextResponse.json({

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, FC } from 'react';
+import { useServerRefresh } from '@/hooks/useServerRefresh';
+import { refreshServerData } from '@/services/dataClient';
 import {
   View,
   Text,
@@ -10,20 +12,18 @@ import {
   ScrollView,
   Animated,
   Dimensions,
-  Alert,
   Modal,
   Pressable,
   Platform,
   TextInput,
-  Linking,
   PanResponder,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useNavigation } from 'expo-router';
 import {
   ArrowLeft,
   Plus,
-  DollarSign,
   Share2,
   Users,
   ChevronRight,
@@ -32,49 +32,44 @@ import {
   UserPlus,
   Download,
   X,
-  Clock,
-  User,
-  FileText,
   Settings,
   Trash2,
-  Minus,
-  Mail,
-  Phone,
-  MessageCircle,
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '@/services/api';
 import ShareGroupModal from '@/components/ShareGroupModal';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
-import { Group, Expense } from '@/types';
+import { Group, Expense, GroupMember } from '@/types';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { BlurView } from 'expo-blur';
-import Constants from 'expo-constants';
 
 const { width } = Dimensions.get('window');
 const { height: WINDOW_HEIGHT } = Dimensions.get('window');
-const statusBarHeight = Constants.statusBarHeight;
 
-const COLORS = {
-  primary: '#6366F1',
-  secondary: '#4F46E5',
-  background: '#F9FAFB',
-  card: '#FFFFFF',
-  text: '#1F2937',
-  muted: '#6B7280',
-  positive: '#10B981',
-  negative: '#EF4444',
-  border: '#E5E7EB',
-  headerGradient: ['#6366F1', '#4F46E5'] as const,
-  summaryCard1: '#818CF8',
-  summaryCard2: '#6366F1',
-  summaryCard3: '#4F46E5',
-  fab: ['#6366F1', '#4F46E5'] as const,
-  chip: '#E0E7FF',
-};
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
+import { useToast } from '@/components/Toast';
 
 type TabType = { id: string; label: string; icon: React.ReactElement<any, any> };
+
+const RupeeIcon: FC<{ size?: number; color?: string }> = ({ size = 24, color }) => (
+  <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <Text
+      style={{
+        fontSize: size * 0.85,
+        lineHeight: size,
+        color,
+        fontWeight: '700',
+        textAlign: 'center',
+        includeFontPadding: false,
+        textAlignVertical: 'center',
+        transform: [{ translateX: size * 0.24 }, { translateY: size * 0.1 }],
+      }}
+    >
+      रु
+    </Text>
+  </View>
+);
 
 interface SegmentedControlProps {
   tabs: TabType[];
@@ -83,6 +78,7 @@ interface SegmentedControlProps {
 }
 
 const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPress }) => {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const translateX = useRef(new Animated.Value(0)).current;
   const tabWidth = (width - 40) / tabs.length;
 
@@ -114,7 +110,7 @@ const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPre
           {React.isValidElement(tab.icon)
             ? React.cloneElement(tab.icon as React.ReactElement<any>, {
               size: 18,
-              color: activeTab === tab.id ? '#FFFFFF' : COLORS.muted
+              color: activeTab === tab.id ? COLORS.actionText : COLORS.muted
             })
             : tab.icon}
           <Text style={[styles.segmentButtonText, activeTab === tab.id ? styles.segmentButtonTextActive : undefined]}>
@@ -126,10 +122,24 @@ const SegmentedControl: FC<SegmentedControlProps> = ({ tabs, activeTab, onTabPre
   );
 };
 
-const MemberAvatar = ({ name, size = 40 }: { name: string; size?: number }) => {
-  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+const MemberAvatar = ({ member, size = 40 }: { member: GroupMember; size?: number }) => {
+  const [failed, setFailed] = useState(false);
+  const initials = member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
   const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#EF4444'];
-  const color = colors[name.charCodeAt(0) % colors.length];
+  const colorIndex = member.name.charCodeAt(0) % colors.length;
+  const color = colors[colorIndex];
+  const picture = member.picture;
+
+  // Profile picture when there is one; initials otherwise (also if the image fails to load).
+  if (picture && !failed) {
+    return (
+      <Image
+        source={{ uri: picture }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
 
   return (
     <View style={{
@@ -146,6 +156,8 @@ const MemberAvatar = ({ name, size = 40 }: { name: string; size?: number }) => {
 };
 
 const GroupScreen = () => {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
   const [group, setGroup] = useState<Group | null>(null);
@@ -162,27 +174,28 @@ const GroupScreen = () => {
   const [showDeleteMemberModal, setShowDeleteMemberModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [showMemberSheet, setShowMemberSheet] = useState(false);
-  const [memberDetail, setMemberDetail] = useState<{ id: string; name: string; email?: string; phone?: string; picture?: string } | null>(null);
-  const [loadingMemberDetail, setLoadingMemberDetail] = useState(false);
+  const [memberDetail, setMemberDetail] = useState<GroupMember | null>(null);
   const [exportResult, setExportResult] = useState('');
   const [addMemberPhone, setAddMemberPhone] = useState('');
   const [addingMember, setAddingMember] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const cardAnim = useRef(new Animated.Value(0)).current;
+
+  // Resolve a member by their stable group-scoped id from the group's members array.
+  const getMemberById = (memberId: string): GroupMember | undefined => {
+    return group?.members.find(m => m.id === memberId);
+  };
+
   const sheetTranslateY = useRef(new Animated.Value(0)).current;
   const maxLift = Math.round(WINDOW_HEIGHT * 0.2); // how far up it can be dragged
 
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 6,
-      onPanResponderMove: Animated.event([null, { dy: sheetTranslateY }], {
-        useNativeDriver: false,
-        listener: (_, gesture) => {
-          // allow only upward drag (negative dy) up to -maxLift
-          const clamped = Math.max(-maxLift, Math.min(0, gesture.dy));
-          sheetTranslateY.setValue(clamped);
-        }
-      }),
+      onPanResponderMove: (_, gesture) => {
+        // allow only upward drag (negative dy) up to -maxLift
+        const clamped = Math.max(-maxLift, Math.min(0, gesture.dy));
+        sheetTranslateY.setValue(clamped);
+      },
       onPanResponderRelease: () => {
         Animated.spring(sheetTranslateY, {
           toValue: 0,
@@ -196,6 +209,7 @@ const GroupScreen = () => {
   const fetchGroupData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const [groupData, expenseData] = await Promise.all([
         apiService.getGroup(id),
         apiService.getGroupExpenses(id),
@@ -203,18 +217,11 @@ const GroupScreen = () => {
       setGroup(groupData);
       setExpenses(expenseData);
 
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(cardAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          damping: 10,
-        })
-      ]).start();
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     } catch (err) {
       setError('Failed to load group data');
     } finally {
@@ -222,9 +229,7 @@ const GroupScreen = () => {
     }
   };
 
-  useEffect(() => {
-    fetchGroupData();
-  }, [id]);
+  useServerRefresh(fetchGroupData, id);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -238,6 +243,7 @@ const GroupScreen = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    await refreshServerData(false);
     await fetchGroupData();
     setRefreshing(false);
   };
@@ -253,10 +259,10 @@ const GroupScreen = () => {
     if (!group) return;
     try {
       const res = await apiService.deleteGroup(group.id);
-      Alert.alert(res.message);
+      toast.success(res.message);
       router.replace('/(tabs)/groups');
     } catch (err: string | any) {
-      Alert.alert('Error', err.response?.data?.message);
+      toast.error(err.response?.data?.message || 'Failed to delete group');
     }
   };
 
@@ -266,9 +272,9 @@ const GroupScreen = () => {
       const res = await apiService.removeGroupMember(group.id, selectedMember);
       await fetchGroupData();
       setShowDeleteMemberModal(false);
-      Alert.alert(res.message);
+      toast.success(res.message);
     } catch (err: string | any) {
-      Alert.alert('Error', err.response?.data?.message);
+      toast.error(err.response?.data?.message || 'Something went wrong');
     }
   };
 
@@ -276,7 +282,7 @@ const GroupScreen = () => {
     if (!group) return;
     const normalized = addMemberPhone.replace(/\D/g, '');
     if (!normalized || normalized.length < 10) {
-      Alert.alert('Validation', 'Please enter a valid phone number');
+      toast.error('Please enter a valid phone number');
       return;
     }
     try {
@@ -285,9 +291,9 @@ const GroupScreen = () => {
       await fetchGroupData();
       setShowAddMemberModal(false);
       setAddMemberPhone('');
-      Alert.alert('Success', 'Member added to the group');
+      toast.success('Member added to the group');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to add member');
+      toast.error(err.message || 'Failed to add member');
     } finally {
       setAddingMember(false);
     }
@@ -314,7 +320,7 @@ const GroupScreen = () => {
         setShowExportModal(true);
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to export data');
+      toast.error('Failed to export data');
     }
   };
 
@@ -335,81 +341,75 @@ const GroupScreen = () => {
         onPress={() => router.push(`/group/${id}/expense/${item.id}`)}
         activeOpacity={0.8}
       >
-        <View style={styles.expenseIcon}>
-          <DollarSign size={20} color={COLORS.primary} />
-        </View>
-        <View style={styles.expenseInfo}>
+        <View style={styles.expenseTop}>
           <Text style={styles.expenseTitle} numberOfLines={1}>{item.description}</Text>
-          <View style={styles.expenseMeta}>
-            <View style={styles.expensePaidBy}>
-              <MemberAvatar name={item.paidBy} size={24} />
-              <Text style={styles.expenseSubtitle}>{item.paidBy}</Text>
-            </View>
-            <View style={styles.expenseDateContainer}>
-              <Clock size={14} color={COLORS.muted} />
-              <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
-            </View>
-          </View>
-        </View>
-        <View style={styles.expenseAmountContainer}>
           <Text style={styles.expenseAmount}>रु {item.amount.toFixed(2)}</Text>
-          <ChevronRight size={18} color={COLORS.muted} />
+        </View>
+        <View style={styles.expenseMeta}>
+          {group && item.paidBy ? (
+            <>
+              <MemberAvatar member={getMemberById(item.paidBy) || { id: item.paidBy, name: item.paidBy }} size={20} />
+              <Text style={styles.expenseSubtitle} numberOfLines={1}>Paid by {getMemberById(item.paidBy)?.name || item.paidBy}</Text>
+            </>
+          ) : (
+            <>
+              <MemberAvatar member={{ id: item.paidBy, name: item.paidBy }} size={20} />
+              <Text style={styles.expenseSubtitle} numberOfLines={1}>Paid by {item.paidBy}</Text>
+            </>
+          )}
+          <Text style={styles.expenseDate}>·</Text>
+          <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
   );
 
-  const renderBalanceItem = ({ member, balance }: { member: string; balance: number }) => (
-    <View style={styles.balanceItem}>
-      <MemberAvatar name={member} size={36} />
-      <Text style={styles.balanceName} numberOfLines={1}>{member}</Text>
-      <Text style={[
-        styles.balanceAmount,
-        balance > 0 ? styles.positiveBalance :
-          balance < 0 ? styles.negativeBalance :
-            styles.neutralBalance
-      ]}>
-        {balance > 0 ? '+' : ''}₹{Math.abs(balance).toFixed(2)}
+  const renderBalanceItem = ({ memberId, balance }: { memberId: string; balance: number }) => {
+    const member = group?.members.find(m => m.id === memberId) || { id: memberId, name: memberId };
+    return (
+      <View style={styles.balanceItem}>
+        <MemberAvatar member={member} size={36} />
+        <Text style={styles.balanceName} numberOfLines={1}>{member.name}</Text>
+        <Text style={[
+          styles.balanceAmount,
+          balance > 0 ? styles.positiveBalance :
+            balance < 0 ? styles.negativeBalance :
+              styles.neutralBalance
+        ]}>
+        रु {Math.abs(balance).toFixed(2)}
       </Text>
     </View>
-  );
+    );
+  };
 
-  const renderMemberItem = (member: string) => (
+  const renderMemberItem = (member: GroupMember) => (
     <View style={styles.memberItem}>
-      <MemberAvatar name={member} size={44} />
+      <MemberAvatar member={member} size={36} />
       <View style={styles.memberInfo}>
         <Text
           style={styles.memberName}
           numberOfLines={1}
-          onPress={async () => {
-            setSelectedMember(member);
+          onPress={() => {
+            setSelectedMember(member.id);
+            setMemberDetail(member);
             setShowMemberSheet(true);
-            setLoadingMemberDetail(true);
-            try {
-              const detail = await apiService.getUserByName(member);
-              setMemberDetail(detail);
-            } catch (e) {
-              setMemberDetail(null);
-            } finally {
-              setLoadingMemberDetail(false);
-            }
           }}
         >
-          {member}
+          {member.name}
         </Text>
-        {(group && group.members[0] === member) && (
-          <Text style={styles.adminText}>Group Admin</Text>
-        )}
       </View>
-      {(group && group.members[0] !== member) && (
+      {(group && member.userId && group.createdBy === member.userId) && (
+        <Text style={styles.adminText}>Group Admin</Text>
+      )}
+      {(group && !(member.userId && group.createdBy === member.userId)) && (
         <TouchableOpacity
           onPress={() => {
-            setSelectedMember(member);
+            setSelectedMember(member.id);
             setShowDeleteMemberModal(true);
           }}
           style={styles.deleteMemberButton}
         >
-          <Minus size={20} color={COLORS.negative} />
+          <Trash2 size={20} color={COLORS.negative} />
         </TouchableOpacity>
       )}
     </View>
@@ -419,7 +419,7 @@ const GroupScreen = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={COLORS.action} />
           <Text style={styles.loadingText}>Loading group...</Text>
         </View>
       </SafeAreaView>
@@ -444,7 +444,7 @@ const GroupScreen = () => {
   }
 
   const tabs = [
-    { id: 'expenses', label: 'Expenses', icon: <DollarSign /> },
+    { id: 'expenses', label: 'Expenses', icon: <RupeeIcon /> },
     { id: 'balances', label: 'Balances', icon: <BarChart2 /> },
     { id: 'members', label: 'Members', icon: <Users /> },
   ];
@@ -452,18 +452,13 @@ const GroupScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <LinearGradient
-        colors={[COLORS.headerGradient[0], COLORS.headerGradient[1]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
-      >
+      <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
-        >
-          <ArrowLeft size={24} color="#fff" />
+         accessibilityRole="button" accessibilityLabel="Go back">
+          <ArrowLeft size={24} color={COLORS.text} />
         </TouchableOpacity>
 
         <View style={styles.headerTitleContainer}>
@@ -475,10 +470,12 @@ const GroupScreen = () => {
           style={styles.headerButton}
           onPress={() => setShowSettings(true)}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Group settings"
         >
-          <Settings size={22} color="#fff" />
+          <Settings size={22} color={COLORS.text} />
         </TouchableOpacity>
-      </LinearGradient>
+      </View>
 
       {/* Content */}
       <ScrollView
@@ -487,60 +484,11 @@ const GroupScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={COLORS.primary}
-            colors={[COLORS.primary]}
+            tintColor={COLORS.action}
+            colors={[COLORS.action]}
           />
         }
       >
-        {/* Summary Cards */}
-        <Animated.View
-          style={[
-            styles.summaryContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: cardAnim }]
-            }
-          ]}
-        >
-          <LinearGradient
-            colors={[COLORS.summaryCard1, COLORS.summaryCard2]}
-            style={styles.summaryCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <DollarSign size={24} color="#fff" />
-            <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Total</Text>
-            <Text style={[
-              styles.summaryValue,
-              {
-                color: '#fff',
-                marginLeft: -4,
-              }]}>रु {group.totalExpenses.toFixed(2)}</Text>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={[COLORS.summaryCard2, COLORS.summaryCard3]}
-            style={styles.summaryCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <User size={24} color="#fff" />
-            <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Members</Text>
-            <Text style={[styles.summaryValue, { color: '#fff' }]}>{group.members.length}</Text>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={[COLORS.summaryCard3, '#4338ca']}
-            style={styles.summaryCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <FileText size={24} color="#fff" />
-            <Text style={[styles.summaryLabel, { color: 'rgba(255,255,255,0.85)' }]}>Expenses</Text>
-            <Text style={[styles.summaryValue, { color: '#fff' }]}>{expenses.length}</Text>
-          </LinearGradient>
-        </Animated.View>
-
         {/* Segmented Control */}
         <SegmentedControl
           tabs={tabs}
@@ -550,6 +498,33 @@ const GroupScreen = () => {
 
         {/* Tab Content */}
         <View style={styles.tabContent}>
+          <View style={styles.tabSummary}>
+            <Text style={styles.tabSummaryText}>
+              {activeTab === 'expenses'
+                ? `${expenses.length} ${expenses.length === 1 ? 'expense' : 'expenses'}`
+                : `${group.members.length} ${group.members.length === 1 ? 'member' : 'members'}`}
+            </Text>
+            {activeTab === 'expenses' && (
+              <Text style={styles.tabSummaryTotal}>Total रु {group.totalExpenses.toFixed(2)}</Text>
+            )}
+            {activeTab === 'balances' && (
+              <Text style={[styles.tabSummaryTotal, { color: isSettled ? COLORS.positive : COLORS.warning }]}>
+                {isSettled ? 'Settled' : 'Unsettled'}
+              </Text>
+            )}
+            {activeTab === 'members' && (
+              <TouchableOpacity
+                style={styles.addMemberButton}
+                onPress={() => setShowAddMemberModal(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Add member"
+              >
+                <UserPlus size={18} color={COLORS.action} />
+              </TouchableOpacity>
+            )}
+          </View>
+
           {activeTab === 'expenses' && (
             expenses.length > 0 ? (
               <FlatList
@@ -561,7 +536,7 @@ const GroupScreen = () => {
               />
             ) : (
               <View style={styles.emptyState}>
-                <DollarSign size={48} color="#CBD5E1" />
+                <RupeeIcon size={48} color={COLORS.textTertiary} />
                 <Text style={styles.emptyTitle}>No expenses yet</Text>
                 <Text style={styles.emptySubtitle}>Add your first expense to get started</Text>
               </View>
@@ -579,7 +554,7 @@ const GroupScreen = () => {
                 <View style={styles.balancesContainer}>
                   {Object.entries(group.balances).map(([member, balance]) => (
                     <View key={member}>
-                      {renderBalanceItem({ member, balance })}
+                      {renderBalanceItem({ memberId: member, balance })}
                     </View>
                   ))}
                 </View>
@@ -598,24 +573,13 @@ const GroupScreen = () => {
           )}
 
           {activeTab === 'members' && (
-            <>
-              <TouchableOpacity
-                style={styles.addMemberButton}
-                onPress={() => setShowAddMemberModal(true)}
-                activeOpacity={0.7}
-              >
-                <UserPlus size={18} color={COLORS.primary} />
-                <Text style={styles.addMemberText}>Add Member</Text>
-              </TouchableOpacity>
-
-              <View style={styles.membersContainer}>
-                {group.members.map(member => (
-                  <View key={member}>
-                    {renderMemberItem(member)}
-                  </View>
-                ))}
-              </View>
-            </>
+            <View style={styles.membersContainer}>
+              {group.members.map(member => (
+                <View key={member.id}>
+                  {renderMemberItem(member)}
+                </View>
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -623,17 +587,14 @@ const GroupScreen = () => {
       {/* Add Expense FAB */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push(`/add-expense/${group.id}`)}
+        onPress={() => router.push({ pathname: '/add-expense-advanced', params: { groupId: group.id } })}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Add expense"
       >
-        <LinearGradient
-          colors={[COLORS.fab[0], COLORS.fab[1]]}
-          style={styles.fabGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Plus size={28} color="#fff" />
-        </LinearGradient>
+        <View style={styles.fabGradient}>
+          <Plus size={28} color={COLORS.actionText} />
+        </View>
       </TouchableOpacity>
 
       {/* Modals */}
@@ -648,7 +609,7 @@ const GroupScreen = () => {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteGroup}
         title="Delete Group"
-        message="Are you sure? This action cannot be undone."
+        message="Are you sure you want to delete this group?"
       />
 
       <DeleteConfirmationModal
@@ -656,7 +617,7 @@ const GroupScreen = () => {
         onClose={() => setShowDeleteMemberModal(false)}
         onConfirm={handleDeleteMember}
         title="Remove Member"
-        message={`Are you sure you want to remove ${selectedMember} from the group?`}
+        message={`Are you sure you want to remove ${group?.members.find(m => m.id === selectedMember)?.name || selectedMember} from the group?`}
       />
 
       <Modal
@@ -724,56 +685,31 @@ const GroupScreen = () => {
               style={styles.sheetCloseButton}
               onPress={() => setShowMemberSheet(false)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Close member details"
             >
               <X size={20} color={COLORS.muted} />
             </TouchableOpacity>
             <View style={styles.memberHeader}>
               <View style={styles.memberAvatarWrapper}>
-                <LinearGradient colors={[COLORS.summaryCard1, COLORS.summaryCard2]} style={styles.memberAvatarGlow} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                <MemberAvatar name={selectedMember || ''} size={64} />
+                <MemberAvatar member={memberDetail || { id: selectedMember || '', name: selectedMember || '' }} size={64} />
               </View>
-              <Text style={styles.memberDetailName}>{selectedMember}</Text>
+              <Text style={styles.memberDetailName}>{memberDetail?.name || selectedMember}</Text>
             </View>
 
-            <View style={styles.memberInfoBlock}>
-              {loadingMemberDetail ? (
-                <View style={styles.skeletonContainer}>
-                  <View style={styles.skeletonLine} />
-                  <View style={[styles.skeletonLine, { width: '60%' }]} />
+            {memberDetail?.userId ? (
+              <View style={styles.memberInfoBlock}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoText}>Registered member</Text>
                 </View>
-              ) : (
-                <>
-                  {memberDetail?.email ? (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIcon}><Mail size={16} color={COLORS.muted} /></View>
-                      <Text style={styles.infoText}>{memberDetail.email}</Text>
-                    </View>
-                  ) : null}
-                  {memberDetail?.phone ? (
-                    <View style={[styles.infoRow, { justifyContent: 'space-between' }]}>
-                      <View style={styles.infoIcon}><Phone size={16} color={COLORS.muted} /></View>
-                      <Text style={[styles.infoText, { flex: 1 }]} numberOfLines={1}>{memberDetail.phone}</Text>
-                      <View style={styles.inlineActions}>
-                        <TouchableOpacity
-                          style={styles.smallIconButton}
-                          onPress={() => memberDetail?.phone && Linking.openURL(`tel:${memberDetail.phone}`)}
-                          activeOpacity={0.7}
-                        >
-                          <Phone size={16} color={COLORS.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.smallIconButton}
-                          onPress={() => memberDetail?.phone && Linking.openURL(`sms:${memberDetail.phone}`)}
-                          activeOpacity={0.7}
-                        >
-                          <MessageCircle size={16} color={COLORS.primary} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ) : null}
-                </>
-              )}
-            </View>
+              </View>
+            ) : (
+              <View style={styles.memberInfoBlock}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoText}>Guest member</Text>
+                </View>
+              </View>
+            )}
             <View style={{ height: 12 }} />
           </Animated.View>
         </Pressable>
@@ -793,11 +729,14 @@ const GroupScreen = () => {
           <BlurView intensity={30} style={styles.settingsContainer}>
             <Pressable style={styles.settingsContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Group Settings</Text>
+                <View style={styles.modalHeaderSide} />
+                <Text style={[styles.modalTitle, styles.settingsTitle]}>Group Settings</Text>
                 <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={() => setShowSettings(false)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close group settings"
                 >
                   <X size={24} color={COLORS.muted} />
                 </TouchableOpacity>
@@ -812,7 +751,7 @@ const GroupScreen = () => {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Share2 size={20} color={COLORS.primary} />
+                  <Share2 size={20} color={COLORS.action} />
                   <Text style={styles.settingsOptionText}>Share Group</Text>
                   <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
@@ -825,7 +764,7 @@ const GroupScreen = () => {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Download size={20} color={COLORS.primary} />
+                  <Download size={20} color={COLORS.action} />
                   <Text style={styles.settingsOptionText}>Export Data</Text>
                   <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
@@ -853,7 +792,7 @@ const GroupScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -864,20 +803,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingTop: statusBarHeight + 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.card,
     zIndex: 10,
   },
   headerButton: {
     padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 999,
+    backgroundColor: COLORS.surfaceSecondary,
   },
   headerTitleContainer: {
     flexDirection: 'row',
@@ -889,47 +823,35 @@ const styles = StyleSheet.create({
   headerEmoji: {
     fontSize: 24,
     marginRight: 12,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 999,
     padding: 4,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.text,
     maxWidth: '70%',
   },
   scrollContent: {
+    paddingTop: 16,
     paddingBottom: 100,
   },
-  summaryContainer: {
+  tabSummary: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    margin: 16,
-    gap: 12,
-  },
-  summaryCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 20,
     alignItems: 'center',
-    gap: 10,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  summaryLabel: {
-    fontWeight: '600',
-    fontSize: 14,
-    letterSpacing: -0.2,
+  tabSummaryText: {
+    fontSize: 13,
+    color: COLORS.muted,
+    fontFamily: 'Inter-Medium',
   },
-  summaryValue: {
-    fontWeight: '800',
-    fontSize: 18,
-    letterSpacing: -0.3,
-    marginTop: 4,
+  tabSummaryTotal: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontFamily: 'Inter-Medium',
   },
   segmentedContainer: {
     flexDirection: 'row',
@@ -937,9 +859,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginHorizontal: 16,
     padding: 6,
-    shadowColor: COLORS.primary,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 3,
     borderWidth: 1,
@@ -947,7 +869,7 @@ const styles = StyleSheet.create({
   },
   activeSegment: {
     position: 'absolute',
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.action,
     borderRadius: 10,
     height: '100%',
     top: 5,
@@ -974,78 +896,58 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   segmentButtonTextActive: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '700',
   },
   tabContent: {
     padding: 16,
   },
   expenseCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 16,
-    shadowColor: COLORS.primary,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 10,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  expenseIcon: {
-    backgroundColor: COLORS.chip,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+  expenseTop: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  expenseInfo: {
-    flex: 1,
-    marginLeft: 16,
+    justifyContent: 'space-between',
+    gap: 12,
   },
   expenseTitle: {
+    flex: 1,
     color: COLORS.text,
-    fontWeight: '600',
-    fontSize: 16,
-    marginBottom: 6,
+    fontSize: 15,
+    fontFamily: 'Inter-SemiBold',
   },
   expenseMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  expensePaidBy: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   expenseSubtitle: {
+    flexShrink: 1,
     color: COLORS.muted,
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  expenseDateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    fontSize: 13,
+    fontFamily: 'Inter-Medium',
   },
   expenseDate: {
     color: COLORS.muted,
-    fontWeight: '500',
     fontSize: 13,
-  },
-  expenseAmountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    fontFamily: 'Inter-Regular',
   },
   expenseAmount: {
     color: COLORS.text,
-    fontWeight: '800',
-    fontSize: 16,
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
   },
   separator: {
     height: 12,
@@ -1056,14 +958,14 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
     gap: 12,
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 24,
     marginTop: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
-    shadowColor: COLORS.primary,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
   },
@@ -1087,11 +989,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
-    shadowColor: COLORS.primary,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
     borderWidth: 1,
@@ -1105,8 +1007,8 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   balanceAmount: {
-    fontWeight: '800',
-    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    fontSize: 14,
   },
   positiveBalance: {
     color: COLORS.positive,
@@ -1121,56 +1023,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#DCFCE7',
+    backgroundColor: `${COLORS.positive}18`,
     padding: 16,
     borderRadius: 14,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: `${COLORS.positive}40`,
     marginBottom: 16,
   },
   settledText: {
-    color: '#15803D',
+    color: COLORS.positive,
     fontWeight: '600',
     fontSize: 15,
   },
   settleButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.action,
     padding: 18,
-    borderRadius: 14,
+    borderRadius: 999,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: COLORS.primary,
+    marginTop: 12,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 4,
   },
   settleButtonText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '700',
     fontSize: 16,
   },
   addMemberButton: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
     alignItems: 'center',
-    gap: 8,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#E0E7FF',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: COLORS.surfaceSecondary,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
-    alignSelf: 'flex-start',
-    marginBottom: 16,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  addMemberText: {
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontSize: 15,
+    borderColor: COLORS.border,
   },
   membersContainer: {
     gap: 12,
@@ -1179,11 +1070,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
-    shadowColor: COLORS.primary,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
     borderWidth: 1,
@@ -1191,23 +1082,21 @@ const styles = StyleSheet.create({
   },
   memberInfo: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: 12,
   },
   memberName: {
     color: COLORS.text,
-    fontWeight: '600',
+    fontWeight: '500',
     fontSize: 16,
   },
   adminText: {
-    color: COLORS.primary,
+    color: COLORS.action,
     fontWeight: '500',
     fontSize: 14,
-    marginTop: 4,
-    backgroundColor: '#E0E7FF',
-    alignSelf: 'flex-start',
+    backgroundColor: COLORS.surfaceSecondary,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   fab: {
     position: 'absolute',
@@ -1216,9 +1105,10 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    shadowColor: COLORS.primary,
+    backgroundColor: COLORS.action,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 12,
   },
@@ -1233,7 +1123,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: COLORS.overlay,
   },
   modalContent: {
     width: '100%',
@@ -1247,12 +1137,17 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   modalCloseButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
     padding: 8,
     backgroundColor: COLORS.background,
     borderRadius: 20,
+  },
+  modalHeaderSide: {
+    width: 40,
+    height: 40,
+  },
+  settingsTitle: {
+    flex: 1,
+    marginBottom: 0,
   },
   modalTitle: {
     color: COLORS.text,
@@ -1285,21 +1180,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   confirmButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.action,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: 999,
     alignItems: 'center',
   },
   confirmText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '700',
     fontSize: 14,
   },
   settingsBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.overlay,
   },
   settingsContainer: {
     width: '100%',
@@ -1367,38 +1262,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.action,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 999,
   },
   retryText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '600',
     fontSize: 16,
   },
   deleteMemberButton: {
     padding: 8,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: COLORS.border,
   },
   input: {
     width: '100%',
     height: 50,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.border,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
     fontSize: 16,
     color: COLORS.text,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.surfaceSecondary,
   },
   sheetBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: COLORS.overlay,
   },
   sheetContainer: {
     backgroundColor: COLORS.card,
@@ -1417,7 +1312,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 6,
     borderRadius: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.border,
     marginBottom: 14,
   },
   sheetCloseButton: {
@@ -1475,7 +1370,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceSecondary,
   },
   infoText: {
     color: COLORS.text,
@@ -1496,7 +1391,7 @@ const styles = StyleSheet.create({
   skeletonLine: {
     height: 12,
     borderRadius: 8,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.border,
     width: '80%',
   },
   iconButton: {
@@ -1511,7 +1406,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   iconButtonText: {
-    color: COLORS.primary,
+    color: COLORS.action,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1519,13 +1414,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.action,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 999,
   },
   primaryPillText: {
-    color: '#fff',
+    color: COLORS.actionText,
     fontWeight: '700',
     fontSize: 14,
   },

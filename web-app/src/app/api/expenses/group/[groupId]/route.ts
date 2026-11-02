@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb'
 import Expense from '@/models/Expense'
 import Group from '@/models/Group'
 import { authenticateUser } from '@/middleware/auth'
+import { canAccessGroup } from '@/utils/groupMembers'
 
 export async function GET(
   request: NextRequest,
@@ -22,7 +23,7 @@ export async function GET(
       return NextResponse.json({ message: 'Group not found' }, { status: 404 })
     }
 
-    if (!group.members.includes(auth.user.name)) {
+    if (!canAccessGroup(group, auth.userId)) {
       return NextResponse.json(
         { message: 'Not authorized: you must be a group member to access this group' },
         { status: 403 }
@@ -45,6 +46,12 @@ export async function GET(
       splitType: expense.splitType,
       date: expense.date,
       createdAt: expense.createdAt,
+      updatedAt: expense.updatedAt,
+      revision: expense.revision ?? 0,
+      type: expense.type,
+      createdBy: expense.createdBy,
+      category: expense.category,
+      paymentMethod: expense.paymentMethod,
     }))
 
     return NextResponse.json({

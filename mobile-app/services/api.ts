@@ -1,12 +1,37 @@
 import axios from 'axios';
+import type { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Group, Expense, User, BudgetResponse } from '@/types';
+import { router } from 'expo-router';
+import { Group, Expense, User, BudgetResponse, PersonalExpensesResponse } from '@/types';
 import { GoogleUser } from './googleAuth';
 import { API_URL } from '@/config/api.config';
+import {
+  clearStoredAuthToken,
+  storeAuthToken,
+} from './tokenStorage';
+import {
+  createDataAdapter,
+  endDataSession,
+  isLocalExpenseId,
+  setDataUnauthorizedHandler,
+  startDataSession,
+} from './dataClient';
 
 // API Configuration - Use the centralized config
-// Update config/api.config.ts to switch between local and production
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || API_URL;
+const API_BASE_URL = API_URL;
+
+function expenseRevisionHeader(revision: number | undefined): string {
+  if (revision === undefined || !Number.isSafeInteger(revision) || revision < 0) {
+    throw new Error('Expense revision is missing. Refresh the expense before changing it.');
+  }
+  return `"${revision}"`;
+}
+
+function expenseMutationHeaders(expenseId: string, revision: number | undefined) {
+  return isLocalExpenseId(expenseId) && revision === undefined
+    ? {}
+    : { 'If-Match': expenseRevisionHeader(revision) };
+}
 
 // Create axios instance
 const api = axios.create({
@@ -16,25 +41,17 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+api.defaults.adapter = createDataAdapter(axios.getAdapter(api.defaults.adapter));
 
 // Auth token storage
 let authToken: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
 
-// Initialize auth token from storage
-const initializeAuthToken = async () => {
-  try {
-    const token = await AsyncStorage.getItem('authToken');
-    if (token) {
-      authToken = token;
-      console.log('Auth token initialized from storage');
-    }
-  } catch (error) {
-    console.error('Error loading auth token:', error);
-  }
+export const setUnauthorizedHandler = (handler: (() => void) | null) => {
+  unauthorizedHandler = handler;
 };
 
-// Initialize on module load
-initializeAuthToken();
+// Session restoration is owned by AuthProvider; it also restores account-scoped data.
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
@@ -56,16 +73,24 @@ api.interceptors.response.use(
     console.log(`API response from ${response.config.url}:`, response.status);
     return response;
   },
-  async (error) => {
+  async (error: AxiosError) => {
     console.error('API Error:', error.response?.data || error.message);
     console.error('API Error Status:', error.response?.status);
     console.error('API Error URL:', error.config?.url);
 
     // Handle 401 errors (unauthorized)
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.code === 'SESSION_EXPIRED') {
+      const requestToken = error.config?.headers.get('Authorization');
+      if (requestToken && requestToken !== `Bearer ${authToken}`) {
+        return Promise.reject(new axios.CanceledError('Previous account request expired'));
+      }
       authToken = null;
-      await AsyncStorage.removeItem('authToken');
-      // Optionally handle redirect to login in your app's auth flow
+      unauthorizedHandler?.();
+      const url = error.config?.url || '';
+      if (!url.includes('/auth/')) {
+        router.replace('/(auth)/login');
+      }
+      await apiService.clearAuthToken();
     }
 
     return Promise.reject(error);
@@ -83,7 +108,7 @@ export const apiService = {
       console.log('Login response:', response.data);
       const { token, user, message } = response.data;
       authToken = token;
-      await AsyncStorage.setItem('authToken', token);
+      await storeAuthToken(token);
       return { token, user, message };
     } catch (error: any) {
       console.error('Login API call failed:', error);
@@ -122,7 +147,7 @@ export const apiService = {
 
       const { token, user } = response.data;
       authToken = token;
-      await AsyncStorage.setItem('authToken', token);
+      await storeAuthToken(token);
       return { token, user };
     } catch (error: any) {
       console.error('Google login API call failed:', error);
@@ -145,7 +170,7 @@ export const apiService = {
 
       const { token, user } = response.data;
       authToken = token;
-      await AsyncStorage.setItem('authToken', token);
+      await storeAuthToken(token);
       return { token, user };
     } catch (error: any) {
       console.error('Google registration API call failed:', error);
@@ -179,14 +204,21 @@ export const apiService = {
   },
 
   async setAuthToken(token: string) {
+    if (!await startDataSession(token, API_BASE_URL)) {
+      throw new axios.CanceledError('Session changed while restoring credentials');
+    }
     authToken = token;
-    await AsyncStorage.setItem('authToken', token);
+    await storeAuthToken(token);
     console.log('Auth token set and stored');
   },
 
   async clearAuthToken() {
     authToken = null;
-    await AsyncStorage.removeItem('authToken');
+    try {
+      await endDataSession();
+    } finally {
+      await clearStoredAuthToken();
+    }
     console.log('Auth token cleared and removed from storage');
   },
 
@@ -219,10 +251,10 @@ export const apiService = {
     }
   },
 
-  async getGroup(id: string): Promise<Group | null> {
+  async getGroup(id: string, onlineOnly = false): Promise<Group | null> {
     try {
       console.log('Fetching group:', id);
-      const response = await api.get(`/groups/${id}`);
+      const response = await api.get(`/groups/${id}`, onlineOnly ? { headers: { 'Cache-Control': 'no-cache' } } : undefined);
       console.log('Group response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
@@ -231,10 +263,40 @@ export const apiService = {
     }
   },
 
+  async getGroupSettlements(groupId: string): Promise<{
+    balances: Record<string, number>;
+    settlements: { from: string; to: string; amount: number }[];
+    totalUnsettled: number;
+    isSettled: boolean;
+  }> {
+    const group = await this.getGroup(groupId, true);
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    const settlements = (group.netSettlements ?? []).map((settlement) => ({
+      from: settlement.fromUserId,
+      to: settlement.toUserId,
+      amount: Number(settlement.amount) || 0,
+    }));
+    const totalUnsettled =
+      Math.round(settlements.reduce((sum, settlement) => sum + settlement.amount, 0) * 100) / 100;
+
+    return {
+      balances: group.balances ?? {},
+      settlements,
+      totalUnsettled,
+      isSettled: totalUnsettled < 0.01,
+    };
+
+  },
+
   async createGroup(group: Omit<Group, 'id' | 'createdAt' | 'totalExpenses' | 'balances' | 'inviteCode' | 'inviteLink'>): Promise<Group> {
     try {
-      console.log('Creating group:', group);
-      const response = await api.post('/groups', group);
+      // The server assigns stable member ids at creation time, so send names.
+      const payload = { ...group, members: group.members.map((member) => member.name) };
+      console.log('Creating group:', payload);
+      const response = await api.post('/groups', payload);
       console.log('Create group response:', response.data);
 
       const createdGroup = response.data.data || response.data;
@@ -248,12 +310,17 @@ export const apiService = {
     }
   },
 
-  async joinGroupById(groupId: string): Promise<Group> {
+  async joinGroupById(
+    groupId: string
+  ): Promise<{ group: Group; alreadyMember: boolean }> {
     try {
       console.log('Joining group by ID:', groupId);
       const response = await api.post(`/groups/${groupId}/join`);
       console.log('Join group response:', response.data);
-      return response.data.data || response.data;
+      return {
+        group: response.data.data || response.data,
+        alreadyMember: response.data.message === 'You are already a member of this group',
+      };
     } catch (error: any) {
       console.error('Join group API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to join group');
@@ -300,17 +367,6 @@ export const apiService = {
     }
   },
 
-  async getUserByName(name: string): Promise<{ id: string; name: string; email?: string; phone?: string; picture?: string } | null> {
-    try {
-      const response = await api.get(`/users/${name}`);
-      return response.data.data;
-    } catch (error: any) {
-      if (error.response?.status === 404) return null;
-      console.error('Get user by name API call failed:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch user');
-    }
-  },
-
   // New method to get group invite details
   async getGroupInviteDetails(groupId: string): Promise<{ inviteCode: string; qrCodeData: string }> {
     try {
@@ -322,7 +378,7 @@ export const apiService = {
       const qrCodeData = JSON.stringify({
         groupId,
         inviteCode: response.data.inviteCode,
-        app: 'SplitSaathi',
+        app: 'Hisab Barabar',
         timestamp: new Date().toISOString()
       });
 
@@ -361,19 +417,31 @@ export const apiService = {
     }
   },
 
-  async getPersonalExpenses(): Promise<Expense[]> {
+  async getPersonalExpenses(): Promise<PersonalExpensesResponse> {
     try {
       console.log('Fetching personal expenses...');
-      const response = await api.get('/expenses/personal');
+      const now = new Date();
+      const response = await api.get<PersonalExpensesResponse>('/expenses/personal', {
+        params: {
+          monthStart: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+          monthEnd: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
+        },
+      });
       console.log('Personal expenses response:', response.data);
-      return response.data.data || response.data;
+      if (!response.data.summary) {
+        throw new Error('Personal expense summary is missing from the API response');
+      }
+      return response.data;
     } catch (error) {
       console.error('Get personal expenses API call failed:', error);
       throw error;
     }
   },
 
-  async createExpense(expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> {
+  async createExpense(
+    expense: Pick<Expense, 'groupId' | 'description' | 'amount' | 'paidBy' | 'participants' | 'date'> &
+      Partial<Pick<Expense, 'splits' | 'payers' | 'splitType' | 'type' | 'paymentMethod' | 'category' | 'createdBy'>>
+  ): Promise<Expense> {
     try {
       console.log('Creating expense:', expense);
       const response = await api.post('/expenses', expense);
@@ -381,7 +449,8 @@ export const apiService = {
       return response.data.data || response.data;
     } catch (error: any) {
       console.error('Create expense API call failed:', error);
-      throw new Error(error.response?.data?.message || 'Failed to create expense');
+      if (axios.isAxiosError(error) && error.code === 'OFFLINE_QUEUED') throw error;
+      throw new Error(error.response?.data?.message || error.message || 'Failed to create expense');
     }
   },
 
@@ -393,17 +462,19 @@ export const apiService = {
       return response.data.data || response.data;
     } catch (error: any) {
       console.error('Create expense API call failed:', error);
-      throw new Error(error.response?.data?.message || 'Failed to create expense');
+      if (axios.isAxiosError(error) && error.code === 'OFFLINE_QUEUED') throw error;
+      throw new Error(error.response?.data?.message || error.message || 'Failed to create expense');
     }
   },
 
-  async updatePersonalExpense(expenseId: string, updates: Partial<Expense>): Promise<Expense> {
+  async updatePersonalExpense(expenseId: string, updates: Partial<Expense>, revision: number | undefined): Promise<Expense> {
     try {
-      const response = await api.put(`/expenses/personal/${expenseId}`, updates);
+      const response = await api.put(`/expenses/${expenseId}`, updates, { headers: expenseMutationHeaders(expenseId, revision) });
       console.log('Update personal expense response:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
       console.error('Update personal expense API call failed:', error);
+      if (axios.isAxiosError(error) && error.code === 'OFFLINE_QUEUED') throw error;
       throw new Error(error.response?.data?.message || 'Failed to update personal expense');
     }
   },
@@ -424,26 +495,29 @@ export const apiService = {
       return response.data.data || response.data;
     } catch (error: any) {
       console.error('Create unequal expense API call failed:', error);
-      throw new Error(error.response?.data?.message || 'Failed to create unequal expense');
+      if (axios.isAxiosError(error) && error.code === 'OFFLINE_QUEUED') throw error;
+      throw new Error(error.response?.data?.message || error.message || 'Failed to create unequal expense');
     }
   },
 
-  async deleteExpense(expenseId: string): Promise<void> {
+  async deleteExpense(expenseId: string, revision: number | undefined): Promise<void> {
     try {
       console.log('Deleting expense:', expenseId);
-      await api.delete(`/expenses/${expenseId}`);
+      await api.delete(`/expenses/${expenseId}`, { headers: expenseMutationHeaders(expenseId, revision) });
     } catch (error: any) {
       console.error('Delete expense API call failed:', error);
+      if (axios.isAxiosError(error) && error.code === 'OFFLINE_QUEUED') throw error;
       throw new Error(error.response?.data?.message || 'Failed to delete expense');
     }
   },
 
-  async deletePersonalExpense(expenseId: string): Promise<void> {
+  async deletePersonalExpense(expenseId: string, revision: number | undefined): Promise<void> {
     try {
       console.log('Deleting personal expense:', expenseId);
-      await api.delete(`/expenses/personal/${expenseId}`);
+      await api.delete(`/expenses/${expenseId}`, { headers: expenseMutationHeaders(expenseId, revision) });
     } catch (error: any) {
       console.error('Delete personal expense API call failed:', error);
+      if (axios.isAxiosError(error) && error.code === 'OFFLINE_QUEUED') throw error;
       throw new Error(error.response?.data?.message || 'Failed to delete personal expense');
     }
   },
@@ -467,10 +541,10 @@ export const apiService = {
     }
   },
 
-  async removeGroupMember(groupId: string, memberName: string): Promise<{ message: string }> {
+  async removeGroupMember(groupId: string, memberId: string): Promise<{ message: string }> {
     try {
       const response = await api.delete(`/groups/member/${groupId}`, {
-        data: { memberName }
+        data: { memberId }
       });
       return response.data;
     } catch (error) {
@@ -478,12 +552,13 @@ export const apiService = {
     }
   },
 
-  async updateExpense(expenseId: string, updates: Partial<Expense>): Promise<Expense> {
+  async updateExpense(expenseId: string, updates: Partial<Expense>, revision: number | undefined): Promise<Expense> {
     try {
-      const response = await api.put(`/expenses/${expenseId}`, updates);
+      const response = await api.put(`/expenses/${expenseId}`, updates, { headers: expenseMutationHeaders(expenseId, revision) });
       return response.data.data;
     } catch (error) {
       console.error('Update expense API call failed:', error);
+      if (axios.isAxiosError(error) && error.code === 'OFFLINE_QUEUED') throw error;
       throw error;
     }
   },
@@ -512,14 +587,11 @@ export const apiService = {
     }
   },
 
-  async verifyOtp({ otp, email }: { otp: string; email: string }): Promise<{ token: string; success: boolean; message?: string }> {
+  async verifyOtp({ otp, email, purpose }: { otp: string; email: string; purpose?: 'reset' }): Promise<{ token: string; success: boolean; message?: string }> {
     try {
       console.log('Verifying OTP for email:', email);
-      const response = await api.post('/auth/verify-otp', { otp, email });
+      const response = await api.post('/auth/verify-otp', { otp, email, purpose });
       console.log('Verify OTP response:', response.data);
-      if (response.data.success) {
-        await apiService.setAuthToken(response.data.token);
-      }
       return response.data;
     } catch (error: any) {
       console.error('Verify OTP API call failed:', error);
@@ -551,10 +623,10 @@ export const apiService = {
     }
   },
 
-  async resetPassword({email, newPassword}: { email: string; newPassword: string }): Promise<{ success: boolean; message?: string }> {
+  async resetPassword({email, otp, newPassword}: { email: string; otp: string; newPassword: string }): Promise<{ success: boolean; message?: string }> {
     try {
-      console.log(`Resetting password for email: '${email}' with new password: '${newPassword}'`);
-      const response = await api.post('/auth/reset-password', { email, newPassword });
+      console.log('Resetting password for email:', email);
+      const response = await api.post('/auth/reset-password', { email, otp, newPassword });
       console.log('Reset password response:', response.data);
       return response.data;
     } catch (error: any) {
@@ -575,3 +647,9 @@ export const apiService = {
     }
   },
 };
+
+setDataUnauthorizedHandler(async () => {
+  unauthorizedHandler?.();
+  router.replace('/(auth)/login');
+  await apiService.clearAuthToken();
+});

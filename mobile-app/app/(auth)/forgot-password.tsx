@@ -10,13 +10,17 @@ import {
     Platform,
     Animated,
     Easing,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, ArrowLeft } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { apiService } from '@/services/api';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 export default function ForgotPasswordScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -64,11 +68,19 @@ export default function ForgotPasswordScreen() {
                 style={styles.keyboardView}
             >
                 <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
-                    <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(auth)/login')}>
-                        <ArrowLeft size={22} color="#4f46e5" />
+                    <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(auth)/login')} accessibilityRole="button" accessibilityLabel="Go back">
+                        <ArrowLeft size={22} color={COLORS.text} />
                     </TouchableOpacity>
                     <View style={styles.logoContainer}>
-                        <View style={styles.logo}><Text style={styles.logoText}>💰</Text></View>
+                        <View style={styles.logo}>
+                            <Image
+                                source={require('../../assets/images/logo.jpeg')}
+                                style={styles.logoImage}
+                                resizeMode="cover"
+                                accessible
+                                accessibilityLabel="Hisab Barabar logo"
+                            />
+                        </View>
                     </View>
                     <Text style={styles.title}>Forgot Password?</Text>
                     <Text style={styles.subtitle}>
@@ -77,13 +89,13 @@ export default function ForgotPasswordScreen() {
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Email Address</Text>
                         <View style={styles.inputContainer}>
-                            <Mail size={20} color="#94A3B8" style={styles.inputIcon} />
+                            <Mail size={20} color={COLORS.textTertiary} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 value={email}
                                 onChangeText={setEmail}
                                 placeholder="Enter your email"
-                                placeholderTextColor="#94A3B8"
+                                placeholderTextColor={COLORS.textTertiary}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 autoCorrect={false}
@@ -98,7 +110,7 @@ export default function ForgotPasswordScreen() {
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#fff" size="small" />
+                            <ActivityIndicator color={COLORS.actionText} size="small" />
                         ) : (
                             <Text style={styles.buttonText}>Send OTP Code</Text>
                         )}
@@ -112,10 +124,10 @@ export default function ForgotPasswordScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundColor: COLORS.background,
         justifyContent: 'center',
     },
     keyboardView: {
@@ -123,15 +135,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.card,
         marginHorizontal: 24,
-        borderRadius: 20,
+        borderRadius: 16,
         padding: 28,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: COLORS.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
+        elevation: 1,
         alignItems: 'center',
     },
     logoContainer: {
@@ -139,26 +153,31 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     logo: {
-        backgroundColor: '#f3f4f6',
-        borderRadius: 16,
-        padding: 12,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        overflow: 'hidden',
         marginBottom: 8,
     },
-    logoText: {
-        fontSize: 36,
+    logoImage: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
     },
     title: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#1e293b',
+        color: COLORS.text,
         marginBottom: 4,
         textAlign: 'center',
+        fontFamily: 'Inter-Bold',
     },
     subtitle: {
         fontSize: 15,
-        color: '#64748b',
+        color: COLORS.textSecondary,
         marginBottom: 18,
         textAlign: 'center',
+        fontFamily: 'Inter-Regular',
     },
     inputGroup: {
         width: '100%',
@@ -166,18 +185,19 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 14,
-        color: '#475569',
-        marginBottom: 4,
+        color: COLORS.text,
+        marginBottom: 6,
         fontWeight: '500',
+        fontFamily: 'Inter-Medium',
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f1f5f9',
+        backgroundColor: COLORS.surfaceSecondary,
         borderRadius: 10,
         paddingHorizontal: 10,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: COLORS.border,
     },
     inputIcon: {
         marginRight: 6,
@@ -186,33 +206,35 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 44,
         fontSize: 16,
-        color: '#1e293b',
+        color: COLORS.text,
         backgroundColor: 'transparent',
+        fontFamily: 'Inter-Regular',
     },
     button: {
-        backgroundColor: '#4f46e5',
-        borderRadius: 10,
+        backgroundColor: COLORS.action,
+        borderRadius: 999,
         paddingVertical: 14,
         alignItems: 'center',
         marginTop: 10,
         width: '100%',
     },
     buttonDisabled: {
-        opacity: 0.7,
+        opacity: 0.6,
     },
     buttonText: {
-        color: '#fff',
+        color: COLORS.actionText,
         fontSize: 16,
         fontWeight: '600',
+        fontFamily: 'Inter-SemiBold',
     },
     error: {
-        color: '#ef4444',
+        color: COLORS.negative,
         marginBottom: 6,
         textAlign: 'center',
         fontSize: 14,
     },
     success: {
-        color: '#22c55e',
+        color: COLORS.positive,
         marginBottom: 6,
         textAlign: 'center',
         fontSize: 14,
@@ -221,10 +243,11 @@ const styles = StyleSheet.create({
         marginTop: 18,
     },
     loginLinkText: {
-        color: '#4f46e5',
+        color: COLORS.text,
         fontWeight: '500',
         fontSize: 15,
         textAlign: 'center',
+        fontFamily: 'Inter-Medium',
     },
     backButton: {
         position: 'absolute',

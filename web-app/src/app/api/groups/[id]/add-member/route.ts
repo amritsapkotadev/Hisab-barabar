@@ -4,6 +4,7 @@ import Group from '@/models/Group'
 import User from '@/models/User'
 import { authenticateUser } from '@/middleware/auth'
 import { sendPushNotification } from '@/lib/firebase'
+import { addOrClaimMember, findMemberByUserId } from '@/utils/groupMembers'
 
 export async function POST(
   request: NextRequest,
@@ -35,7 +36,7 @@ export async function POST(
     // Ensure requester has access (creator or existing member)
     const requesterName = auth.user.name
     const hasAccess =
-      group.createdBy.toString() === auth.userId || group.members.includes(requesterName)
+      group.createdBy.toString() === auth.userId || !!findMemberByUserId(group.members, auth.userId)
     
     if (!hasAccess) {
       return NextResponse.json(
@@ -53,7 +54,7 @@ export async function POST(
     }
 
     const newMemberName = userToAdd.name
-    if (group.members.includes(newMemberName)) {
+    if (findMemberByUserId(group.members, userToAdd._id.toString())) {
       return NextResponse.json(
         { message: 'User is already a member of this group' },
         { status: 400 }
@@ -80,7 +81,7 @@ export async function POST(
       console.error('Error sending FCM notification:', error)
     }
 
-    group.members.push(newMemberName)
+    addOrClaimMember(group.members, { id: userToAdd._id.toString(), name: newMemberName })
     await group.save()
 
     return NextResponse.json({
@@ -90,7 +91,7 @@ export async function POST(
         id: group._id,
         name: group.name,
         description: group.description,
-        members: group.members,
+        members: group.members.map((member) => ({ id: member.id, name: member.name, userId: member.userId })),
         emoji: group.emoji,
         inviteCode: group.inviteCode,
       },

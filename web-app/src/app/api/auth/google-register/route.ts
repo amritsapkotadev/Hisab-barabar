@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
     // Generate a unique phone placeholder if not provided
     const userPhone = phone && phone.trim() ? phone.trim() : `google_${googleId}_${Date.now()}`
 
+    if (fcmToken) {
+      await User.updateMany({ fcmToken }, { $unset: { fcmToken: 1 } })
+    }
+
     // Create user with Google data
     const user = await User.create({
       name: name.trim(),

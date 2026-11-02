@@ -9,6 +9,9 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useToast } from '@/components/Toast';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 import { router } from 'expo-router';
 import { 
   ArrowLeft, 
@@ -25,15 +28,17 @@ import {
 } from 'lucide-react-native';
 
 export default function HelpScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   const faqs = [
     {
-      question: 'How do I create a new group in Hisab Kitab?',
+      question: 'How do I create a new group in Hisab Barabar?',
       answer: 'Tap the "+" button on the Groups tab or use the "New Group" quick action on the home screen. Enter a group name, description, and add members to start tracking shared expenses.'
     },
     {
-      question: 'How are expenses split in Hisab Kitab?',
+      question: 'How are expenses split in Hisab Barabar?',
       answer: 'By default, expenses are split equally among all participants. You can select which group members participated in each expense when adding it. The app automatically calculates each person\'s share.'
     },
     {
@@ -50,14 +55,14 @@ export default function HelpScreen() {
     },
     {
       question: 'What payment methods are supported?',
-      answer: 'Hisab Kitab supports eSewa for digital payments in Nepal, along with cash settlements. More payment methods will be added in future updates.'
+      answer: 'Hisab Barabar supports eSewa for digital payments in Nepal, along with cash settlements. More payment methods will be added in future updates.'
     },
     {
       question: 'How do I leave a group?',
       answer: 'You can leave a group by going to the group settings. Make sure all balances are settled before leaving to avoid confusion.'
     },
     {
-      question: 'Is my data secure in Hisab Kitab?',
+      question: 'Is my data secure in Hisab Barabar?',
       answer: 'Yes, we use industry-standard encryption to protect your data. Your financial information is securely stored and never shared with third parties.'
     }
   ];
@@ -68,22 +73,22 @@ export default function HelpScreen() {
       'Choose how you\'d like to contact us:',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Email', onPress: () => Linking.openURL('mailto:support@hisabkitab.com') },
+        { text: 'Email', onPress: () => Linking.openURL('mailto:support@hisabbarabar.com') },
         { text: 'Phone', onPress: () => Linking.openURL('tel:+9779800000000') },
       ]
     );
   };
 
   const handleOpenWebsite = () => {
-    Linking.openURL('https://hisabkitab.com/help');
+    Linking.openURL('https://hisabbarabar.qzz.io');
   };
 
   const handleCommunity = () => {
-    Alert.alert('Community', 'Join our community forum to connect with other Hisab Kitab users and get help.');
+    toast.info('Join our community forum to connect with other Hisab Barabar users and get help.');
   };
 
   const handleReportBug = () => {
-    Alert.alert('Report Bug', 'Thank you for helping us improve Hisab Kitab! Please describe the issue you encountered.');
+    toast.info('Thank you for helping us improve Hisab Barabar! Please describe the issue you encountered.');
   };
 
   const renderHelpItem = (
@@ -102,9 +107,9 @@ export default function HelpScreen() {
         <Text style={styles.helpSubtitle}>{subtitle}</Text>
       </View>
       {showExternal ? (
-        <ExternalLink size={20} color="#9ca3af" />
+        <ExternalLink size={20} color={COLORS.textTertiary} />
       ) : (
-        <ChevronRight size={20} color="#9ca3af" />
+        <ChevronRight size={20} color={COLORS.textTertiary} />
       )}
     </TouchableOpacity>
   );
@@ -118,7 +123,7 @@ export default function HelpScreen() {
         <Text style={styles.faqQuestionText}>{faq.question}</Text>
         <ChevronRight 
           size={20} 
-          color="#6b7280" 
+          color={COLORS.textTertiary} 
           style={[
             styles.faqChevron,
             expandedFAQ === index && styles.faqChevronExpanded
@@ -139,11 +144,11 @@ export default function HelpScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#374151" />
+         accessibilityRole="button" accessibilityLabel="Go back">
+          <ArrowLeft size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Help & Support</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.title} numberOfLines={1}>Help & Support</Text>
+        <View style={styles.backButton} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -152,29 +157,29 @@ export default function HelpScreen() {
           <Text style={styles.sectionTitle}>Get Help</Text>
           <View style={styles.helpGroup}>
             {renderHelpItem(
-              <MessageCircle size={20} color="#6b7280" />,
+              <MessageCircle size={20} color={COLORS.textTertiary} />,
               'Contact Support',
-              'Get help from our Hisab Kitab support team',
+              'Get help from our Hisab Barabar support team',
               handleContactSupport
             )}
             {renderHelpItem(
-              <Book size={20} color="#6b7280" />,
+              <Book size={20} color={COLORS.textTertiary} />,
               'User Guide',
-              'Learn how to use Hisab Kitab effectively',
+              'Learn how to use Hisab Barabar effectively',
               handleOpenWebsite,
               true
             )}
             {renderHelpItem(
-              <Video size={20} color="#6b7280" />,
+              <Video size={20} color={COLORS.textTertiary} />,
               'Video Tutorials',
               'Watch step-by-step guides in Nepali',
               handleOpenWebsite,
               true
             )}
             {renderHelpItem(
-              <Users size={20} color="#6b7280" />,
+              <Users size={20} color={COLORS.textTertiary} />,
               'Community Forum',
-              'Connect with other Hisab Kitab users',
+              'Connect with other Hisab Barabar users',
               handleCommunity,
               true
             )}
@@ -194,14 +199,14 @@ export default function HelpScreen() {
           <Text style={styles.sectionTitle}>Contact Information</Text>
           <View style={styles.contactCard}>
             <View style={styles.contactItem}>
-              <Mail size={20} color="#2563eb" />
+              <Mail size={20} color={COLORS.text} />
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Email Support</Text>
-                <Text style={styles.contactValue}>support@hisabkitab.com</Text>
+                <Text style={styles.contactValue}>support@hisabbarabar.com</Text>
               </View>
             </View>
             <View style={styles.contactItem}>
-              <Phone size={20} color="#2563eb" />
+              <Phone size={20} color={COLORS.text} />
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Phone Support</Text>
                 <Text style={styles.contactValue}>+977 98-00000000</Text>
@@ -218,9 +223,9 @@ export default function HelpScreen() {
           <Text style={styles.sectionTitle}>Report Issues</Text>
           <View style={styles.helpGroup}>
             {renderHelpItem(
-              <Bug size={20} color="#6b7280" />,
+              <Bug size={20} color={COLORS.textTertiary} />,
               'Report a Bug',
-              'Help us improve Hisab Kitab',
+              'Help us improve Hisab Barabar',
               handleReportBug
             )}
           </View>
@@ -230,10 +235,10 @@ export default function HelpScreen() {
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>App Information</Text>
           <Text style={styles.infoText}>
-            Hisab Kitab v1.0.0{'\n'}
+            Hisab Barabar v1.0.0{'\n'}
             Last updated: January 2024{'\n'}
             Platform: React Native{'\n'}
-            Made in Nepal 🇳🇵
+            Made in Nepal
           </Text>
         </View>
       </ScrollView>
@@ -241,10 +246,10 @@ export default function HelpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -252,20 +257,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  placeholder: {
-    width: 32,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
   content: {
     flex: 1,
@@ -275,19 +286,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 12,
   },
   helpGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   helpItem: {
@@ -295,13 +308,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: COLORS.border,
   },
   helpIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -310,28 +323,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   helpTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   helpSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
   },
   faqGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   faqItem: {
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: COLORS.border,
   },
   faqQuestion: {
     flexDirection: 'row',
@@ -340,9 +356,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   faqQuestionText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     flex: 1,
     marginRight: 12,
   },
@@ -359,17 +376,20 @@ const styles = StyleSheet.create({
   },
   faqAnswerText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 20,
   },
   contactCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   contactItem: {
@@ -384,35 +404,47 @@ const styles = StyleSheet.create({
   contactLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   contactValue: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
   },
   contactHours: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     fontStyle: 'italic',
     marginTop: 8,
     textAlign: 'center',
   },
   infoCard: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.card,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginTop: 8,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   infoTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 8,
   },
   infoText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
 });

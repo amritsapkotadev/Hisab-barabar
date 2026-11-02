@@ -5,16 +5,21 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Users, CircleCheck as CheckCircle, Circle as XCircle, ArrowRight, Chrome as Home, UserPlus } from 'lucide-react-native';
 import { apiService } from '@/services/api';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
+import { useAuth } from '@/contexts/AuthContext';
+import { subscribeToGroupTopic } from '@/services/notifications';
 import { Group } from '@/types';
 
 export default function JoinGroupScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const { status } = useAuth();
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -23,59 +28,37 @@ export default function JoinGroupScreen() {
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (groupId) {
-      handleJoinGroup();
-    } else {
+    if (status === 'loading') return;
+
+    if (!groupId) {
       setLoading(false);
       setJoinStatus('error');
       setErrorMessage('Invalid group link');
+      return;
     }
-  }, [groupId]);
+
+    if (status === 'unauthenticated') {
+      router.replace({
+        pathname: '/(auth)/login',
+        params: { redirect: `/join/${groupId}` },
+      });
+      return;
+    }
+
+    handleJoinGroup();
+  }, [groupId, status]);
 
   const handleJoinGroup = async () => {
     if (!groupId) return;
-
-    // Check if user is authenticated
-    if (!apiService.isAuthenticated()) {
-      Alert.alert(
-        'Login Required',
-        'You need to be logged in to join a group. Please log in first.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Login', 
-            onPress: () => {
-              router.replace('/(auth)/login');
-            }
-          }
-        ]
-      );
-      return;
-    }
 
     setLoading(true);
     setJoining(true);
 
     try {
-      // First, try to get group info
-      const groupData = await apiService.getGroup(groupId);
-      
-      if (!groupData) {
-        setJoinStatus('error');
-        setErrorMessage('Group not found');
-        return;
-      }
-
-      // Try to join the group
-      const joinResult = await apiService.joinGroupById(groupId);
-      setGroup(joinResult);
-      
-      if (joinResult) {
-        setJoinStatus('success');
-      } else {
-        setJoinStatus('error');
-        setErrorMessage('Failed to join group');
-      }
+      const { group: joinedGroup, alreadyMember } = await apiService.joinGroupById(groupId);
+      setGroup(joinedGroup);
+      await subscribeToGroupTopic(groupId);
+      setJoinStatus(alreadyMember ? 'already_member' : 'success');
     } catch (error: any) {
       console.error('Join group error:', error);
       
@@ -121,7 +104,7 @@ export default function JoinGroupScreen() {
     if (loading) {
       return (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#4f46e5" />
+          <ActivityIndicator size="large" color={COLORS.action} />
           <Text style={styles.loadingText}>
             {joining ? 'Joining group...' : 'Loading group...'}
           </Text>
@@ -134,7 +117,7 @@ export default function JoinGroupScreen() {
         return (
           <View style={styles.centerContent}>
             <View style={styles.successIcon}>
-              <CheckCircle size={80} color="#10b981" />
+              <CheckCircle size={80} color={COLORS.positive} />
             </View>
             <Text style={styles.successTitle}>Welcome to the group!</Text>
             <Text style={styles.successMessage}>
@@ -163,12 +146,12 @@ export default function JoinGroupScreen() {
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity style={styles.primaryButton} onPress={handleGoToGroup}>
-                <ArrowRight size={20} color="#ffffff" />
+                <ArrowRight size={20} color={COLORS.actionText} />
                 <Text style={styles.primaryButtonText}>Go to Group</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.secondaryButton} onPress={handleGoHome}>
-                <Home size={20} color="#4f46e5" />
+                <Home size={20} color={COLORS.text} />
                 <Text style={styles.secondaryButtonText}>Go to Home</Text>
               </TouchableOpacity>
             </View>
@@ -179,7 +162,7 @@ export default function JoinGroupScreen() {
         return (
           <View style={styles.centerContent}>
             <View style={styles.infoIcon}>
-              <Users size={80} color="#4f46e5" />
+              <Users size={80} color={COLORS.text} />
             </View>
             <Text style={styles.infoTitle}>Already a member</Text>
             <Text style={styles.infoMessage}>
@@ -188,12 +171,12 @@ export default function JoinGroupScreen() {
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity style={styles.primaryButton} onPress={handleGoToGroup}>
-                <ArrowRight size={20} color="#ffffff" />
+                <ArrowRight size={20} color={COLORS.actionText} />
                 <Text style={styles.primaryButtonText}>Go to Group</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.secondaryButton} onPress={handleGoHome}>
-                <Home size={20} color="#4f46e5" />
+                <Home size={20} color={COLORS.text} />
                 <Text style={styles.secondaryButtonText}>Go to Home</Text>
               </TouchableOpacity>
             </View>
@@ -205,7 +188,7 @@ export default function JoinGroupScreen() {
         return (
           <View style={styles.centerContent}>
             <View style={styles.errorIcon}>
-              <XCircle size={80} color="#ef4444" />
+              <XCircle size={80} color={COLORS.negative} />
             </View>
             <Text style={styles.errorTitle}>Unable to join group</Text>
             <Text style={styles.errorMessage}>
@@ -215,7 +198,7 @@ export default function JoinGroupScreen() {
             <View style={styles.buttonContainer}>
               {errorMessage.includes('log in') ? (
                 <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
-                  <UserPlus size={20} color="#ffffff" />
+                  <UserPlus size={20} color={COLORS.actionText} />
                   <Text style={styles.primaryButtonText}>Login</Text>
                 </TouchableOpacity>
               ) : (
@@ -225,7 +208,7 @@ export default function JoinGroupScreen() {
               )}
               
               <TouchableOpacity style={styles.secondaryButton} onPress={handleGoHome}>
-                <Home size={20} color="#4f46e5" />
+                <Home size={20} color={COLORS.text} />
                 <Text style={styles.secondaryButtonText}>Go to Home</Text>
               </TouchableOpacity>
             </View>
@@ -239,7 +222,7 @@ export default function JoinGroupScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Join Group</Text>
-          <Text style={styles.headerSubtitle}>SplitSaathi</Text>
+          <Text style={styles.headerSubtitle}>Hisab Barabar</Text>
         </View>
       </View>
       
@@ -256,15 +239,17 @@ export default function JoinGroupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 24,
-    backgroundColor: '#4f46e5',
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
     alignItems: 'center',
   },
   headerContent: {
@@ -273,12 +258,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: COLORS.text,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#e0e7ff',
+    color: COLORS.textTertiary,
     marginTop: 4,
   },
   content: {
@@ -293,7 +278,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
   },
   successIcon: {
     marginBottom: 24,
@@ -301,13 +286,13 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#10b981',
+    color: COLORS.positive,
     marginBottom: 8,
     textAlign: 'center',
   },
   successMessage: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
@@ -318,13 +303,13 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#4f46e5',
+    color: COLORS.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   infoMessage: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
@@ -335,46 +320,43 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#ef4444',
+    color: COLORS.negative,
     marginBottom: 8,
     textAlign: 'center',
   },
   errorMessage: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
     paddingHorizontal: 20,
   },
   groupInfo: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     padding: 20,
     marginBottom: 32,
     width: '100%',
     maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
   groupInfoTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
     marginBottom: 12,
   },
   groupInfoText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
     marginBottom: 8,
     lineHeight: 20,
   },
   groupInfoLabel: {
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.textSecondary,
   },
   buttonContainer: {
     width: '100%',
@@ -382,50 +364,45 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: COLORS.action,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: '#4f46e5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    borderRadius: 999,
   },
   primaryButtonText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.actionText,
   },
   secondaryButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#4f46e5',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   secondaryButtonText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#4f46e5',
+    color: COLORS.text,
   },
   footer: {
     padding: 20,
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COLORS.border,
   },
   footerText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: COLORS.textTertiary,
     textAlign: 'center',
   },
 });

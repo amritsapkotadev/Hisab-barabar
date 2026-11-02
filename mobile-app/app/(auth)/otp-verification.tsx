@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Animated,
 } from 'react-native';
@@ -13,10 +12,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ArrowLeft, Shield, RefreshCw, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { apiService } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { resolvePostAuthRoute } from '@/utils/navigation';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { useToast } from '@/components/Toast';
+import { useTranslation } from 'react-i18next';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 export default function OTPVerificationScreen() {
-  const { email, type } = useLocalSearchParams<{ email: string, type: 'signup' | 'login' | 'verifyEmail' | 'forgotPassword' }>();
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
+  const { t } = useTranslation();
+  const { signIn } = useAuth();
+  const { email, type, redirect } = useLocalSearchParams<{ email: string, type: 'signup' | 'login' | 'verifyEmail' | 'forgotPassword', redirect?: string }>();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -30,19 +39,16 @@ export default function OTPVerificationScreen() {
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimer((prev) => {
-        if (prev <= 1) {
-          setCanResend(true);
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    if (timer === 0) {
+      setCanResend(true);
+      return;
+    }
 
-    return () => clearInterval(interval);
-  }, [canResend]);
+    setCanResend(false);
+    const timeout = setTimeout(() => setTimer((prev) => prev - 1), 1000);
+
+    return () => clearTimeout(timeout);
+  }, [timer]);
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) return;
@@ -97,7 +103,7 @@ export default function OTPVerificationScreen() {
     const codeToVerify = otpCode || otp.join('');
 
     if (codeToVerify.length !== 6) {
-      Alert.alert('Error', 'Please enter the complete 6-digit code');
+      toast.error(t('auth.otp.errors.incomplete'));
       return;
     }
 
@@ -106,6 +112,7 @@ export default function OTPVerificationScreen() {
       const res = await apiService.verifyOtp({
         otp: codeToVerify,
         email: email,
+        purpose: type === 'forgotPassword' ? 'reset' : undefined,
       });
 
       // if (res.success) {
@@ -129,16 +136,19 @@ export default function OTPVerificationScreen() {
       //     },
       //   ]);
       if (res.success) {
+        if (type !== 'forgotPassword' && res.token) {
+          await signIn(res.token);
+        }
         setShowConfirmationModal(true);
       } else {
         shakeInputs();
         setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
-        Alert.alert('Error', res.message || 'Verification failed. Please try again.');
+        toast.error(res.message || t('auth.otp.errors.verifyFailed'));
       }
     } catch (error: any) {
       shakeInputs();
-      Alert.alert('Error', error.message || 'Verification failed. Please try again.');
+      toast.error(error.message || t('auth.otp.errors.verifyFailed'));
     } finally {
       setLoading(false);
     }
@@ -156,12 +166,9 @@ export default function OTPVerificationScreen() {
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
 
-      Alert.alert(
-        'Code Sent',
-        `A new verification code has been sent to your ${verificationMethod === 'email' ? 'email' : 'phone'}.`
-      );
+      toast.info(t('auth.otp.resendSent', { method: verificationMethod === 'email' ? t('auth.otp.email') : t('auth.otp.phone') }));
     } catch (error) {
-      Alert.alert('Error', 'Failed to resend code. Please try again.');
+      toast.error(t('auth.otp.errors.resendFailed'));
     } finally {
       setResendLoading(false);
     }
@@ -185,8 +192,8 @@ export default function OTPVerificationScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#374151" />
+         accessibilityRole="button" accessibilityLabel={t('common.back')}>
+          <ArrowLeft size={24} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
@@ -194,15 +201,14 @@ export default function OTPVerificationScreen() {
         {/* Icon */}
         <View style={styles.iconContainer}>
           <View style={styles.iconBackground}>
-            <Shield size={40} color="#2563eb" />
+            <Shield size={40} color={COLORS.text} />
           </View>
         </View>
 
         {/* Title and Description */}
-        <Text style={styles.title}>Verify Your Account</Text>
+        <Text style={styles.title}>{t('auth.otp.title')}</Text>
         <Text style={styles.description}>
-          {/* We've sent a 6-digit verification code to {verificationMethod === 'email' ? 'email' : 'phone number'} */}
-          We've sent a 6-digit verification code to <Text style={styles.contact}>{maskedContact}</Text>
+          {t('auth.otp.sentTo', { contact: maskedContact })}
         </Text>
 
 
@@ -248,7 +254,7 @@ export default function OTPVerificationScreen() {
           {otp.map((digit, index) => (
             <TextInput
               key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
+              ref={(ref) => { inputRefs.current[index] = ref; }}
               style={[
                 styles.otpInput,
                 digit && styles.otpInputFilled,
@@ -278,11 +284,11 @@ export default function OTPVerificationScreen() {
           disabled={loading || otp.some(digit => !digit)}
         >
           {loading ? (
-            <ActivityIndicator color="#ffffff\" size="small" />
+            <ActivityIndicator color={COLORS.actionText} size="small" />
           ) : (
             <>
-              <CheckCircle size={20} color="#ffffff" />
-              <Text style={styles.verifyButtonText}>Verify Code</Text>
+              <CheckCircle size={20} color={COLORS.actionText} />
+              <Text style={styles.verifyButtonText}>{t('auth.otp.verifyCode')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -291,7 +297,7 @@ export default function OTPVerificationScreen() {
         <View style={styles.resendSection}>
           {!canResend ? (
             <Text style={styles.timerText}>
-              Resend code in {formatTimer(timer)}
+              {t('auth.otp.resendIn', { time: formatTimer(timer) })}
             </Text>
           ) : (
             <TouchableOpacity
@@ -300,11 +306,11 @@ export default function OTPVerificationScreen() {
               disabled={resendLoading}
             >
               {resendLoading ? (
-                <ActivityIndicator color="#2563eb\" size="small" />
+                <ActivityIndicator color={COLORS.text} size="small" />
               ) : (
                 <>
-                  <RefreshCw size={16} color="#2563eb" />
-                  <Text style={styles.resendButtonText}>Resend Code</Text>
+                  <RefreshCw size={16} color={COLORS.text} />
+                  <Text style={styles.resendButtonText}>{t('auth.otp.resendCode')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -314,15 +320,17 @@ export default function OTPVerificationScreen() {
         {/* Confirmation Modal */}
         <ConfirmationModal
           visible={showConfirmationModal}
-          message="OTP verification successful!"
+          message={t('auth.otp.success')}
           onConfirm={() => {
             setShowConfirmationModal(false);
             switch (type) {
+              case 'signup':
+              case 'login':
               case 'verifyEmail':
-                router.replace('/(tabs)');
+                router.replace(resolvePostAuthRoute(redirect));
                 break;
               case 'forgotPassword':
-                router.replace({ pathname: '/(auth)/reset-password', params: { email } });
+                router.replace({ pathname: '/(auth)/reset-password', params: { email, otp: otp.join('') } });
                 break;
               default:
                 router.replace('/(auth)/login');
@@ -333,17 +341,17 @@ export default function OTPVerificationScreen() {
 
         {/* Help Text */}
         <Text style={styles.helpText}>
-          Didn't receive the code? Check your spam folder or try a different verification method.
+          {t('auth.otp.help')}
         </Text>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     paddingHorizontal: 24,
@@ -366,36 +374,39 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#eff6ff',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#bfdbfe',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#111827',
+    color: COLORS.text,
     marginBottom: 12,
     textAlign: 'center',
+    fontFamily: 'Inter-Bold',
   },
   description: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 8,
     paddingHorizontal: 20,
+    fontFamily: 'Inter-Regular',
   },
   contact: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2563eb',
+    color: COLORS.text,
     marginBottom: 32,
+    fontFamily: 'Inter-SemiBold',
   },
   methodToggle: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: 12,
     padding: 4,
     marginBottom: 32,
@@ -408,20 +419,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   methodButtonActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   methodButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: COLORS.textTertiary,
   },
   methodButtonTextActive: {
-    color: '#2563eb',
+    color: COLORS.text,
   },
   otpContainer: {
     flexDirection: 'row',
@@ -433,62 +441,58 @@ const styles = StyleSheet.create({
   otpInput: {
     width: 48,
     height: 56,
-    borderWidth: 2,
-    borderColor: '#d1d5db',
+    borderWidth: 1.5,
+    borderColor: COLORS.borderStrong,
     borderRadius: 12,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
-    backgroundColor: '#ffffff',
+    color: COLORS.text,
+    backgroundColor: COLORS.card,
+    fontFamily: 'Inter-SemiBold',
   },
   otpInputFilled: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: COLORS.action,
+    backgroundColor: COLORS.surfaceSecondary,
   },
   demoHint: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: `${COLORS.warning}18`,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
     marginBottom: 32,
     borderWidth: 1,
-    borderColor: '#fbbf24',
+    borderColor: COLORS.warning,
   },
   demoHintText: {
     fontSize: 12,
-    color: '#92400e',
+    color: COLORS.text,
     textAlign: 'center',
   },
   demoCode: {
     fontWeight: '700',
-    color: '#92400e',
+    color: COLORS.text,
   },
   verifyButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: COLORS.action,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 16,
+    borderRadius: 999,
     marginBottom: 24,
     minWidth: 200,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   verifyButtonDisabled: {
-    backgroundColor: '#9ca3af',
-    shadowOpacity: 0,
+    backgroundColor: COLORS.surfaceMuted,
   },
   verifyButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.actionText,
     marginLeft: 8,
+    fontFamily: 'Inter-SemiBold',
   },
   resendSection: {
     alignItems: 'center',
@@ -496,7 +500,8 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
   },
   resendButton: {
     flexDirection: 'row',
@@ -507,14 +512,16 @@ const styles = StyleSheet.create({
   resendButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563eb',
+    color: COLORS.text,
     marginLeft: 6,
+    fontFamily: 'Inter-SemiBold',
   },
   helpText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: COLORS.textTertiary,
     textAlign: 'center',
     lineHeight: 16,
     paddingHorizontal: 32,
+    fontFamily: 'Inter-Regular',
   },
 });

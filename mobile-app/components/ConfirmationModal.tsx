@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Animated } from 'react-native';
 import { CheckCircle2 } from 'lucide-react-native';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 type ConfirmationModalProps = {
   visible: boolean;
@@ -13,6 +15,7 @@ export default function ConfirmationModal({
   message,
   onConfirm
 }: ConfirmationModalProps) {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -51,7 +54,7 @@ export default function ConfirmationModal({
               opacity: opacityAnim
             }}
           >
-            <CheckCircle2 size={60} color="#10b981" />
+            <CheckCircle2 size={60} color={COLORS.positive} />
           </Animated.View>
           <Text style={styles.message}>{message}</Text>
           <TouchableOpacity 
@@ -66,36 +69,41 @@ export default function ConfirmationModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center'
   },
   container: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 24,
     width: '80%',
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   message: {
     fontSize: 16,
     textAlign: 'center',
     marginVertical: 16,
-    color: '#333'
+    color: COLORS.text,
+    fontFamily: 'Inter-Medium',
+    lineHeight: 24,
   },
   okButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: COLORS.action,
     paddingVertical: 12,
     paddingHorizontal: 32,
-    borderRadius: 8,
+    borderRadius: 999,
     marginTop: 8
   },
   okButtonText: {
-    color: 'white',
+    color: COLORS.actionText,
     fontWeight: '600',
-    fontSize: 14
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
   }
 });

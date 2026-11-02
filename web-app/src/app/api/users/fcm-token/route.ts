@@ -25,6 +25,13 @@ export async function PUT(request: NextRequest) {
 
     await connectDB()
 
+    // A device token belongs to exactly one account; release it from any
+    // previous owner before assigning it (avoids E11000 on the unique index).
+    await User.updateMany(
+      { fcmToken, _id: { $ne: auth.user._id } },
+      { $unset: { fcmToken: 1 } }
+    )
+
     const user = await User.findByIdAndUpdate(
       auth.user._id,
       { fcmToken: fcmToken },

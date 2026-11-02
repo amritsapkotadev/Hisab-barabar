@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -12,57 +12,42 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Plus, CreditCard, Smartphone, Trash2, CircleCheck as CheckCircle, Circle, Wallet, DollarSign } from 'lucide-react-native';
-
-interface PaymentMethod {
-  id: string;
-  type: 'esewa' | 'bank' | 'cash';
-  name: string;
-  details: string;
-  isDefault: boolean;
-  isActive: boolean;
-}
+import { useToast } from '@/components/Toast';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
+import { useAccountPreference } from '@/hooks/useAccountPreference';
+import { DEFAULT_PAYMENT_METHODS, isPaymentMethods, type PaymentMethod } from '@/services/preferences';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import ErrorMessage from '@/components/ErrorMessage';
 
 export default function PaymentMethodsScreen() {
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    {
-      id: '1',
-      type: 'esewa',
-      name: 'eSewa',
-      details: '98********01',
-      isDefault: true,
-      isActive: true,
-    },
-    {
-      id: '2',
-      type: 'bank',
-      name: 'Bank Transfer',
-      details: 'Nepal Investment Bank',
-      isDefault: false,
-      isActive: true,
-    },
-    {
-      id: '3',
-      type: 'cash',
-      name: 'Cash Settlement',
-      details: 'In-person payment',
-      isDefault: false,
-      isActive: true,
-    },
-  ]);
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
+  const { value: paymentMethods, save, loading, saving, error, retry } = useAccountPreference(
+    'paymentMethods', DEFAULT_PAYMENT_METHODS, isPaymentMethods
+  );
 
-  const handleSetDefault = (id: string) => {
-    setPaymentMethods(prev => 
-      prev.map(method => ({
+  const handleSetDefault = async (id: string) => {
+    if (!paymentMethods.find(method => method.id === id)?.isActive) {
+      toast.error('Activate this payment method before making it the default.');
+      return;
+    }
+    const saved = await save(
+      paymentMethods.map(method => ({
         ...method,
         isDefault: method.id === id
       }))
     );
-    Alert.alert('Success', 'Default payment method updated');
+    if (saved) toast.success('Default payment method updated');
   };
 
   const handleToggleActive = (id: string) => {
-    setPaymentMethods(prev => 
-      prev.map(method => 
+    if (paymentMethods.find(method => method.id === id)?.isDefault) {
+      toast.error('Set another default payment method before deactivating this one.');
+      return;
+    }
+    void save(
+      paymentMethods.map(method =>
         method.id === id 
           ? { ...method, isActive: !method.isActive }
           : method
@@ -73,7 +58,7 @@ export default function PaymentMethodsScreen() {
   const handleRemoveMethod = (id: string) => {
     const method = paymentMethods.find(m => m.id === id);
     if (method?.isDefault) {
-      Alert.alert('Error', 'Cannot remove default payment method. Set another method as default first.');
+      toast.error('Cannot remove default payment method. Set another method as default first.');
       return;
     }
 
@@ -86,7 +71,7 @@ export default function PaymentMethodsScreen() {
           text: 'Remove',
           style: 'destructive',
           onPress: () => {
-            setPaymentMethods(prev => prev.filter(m => m.id !== id));
+            void save(paymentMethods.filter(m => m.id !== id));
           }
         }
       ]
@@ -101,7 +86,7 @@ export default function PaymentMethodsScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Add', onPress: () => {
           // In a real app, this would open a form to add eSewa details
-          Alert.alert('Success', 'eSewa account would be added here');
+          toast.info('Adding eSewa accounts is not available yet.');
         }}
       ]
     );
@@ -115,7 +100,7 @@ export default function PaymentMethodsScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Add', onPress: () => {
           // In a real app, this would open a form to add bank details
-          Alert.alert('Success', 'Bank account would be added here');
+          toast.info('Adding bank accounts is not available yet.');
         }}
       ]
     );
@@ -124,13 +109,13 @@ export default function PaymentMethodsScreen() {
   const getPaymentIcon = (type: string) => {
     switch (type) {
       case 'esewa':
-        return <Smartphone size={24} color="#2563eb" />;
+        return <Smartphone size={24} color={COLORS.text} />;
       case 'bank':
-        return <CreditCard size={24} color="#059669" />;
+        return <CreditCard size={24} color={COLORS.text} />;
       case 'cash':
-        return <Wallet size={24} color="#ea580c" />;
+        return <Wallet size={24} color={COLORS.text} />;
       default:
-        return <DollarSign size={24} color="#6b7280" />;
+        return <DollarSign size={24} color={COLORS.textTertiary} />;
     }
   };
 
@@ -153,10 +138,12 @@ export default function PaymentMethodsScreen() {
         </View>
         <View style={styles.paymentMethodActions}>
           <Switch
+            disabled={saving}
             value={method.isActive}
             onValueChange={() => handleToggleActive(method.id)}
-            trackColor={{ false: '#f3f4f6', true: '#bfdbfe' }}
-            thumbColor={method.isActive ? '#2563eb' : '#9ca3af'}
+            trackColor={{ false: COLORS.switchTrackOff, true: COLORS.switchTrackOn }}
+            thumbColor={COLORS.switchThumb}
+            ios_backgroundColor={COLORS.switchTrackOff}
           />
         </View>
       </View>
@@ -165,12 +152,12 @@ export default function PaymentMethodsScreen() {
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => handleSetDefault(method.id)}
-          disabled={method.isDefault}
+          disabled={method.isDefault || saving || !method.isActive}
         >
           {method.isDefault ? (
-            <CheckCircle size={16} color="#059669" />
+            <CheckCircle size={16} color={COLORS.positive} />
           ) : (
-            <Circle size={16} color="#6b7280" />
+            <Circle size={16} color={COLORS.textTertiary} />
           )}
           <Text style={[
             styles.actionButtonText,
@@ -183,9 +170,10 @@ export default function PaymentMethodsScreen() {
         {!method.isDefault && (
           <TouchableOpacity
             style={[styles.actionButton, styles.removeButton]}
+            disabled={saving}
             onPress={() => handleRemoveMethod(method.id)}
           >
-            <Trash2 size={16} color="#dc2626" />
+            <Trash2 size={16} color={COLORS.negative} />
             <Text style={styles.removeButtonText}>Remove</Text>
           </TouchableOpacity>
         )}
@@ -199,14 +187,16 @@ export default function PaymentMethodsScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#374151" />
+         accessibilityRole="button" accessibilityLabel="Go back">
+          <ArrowLeft size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Payment Methods</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.title} numberOfLines={1}>Payment Methods</Text>
+        <View style={styles.backButton} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {error ? <ErrorMessage message={error} onRetry={retry} /> : loading ? (
+        <LoadingSpinner message="Loading saved payment methods..." />
+      ) : <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         {/* Current Payment Methods */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Payment Methods</Text>
@@ -219,7 +209,7 @@ export default function PaymentMethodsScreen() {
           
           <TouchableOpacity style={styles.addMethodCard} onPress={handleAddESewa}>
             <View style={styles.addMethodIcon}>
-              <Smartphone size={24} color="#2563eb" />
+              <Smartphone size={24} color={COLORS.text} />
             </View>
             <View style={styles.addMethodContent}>
               <Text style={styles.addMethodTitle}>Add eSewa Account</Text>
@@ -227,12 +217,12 @@ export default function PaymentMethodsScreen() {
                 Link your eSewa mobile wallet for instant payments
               </Text>
             </View>
-            <Plus size={20} color="#6b7280" />
+            <Plus size={20} color={COLORS.textTertiary} />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.addMethodCard} onPress={handleAddBankAccount}>
             <View style={styles.addMethodIcon}>
-              <CreditCard size={24} color="#059669" />
+              <CreditCard size={24} color={COLORS.text} />
             </View>
             <View style={styles.addMethodContent}>
               <Text style={styles.addMethodTitle}>Add Bank Account</Text>
@@ -240,14 +230,14 @@ export default function PaymentMethodsScreen() {
                 Add bank details for direct transfers
               </Text>
             </View>
-            <Plus size={20} color="#6b7280" />
+            <Plus size={20} color={COLORS.textTertiary} />
           </TouchableOpacity>
         </View>
 
         {/* eSewa Information */}
         <View style={styles.infoCard}>
           <View style={styles.infoHeader}>
-            <Smartphone size={20} color="#2563eb" />
+            <Smartphone size={20} color={COLORS.text} />
             <Text style={styles.infoTitle}>About eSewa</Text>
           </View>
           <Text style={styles.infoText}>
@@ -256,7 +246,7 @@ export default function PaymentMethodsScreen() {
           </Text>
           <View style={styles.infoFeatures}>
             <Text style={styles.infoFeature}>• Instant money transfers</Text>
-            <Text style={styles.infoFeature}>• No transaction fees for Hisab Kitab settlements</Text>
+            <Text style={styles.infoFeature}>• No transaction fees for Hisab Barabar settlements</Text>
             <Text style={styles.infoFeature}>• Secure and encrypted transactions</Text>
             <Text style={styles.infoFeature}>• 24/7 availability</Text>
           </View>
@@ -266,19 +256,19 @@ export default function PaymentMethodsScreen() {
         <View style={styles.securityCard}>
           <Text style={styles.securityTitle}>Security & Privacy</Text>
           <Text style={styles.securityText}>
-            Your payment information is encrypted and stored securely. Hisab Kitab never stores your eSewa PIN or bank passwords. 
-            We only store necessary details to facilitate settlements between group members.
+            Payment preferences are saved locally for your account, not synced across devices.
+            Never enter an eSewa PIN or bank password here.
           </Text>
         </View>
-      </ScrollView>
+      </ScrollView>}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -286,20 +276,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  placeholder: {
-    width: 32,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
   content: {
     flex: 1,
@@ -309,20 +305,23 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 12,
   },
   paymentMethodCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     elevation: 2,
   },
   paymentMethodHeader: {
@@ -340,7 +339,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -349,18 +348,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   paymentMethodName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   paymentMethodSubtext: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     marginBottom: 4,
   },
   defaultBadge: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: `${COLORS.positive}10`,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
@@ -369,7 +370,8 @@ const styles = StyleSheet.create({
   defaultBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#059669',
+    color: COLORS.positive,
+    fontFamily: 'Inter-SemiBold',
   },
   paymentMethodActions: {
     marginLeft: 12,
@@ -380,7 +382,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: COLORS.border,
   },
   actionButton: {
     flexDirection: 'row',
@@ -388,42 +390,44 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
   },
   actionButtonText: {
     marginLeft: 6,
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-SemiBold',
   },
   actionButtonTextActive: {
-    color: '#059669',
+    color: COLORS.positive,
   },
   removeButton: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: `${COLORS.negative}10`,
   },
   removeButtonText: {
     marginLeft: 6,
     fontSize: 12,
     fontWeight: '600',
-    color: '#dc2626',
+    color: COLORS.negative,
+    fontFamily: 'Inter-SemiBold',
   },
   addMethodCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: COLORS.border,
     borderStyle: 'dashed',
   },
   addMethodIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -432,23 +436,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   addMethodTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 2,
   },
   addMethodSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
   infoCard: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   infoHeader: {
     flexDirection: 'row',
@@ -456,14 +467,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1e40af',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
   },
   infoText: {
     fontSize: 14,
-    color: '#1e40af',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -472,26 +485,34 @@ const styles = StyleSheet.create({
   },
   infoFeature: {
     fontSize: 12,
-    color: '#1e40af',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 18,
     marginBottom: 2,
   },
   securityCard: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   securityTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#166534',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 8,
   },
   securityText: {
     fontSize: 12,
-    color: '#166534',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
 });

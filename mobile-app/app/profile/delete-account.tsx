@@ -11,11 +11,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 import { ArrowLeft, AlertTriangle, Trash2, Download, Shield } from 'lucide-react-native';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import { apiService } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/Toast';
 
 export default function DeleteAccountScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
+  const { signOut } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [exportData, setExportData] = useState(true);
   const [deleteGroups, setDeleteGroups] = useState(false);
@@ -25,18 +32,9 @@ export default function DeleteAccountScreen() {
     try {
       const res = await apiService.deleteAccount();
       if (res.success) {
-        console.log('Account deleted successfully');
-        Alert.alert(
-          'Account Deleted',
-          'Your account has been permanently deleted.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(auth)/login'),
-            },
-          ]
-        );
-        apiService.clearAuthToken();
+        toast.success('Your account has been permanently deleted.');
+        router.replace('/(auth)/login');
+        await signOut();
       }
     } catch (error) {
       throw new Error('Failed to delete account');
@@ -72,17 +70,17 @@ export default function DeleteAccountScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#374151" />
+         accessibilityRole="button" accessibilityLabel="Go back">
+          <ArrowLeft size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Delete Account</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.title} numberOfLines={1}>Delete Account</Text>
+        <View style={styles.backButton} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Warning Section */}
         <View style={styles.warningCard}>
-          <AlertTriangle size={32} color="#dc2626" />
+          <AlertTriangle size={32} color={COLORS.negative} />
           <Text style={styles.warningTitle}>Permanent Account Deletion</Text>
           <Text style={styles.warningText}>
             This action cannot be undone. All your data, including groups, expenses,
@@ -109,7 +107,7 @@ export default function DeleteAccountScreen() {
           <View style={styles.optionCard}>
             <View style={styles.optionHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center'}}>
-              <Download size={20} color="#2563eb" />
+              <Download size={20} color={COLORS.text} />
               <Text style={styles.optionTitle}>Export your data</Text>
               </View>
               <Text style={styles.optionDescription}>
@@ -119,15 +117,16 @@ export default function DeleteAccountScreen() {
             <Switch
               value={exportData}
               onValueChange={setExportData}
-              trackColor={{ false: '#f3f4f6', true: '#bfdbfe' }}
-              thumbColor={exportData ? '#2563eb' : '#9ca3af'}
+              trackColor={{ false: COLORS.switchTrackOff, true: COLORS.switchTrackOn }}
+              thumbColor={COLORS.switchThumb}
+              ios_backgroundColor={COLORS.switchTrackOff}
             />
           </View>
 
           <View style={styles.optionCard}>
             <View style={styles.optionHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center'}}>
-              <Trash2 size={20} color="#dc2626" />
+              <Trash2 size={20} color={COLORS.negative} />
               <Text style={styles.optionTitle}>Delete groups you created</Text>
               </View>
             <Text style={styles.optionDescription}>
@@ -137,8 +136,9 @@ export default function DeleteAccountScreen() {
             <Switch
               value={deleteGroups}
               onValueChange={setDeleteGroups}
-              trackColor={{ false: '#f3f4f6', true: '#fecaca' }}
-              thumbColor={deleteGroups ? '#dc2626' : '#9ca3af'}
+              trackColor={{ false: COLORS.switchTrackOff, true: COLORS.negative }}
+              thumbColor={COLORS.switchThumb}
+              ios_backgroundColor={COLORS.switchTrackOff}
             />
           </View>
         </View>
@@ -147,7 +147,7 @@ export default function DeleteAccountScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Help us improve (Optional)</Text>
           <Text style={styles.feedbackDescription}>
-            Tell us why you're leaving. Your feedback helps us improve Hisab Kitab.
+            Tell us why you're leaving. Your feedback helps us improve Hisab Barabar.
           </Text>
 
           <View style={styles.reasonsList}>
@@ -174,7 +174,7 @@ export default function DeleteAccountScreen() {
             <TextInput
               style={styles.customReasonInput}
               placeholder="Please tell us more..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={COLORS.textTertiary}
               multiline
               numberOfLines={3}
               maxLength={500}
@@ -185,7 +185,7 @@ export default function DeleteAccountScreen() {
         {/* Alternatives */}
         <View style={styles.alternativesCard}>
           <View style={{ flexDirection: 'row', alignContent: 'center' }}>
-            <Shield size={21} color="#059669" />
+            <Shield size={21} color={COLORS.positive} />
             <Text style={styles.alternativesTitle}>Consider these alternatives:</Text>
           </View>
           <Text style={styles.alternativesText}>
@@ -201,7 +201,7 @@ export default function DeleteAccountScreen() {
           style={styles.deleteButton}
           onPress={exportData ? handleExportBeforeDelete : () => setShowDeleteModal(true)}
         >
-          <Trash2 size={20} color="#ffffff" />
+          <Trash2 size={20} color={COLORS.actionText} />
           <Text style={styles.deleteButtonText}>Delete My Account</Text>
         </TouchableOpacity>
 
@@ -215,7 +215,7 @@ export default function DeleteAccountScreen() {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteAccount}
         title="Delete Account"
-        message="Are you absolutely sure you want to delete your account? This action cannot be undone and all your data will be permanently lost."
+        message="Are you absolutely sure you want to delete your account? All your data will be permanently lost."
         confirmText="Delete Account"
         requiresConfirmation={true}
         confirmationText="DELETE"
@@ -225,10 +225,10 @@ export default function DeleteAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -236,44 +236,52 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  placeholder: {
-    width: 32,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
   content: {
     flex: 1,
     padding: 20,
   },
   warningCard: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
+    backgroundColor: `${COLORS.negative}10`,
+    borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: `${COLORS.negative}30`,
   },
   warningTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#dc2626',
+    color: COLORS.negative,
+    fontFamily: 'Inter-Bold',
     marginTop: 12,
     marginBottom: 8,
   },
   warningText: {
     fontSize: 14,
-    color: '#dc2626',
+    color: COLORS.negative,
+    fontFamily: 'Inter-Regular',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -281,34 +289,46 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
     marginBottom: 12,
   },
   deleteList: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   deleteItem: {
     fontSize: 14,
-    color: '#374151',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 20,
     marginBottom: 4,
   },
   optionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   optionHeader: {
     alignItems: 'flex-start',
@@ -318,18 +338,21 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
   },
   optionDescription: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     marginTop: 2,
     flex: 1,
   },
   feedbackDescription: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -337,83 +360,89 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   reasonOption: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
+    backgroundColor: COLORS.card,
+    borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
   },
   reasonOptionSelected: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#2563eb',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderColor: COLORS.action,
   },
   reasonText: {
     fontSize: 14,
-    color: '#374151',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
   },
   reasonTextSelected: {
-    color: '#2563eb',
+    color: COLORS.text,
     fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   customReasonInput: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
     fontSize: 14,
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-Regular',
     textAlignVertical: 'top',
     marginTop: 12,
   },
   alternativesCard: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
-    // flexDirection: 'row',
+    borderColor: COLORS.border,
     alignItems: 'flex-start',
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   alternativesTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#166534',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginLeft: 6,
     marginBottom: 8,
     marginTop: 1,
   },
   alternativesText: {
     fontSize: 12,
-    color: '#166534',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 18,
     flex: 1,
     marginLeft: 8,
   },
   deleteButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: COLORS.negative,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 999,
     marginBottom: 12,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   deleteButtonText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.actionText,
+    fontFamily: 'Inter-SemiBold',
   },
   finalWarning: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     textAlign: 'center',
     fontStyle: 'italic',
     marginBottom: 30,

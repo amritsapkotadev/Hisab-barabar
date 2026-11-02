@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -14,10 +13,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 import { ArrowLeft, User, Mail, Save, Camera, Phone } from 'lucide-react-native';
 import { apiService } from '@/services/api';
+import { useToast } from '@/components/Toast';
 
 export default function EditProfileScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,16 +41,9 @@ export default function EditProfileScreen() {
       setEmail(user.email);
       setPhone(user.phone ?? '');
       setPicture(user.picture);
-      setAuthProvider(user.authProvider || 'email');
-      
-      // Debug logging
-      console.log('📝 Edit Profile - User Data:', {
-        email: user.email,
-        authProvider: user.authProvider,
-        shouldBeReadonly: user.authProvider !== 'email'
-      });
+      setAuthProvider(user.authProvider || (user.googleId ? 'google' : 'email'));
     } catch (error) {
-      Alert.alert('Error', 'Failed to load profile data');
+      toast.error('Failed to load profile data');
     } finally {
       setLoading(false);
     }
@@ -54,28 +51,27 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Name is required');
+      toast.error('Name is required');
       return;
     }
 
     if (!email.trim()) {
-      Alert.alert('Error', 'Email is required');
+      toast.error('Email is required');
       return;
     }
 
     if (!phone.trim()) {
-      Alert.alert('Error', 'Phone number is required');
+      toast.error('Phone number is required');
       return;
     }
 
     setSaving(true);
     try {
       await apiService.updateUserProfile({ name, email, phone });
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      toast.success('Profile updated successfully!');
+      router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
+      toast.error('Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -85,7 +81,7 @@ export default function EditProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={COLORS.action} />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </SafeAreaView>
@@ -102,19 +98,19 @@ export default function EditProfileScreen() {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color="#374151" />
+           accessibilityRole="button" accessibilityLabel="Go back">
+            <ArrowLeft size={20} color={COLORS.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Edit Profile</Text>
+          <Text style={styles.title} numberOfLines={1}>Edit Profile</Text>
           <TouchableOpacity
             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={COLORS.actionText} />
             ) : (
-              <Save size={20} color="#ffffff" />
+              <Save size={20} color={COLORS.actionText} />
             )}
           </TouchableOpacity>
         </View>
@@ -129,11 +125,11 @@ export default function EditProfileScreen() {
                     style={styles.avatarImage}
                   />
                 ) : (
-                  <User size={40} color="#6b7280" />
+                  <User size={40} color={COLORS.textTertiary} />
                 )}
               </View>
-              <TouchableOpacity style={styles.cameraButton}>
-                <Camera size={16} color="#ffffff" />
+              <TouchableOpacity style={styles.cameraButton} accessibilityRole="button" accessibilityLabel="Change profile photo">
+                <Camera size={16} color={COLORS.actionText} />
               </TouchableOpacity>
             </View>
             <Text style={styles.avatarText}>
@@ -145,13 +141,13 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name</Text>
               <View style={styles.inputContainer}>
-                <User size={20} color="#6b7280" style={styles.inputIcon} />
+                <User size={20} color={COLORS.textTertiary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={name}
                   onChangeText={setName}
                   placeholder="Enter your full name"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={COLORS.textTertiary}
                   autoCapitalize="words"
                 />
               </View>
@@ -160,14 +156,14 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Phone Number</Text>
               <View style={styles.inputContainer}>
-                <Phone size={20} color="#6b7280" style={styles.inputIcon} />
+                <Phone size={20} color={COLORS.textTertiary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={phone}
                   maxLength={10}
                   onChangeText={setPhone}
                   placeholder="Enter your phone number"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={COLORS.textTertiary}
                   keyboardType="phone-pad"
                   autoCapitalize="none"
                 />
@@ -178,20 +174,20 @@ export default function EditProfileScreen() {
               <Text style={styles.label}>Email Address</Text>
               {authProvider === 'email' ? (
                 <View style={styles.inputContainer}>
-                  <Mail size={20} color="#6b7280" style={styles.inputIcon} />
+                  <Mail size={20} color={COLORS.textTertiary} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     value={email}
                     onChangeText={setEmail}
                     placeholder="Enter your email"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={COLORS.textTertiary}
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 </View>
               ) : (
                 <View style={[styles.inputContainer, styles.inputReadonly]}>
-                  <Mail size={20} color="#6b7280" style={styles.inputIcon} />
+                  <Mail size={20} color={COLORS.textTertiary} style={styles.inputIcon} />
                   <Text style={styles.inputReadonlyText}>{email}</Text>
                 </View>
               )}
@@ -215,10 +211,10 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   keyboardView: {
     flex: 1,
@@ -231,7 +227,8 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Medium',
   },
   header: {
     flexDirection: 'row',
@@ -239,28 +236,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
   saveButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: COLORS.action,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#9ca3af',
+    backgroundColor: COLORS.textTertiary,
   },
   content: {
     flex: 1,
@@ -278,16 +285,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     overflow: 'hidden',
   },
   avatarImage: {
@@ -301,15 +303,16 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#2563eb',
+    backgroundColor: COLORS.action,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#ffffff',
+    borderColor: COLORS.card,
   },
   avatarText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
   },
   form: {
     flex: 1,
@@ -320,23 +323,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surfaceSecondary,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
+    borderColor: COLORS.border,
+    borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   inputIcon: {
     marginRight: 12,
@@ -344,45 +343,51 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: COLORS.text,
+    fontFamily: 'Inter-Regular',
     paddingVertical: 12,
   },
   infoCard: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: COLORS.card,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: COLORS.border,
     marginTop: 20,
+    shadowColor: '#1A1B25',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   infoTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e40af',
+    color: COLORS.text,
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 4,
   },
   infoText: {
     fontSize: 12,
-    color: '#1e40af',
+    color: COLORS.textSecondary,
+    fontFamily: 'Inter-Regular',
     lineHeight: 16,
   },
-  inputDisabled: {
-    backgroundColor: '#f3f4f6',
-    opacity: 0.7,
-  },
   inputReadonly: {
-    backgroundColor: '#f9fafb',
-    borderColor: '#e5e7eb',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderColor: COLORS.border,
   },
   inputReadonlyText: {
     flex: 1,
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     paddingVertical: 12,
   },
   helperText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.textTertiary,
+    fontFamily: 'Inter-Regular',
     marginTop: 4,
     marginLeft: 8,
   },

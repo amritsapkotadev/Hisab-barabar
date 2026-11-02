@@ -2,11 +2,22 @@ import mongoose, { Schema, Document, Model } from 'mongoose'
 import { v4 as uuidv4 } from 'uuid'
 import User from './User';
 
+// A group member is identified by a stable, group-scoped `id` that never
+// changes and never collides — even if two members share the same display
+// `name` (e.g. two ghost/placeholder contacts, or two real accounts with
+// identical names). `userId` links the entry to a real registered account
+// when one exists; it's omitted for ghost members who haven't signed up yet.
+export interface IGroupMember {
+  id: string
+  name: string
+  userId?: mongoose.Types.ObjectId
+}
+
 export interface IGroup extends Document {
   name: string
   description: string
   createdBy: mongoose.Types.ObjectId
-  members: string[]
+  members: IGroupMember[]
   inviteCode: string
   emoji: string
   createdAt: Date
@@ -23,6 +34,15 @@ export interface IGroup extends Document {
   settlementNotes?: Array<{ note: string; date: Date }>;
   totalExpenses?: number;
 }
+
+const groupMemberSchema = new Schema<IGroupMember>(
+  {
+    id: { type: String, required: true, default: () => uuidv4() },
+    name: { type: String, required: true, trim: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
+  },
+  { _id: false }
+)
 
 const groupSchema = new Schema<IGroup>(
   {
@@ -50,13 +70,14 @@ const groupSchema = new Schema<IGroup>(
       ref: 'User',
       required: true,
     },
-    members: [
-      {
-        type: String,
-        required: true,
-        trim: true,
+    members: {
+      type: [groupMemberSchema],
+      required: true,
+      validate: {
+        validator: (members: IGroupMember[]) => Array.isArray(members) && members.length > 0,
+        message: 'At least one member is required',
       },
-    ],
+    },
     inviteCode: {
       type: String,
       unique: true,

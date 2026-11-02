@@ -5,8 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "splitsaathi",
+    "scheme": "hisabbarabar",
     "userInterfaceStyle": "automatic",
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFFFF",
+      "translucent": false
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -73,7 +78,15 @@
         }
       ],
       "expo-font",
-      "react-native-vision-camera",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo.jpeg",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ],
       [
         "@react-native-firebase/app",
         {
@@ -91,12 +104,16 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.858936552466-rfqc656f5ai8se17grq9a4989t008ni4"
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-localization",
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
+      "APP_DOMAIN": "hisabbarabar.qzz.io",
       "router": {
         "origin": "https://hisabbarabar.qzz.io"
       },

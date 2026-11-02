@@ -4,142 +4,82 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Animated,
   Easing,
   Dimensions,
-  ImageBackground,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ArrowRight, Users, DollarSign, Calculator, Shield, Smartphone, Star, Heart, Sparkles, TrendingUp, Globe, CircleCheck as CheckCircle, Zap, Award, FileText } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { ArrowRight, Users, Calculator, Shield, Smartphone, Star, Heart, CircleCheck as CheckCircle, Zap, Award, Globe, PieChart } from 'lucide-react-native';
+import { type ThemeColors } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/hooks/useTheme';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+
+type Slide = {
+  id: number;
+  title: string;
+  subtitle: string;
+  description: string;
+  icon: React.ReactNode;
+};
 
 export default function WelcomeScreen() {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const floatingAnim = useRef(new Animated.Value(0)).current;
-  const sparkleAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const slides = [
+  const slides: Slide[] = [
     {
       id: 1,
-      title: 'Welcome to SplitSaathi',
-      subtitle: 'Smart Expense Sharing for Nepal 🇳🇵',
-      description: 'Split bills, track expenses, and settle up with friends and family - all in one beautiful app designed specifically for Nepali users.',
-      icon: <Heart size={100} color="#ffffff" />,
-      gradient: ['#667eea', '#764ba2'],
-      accent: '#667eea',
+      title: 'Welcome to Hisab Barabar',
+      subtitle: 'Smart expense sharing for Nepal',
+      description: 'Split bills, track expenses, and settle up with friends and family — all in one place.',
+      icon: <Heart size={64} color={COLORS.text} />,
     },
     {
       id: 2,
-      title: 'Create Groups Effortlessly',
-      subtitle: 'Organize Your Shared Expenses',
-      description: 'Create groups for trips to Pokhara, roommate expenses in Kathmandu, family gatherings, or any shared costs. Invite members instantly with a simple link.',
-      icon: <Users size={100} color="#ffffff" />,
-      gradient: ['#f093fb', '#f5576c'],
-      accent: '#f093fb',
+      title: 'Create groups effortlessly',
+      subtitle: 'Organize your shared expenses',
+      description: 'Create groups for trips, roommate expenses, family gatherings, or any shared costs. Invite members with a simple link.',
+      icon: <Users size={64} color={COLORS.text} />,
     },
     {
       id: 3,
-      title: 'Smart Expense Splitting',
-      subtitle: 'Fair & Transparent Always',
-      description: 'Split expenses equally or customize splits by amount, percentage, or shares. Advanced algorithms ensure everyone knows exactly what they owe.',
-      icon: <Calculator size={100} color="#ffffff" />,
-      gradient: ['#4facfe', '#00f2fe'],
-      accent: '#4facfe',
+      title: 'Smart expense splitting',
+      subtitle: 'Fair and transparent, always',
+      description: 'Split expenses equally or customize splits by amount, percentage, or shares.',
+      icon: <Calculator size={64} color={COLORS.text} />,
     },
     {
       id: 4,
-      title: 'eSewa Integration',
-      subtitle: 'Seamless Digital Payments',
-      description: 'Settle up instantly with eSewa integration. Send and receive money directly through Nepal\'s most trusted digital wallet platform.',
-      icon: <Smartphone size={100} color="#ffffff" />,
-      gradient: ['#43e97b', '#38f9d7'],
-      accent: '#43e97b',
+      title: 'Settle up instantly',
+      subtitle: 'Seamless digital payments',
+      description: 'Send and receive money directly with eSewa integration.',
+      icon: <Smartphone size={64} color={COLORS.text} />,
     },
     {
       id: 5,
-      title: 'Bank-Level Security',
-      subtitle: 'Your Data is Protected',
-      description: 'Military-grade encryption with end-to-end security. Your financial data is protected and never shared with third parties. Trust guaranteed.',
-      icon: <Shield size={100} color="#ffffff" />,
-      gradient: ['#fa709a', '#fee140'],
-      accent: '#fa709a',
+      title: 'Bank-level security',
+      subtitle: 'Your data is protected',
+      description: 'Your financial data is encrypted and never shared with third parties.',
+      icon: <Shield size={64} color={COLORS.text} />,
     },
   ];
 
   useEffect(() => {
-    // Initial animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1200,
+        duration: 600,
         easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 1,
-        duration: 1000,
-        easing: Easing.out(Easing.back(1.2)),
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Floating animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatingAnim, {
-          toValue: 1,
-          duration: 3000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatingAnim, {
-          toValue: 0,
-          duration: 3000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Sparkle animation
-    Animated.loop(
-      Animated.timing(sparkleAnim, {
-        toValue: 1,
-        duration: 2000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // Pulse animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Auto-advance slides
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
@@ -148,11 +88,10 @@ export default function WelcomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Slide transition animation
     Animated.spring(slideAnim, {
       toValue: currentSlide,
-      tension: 100,
-      friction: 8,
+      tension: 80,
+      friction: 10,
       useNativeDriver: true,
     }).start();
   }, [currentSlide]);
@@ -167,55 +106,16 @@ export default function WelcomeScreen() {
     router.replace('/(auth)/login');
   };
 
-  const currentSlideData = slides[currentSlide];
-
-  const floatingTransform = floatingAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -20],
-  });
-
-  const sparkleRotation = sparkleAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const renderSlide = (slide: typeof slides[0], index: number) => (
+  const renderSlide = (slide: Slide) => (
     <View key={slide.id} style={[styles.slide, { width }]}>
-      <LinearGradient
-        colors={slide.gradient}
-        style={styles.slideGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <Animated.View 
-          style={[
-            styles.slideContent,
-            {
-              transform: [
-                { translateY: floatingTransform },
-                { scale: pulseAnim }
-              ]
-            }
-          ]}
-        >
-          <View style={styles.iconContainer}>
-            {slide.icon}
-            <Animated.View 
-              style={[
-                styles.sparkle,
-                {
-                  transform: [{ rotate: sparkleRotation }]
-                }
-              ]}
-            >
-              <Sparkles size={30} color="#ffffff" />
-            </Animated.View>
-          </View>
-          <Text style={styles.slideTitle}>{slide.title}</Text>
-          <Text style={styles.slideSubtitle}>{slide.subtitle}</Text>
-          <Text style={styles.slideDescription}>{slide.description}</Text>
-        </Animated.View>
-      </LinearGradient>
+      <View style={styles.slideCard}>
+        <View style={styles.iconContainer}>
+          {slide.icon}
+        </View>
+        <Text style={styles.slideTitle}>{slide.title}</Text>
+        <Text style={styles.slideSubtitle}>{slide.subtitle}</Text>
+        <Text style={styles.slideDescription}>{slide.description}</Text>
+      </View>
     </View>
   );
 
@@ -227,78 +127,38 @@ export default function WelcomeScreen() {
           style={[
             styles.dot,
             currentSlide === index && styles.activeDot,
-            { 
-              backgroundColor: currentSlide === index 
-                ? currentSlideData.accent 
-                : 'rgba(255, 255, 255, 0.3)' 
-            }
           ]}
           onPress={() => setCurrentSlide(index)}
+          accessibilityRole="button"
+          accessibilityLabel={`Slide ${index + 1}`}
         />
       ))}
     </View>
   );
 
-  const renderMonthlyExpenseCard = () => (
-    <BlurView intensity={20} tint="dark" style={styles.balanceCard}>
-      <LinearGradient
-        colors={['rgba(239, 83, 80, 0.3)', 'rgba(236, 64, 122, 0.3)']}
-        style={styles.balanceGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-      <View style={styles.balanceContent}>
-        <View style={styles.balanceHeader}>
-          <FileText size={20} color={COLORS.text} />
-          <Text style={styles.balanceTitle}>Monthly Expense</Text>
-        </View>
-        <Text style={[styles.balanceValue, { color: COLORS.negative }]}>
-          ₹{spentThisMonth.toFixed(2)}
-        </Text>
-        <Text style={[styles.balanceStatus, { color: COLORS.negative }]}>
-          This month
-        </Text>
-      </View>
-    </BlurView>
-  );
+  const features = [
+    { icon: <CheckCircle size={22} color={COLORS.positive} />, title: '100% Free', subtitle: 'Always' },
+    { icon: <Star size={22} color={COLORS.warning} />, title: 'Easy setup', subtitle: 'In minutes' },
+    { icon: <Shield size={22} color={COLORS.text} />, title: 'Secure', subtitle: 'Bank-level' },
+    { icon: <Zap size={22} color={COLORS.text} />, title: 'Fast', subtitle: 'Lightning' },
+  ];
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
       <View style={styles.container}>
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-          {/* Header with Logo */}
+          {/* Header */}
           <View style={styles.header}>
-            <Animated.View 
-              style={[
-                styles.logoContainer,
-                {
-                  transform: [
-                    { 
-                      scale: slideAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.8, 1],
-                      })
-                    }
-                  ]
-                }
-              ]}
-            >
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.logoGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Text style={styles.logoEmoji}>💰</Text>
-              </LinearGradient>
-              <Text style={styles.logoText}>SplitSaathi</Text>
-              <View style={styles.taglineContainer}>
-                <Text style={styles.tagline}>Made with </Text>
-                <Heart size={14} color="#e11d48" />
-                <Text style={styles.tagline}> in Nepal</Text>
-              </View>
-            </Animated.View>
+            <View style={styles.logoContainer}>
+              <PieChart size={36} color={COLORS.text} />
+              <Text style={styles.logoText}>Hisab Barabar</Text>
+            </View>
+            <View style={styles.taglineContainer}>
+              <Text style={styles.tagline}>Made with </Text>
+              <Heart size={13} color={COLORS.negative} />
+              <Text style={styles.tagline}> in Nepal</Text>
+            </View>
           </View>
 
           {/* Slides */}
@@ -318,195 +178,102 @@ export default function WelcomeScreen() {
                 },
               ]}
             >
-              {slides.map((slide, index) => renderSlide(slide, index))}
+              {slides.map((slide) => renderSlide(slide))}
             </Animated.View>
           </View>
 
-          {/* Dots Indicator */}
           {renderDots()}
 
-          {/* Features Grid */}
+          {/* Features */}
           <View style={styles.featuresSection}>
-            <Text style={styles.featuresTitle}>Why Choose SplitSaathi?</Text>
+            <Text style={styles.featuresTitle}>Why choose Hisab Barabar?</Text>
             <View style={styles.featuresGrid}>
-              <View style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: '#10b981' }]}>
-                  <CheckCircle size={24} color="#ffffff" />
+              {features.map((f, i) => (
+                <View key={i} style={styles.featureItem}>
+                  <View style={styles.featureIcon}>{f.icon}</View>
+                  <Text style={styles.featureText}>{f.title}</Text>
+                  <Text style={styles.featureSubtext}>{f.subtitle}</Text>
                 </View>
-                <Text style={styles.featureText}>100% Free</Text>
-                <Text style={styles.featureSubtext}>Always</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: '#f59e0b' }]}>
-                  <Star size={24} color="#ffffff" />
-                </View>
-                <Text style={styles.featureText}>5-Star Rated</Text>
-                <Text style={styles.featureSubtext}>By Users</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: '#8b5cf6' }]}>
-                  <Shield size={24} color="#ffffff" />
-                </View>
-                <Text style={styles.featureText}>Bank-Level</Text>
-                <Text style={styles.featureSubtext}>Security</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <View style={[styles.featureIcon, { backgroundColor: '#06b6d4' }]}>
-                  <Zap size={24} color="#ffffff" />
-                </View>
-                <Text style={styles.featureText}>Lightning</Text>
-                <Text style={styles.featureSubtext}>Fast</Text>
-              </View>
+              ))}
             </View>
           </View>
 
-          {/* Stats Section */}
-          <View style={styles.statsSection}>
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
-              style={styles.statsCard}
-            >
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>10K+</Text>
-                <Text style={styles.statLabel}>Happy Users</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>₹50L+</Text>
-                <Text style={styles.statLabel}>Money Managed</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>99.9%</Text>
-                <Text style={styles.statLabel}>Uptime</Text>
-              </View>
-            </LinearGradient>
-          </View>
-
-          {/* Action Buttons */}
+          {/* Actions */}
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
-              <LinearGradient
-                colors={currentSlideData.gradient}
-                style={styles.buttonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={styles.primaryButtonText}>Get Started Free</Text>
-                <ArrowRight size={20} color="#ffffff" />
-              </LinearGradient>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted} accessibilityRole="button" accessibilityLabel="Get started">
+              <Text style={styles.primaryButtonText}>Get started free</Text>
+              <ArrowRight size={20} color={COLORS.actionText} />
             </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleSignIn}>
-              <Text style={styles.secondaryButtonText}>Already have an account? Sign In</Text>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleSignIn} accessibilityRole="button" accessibilityLabel="Sign in">
+              <Text style={styles.secondaryButtonText}>Already have an account? Sign in</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Trust Indicators */}
+          {/* Trust */}
           <View style={styles.trustSection}>
             <View style={styles.trustItem}>
-              <Award size={16} color="#f59e0b" />
-              <Text style={styles.trustText}>Trusted by 10,000+ Nepalis</Text>
+              <Award size={15} color={COLORS.warning} />
+              <Text style={styles.trustText}>Built for Nepal</Text>
             </View>
             <View style={styles.trustItem}>
-              <Globe size={16} color="#10b981" />
-              <Text style={styles.trustText}>Available on Web • iOS • Android</Text>
+              <Globe size={15} color={COLORS.positive} />
+              <Text style={styles.trustText}>Web, iOS and Android</Text>
             </View>
           </View>
         </Animated.View>
-
-        {/* Background Pattern */}
-        <View style={styles.backgroundPattern}>
-          {[...Array(20)].map((_, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.patternDot,
-                {
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  opacity: sparkleAnim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [0.1, 0.3, 0.1],
-                  }),
-                  transform: [
-                    {
-                      scale: sparkleAnim.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0.5, 1, 0.5],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ))}
-        </View>
       </View>
     </>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f23',
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   header: {
     alignItems: 'center',
     paddingTop: 60,
-    paddingBottom: 20,
+    paddingBottom: 16,
+    gap: 12,
   },
   logoContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  logoGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#667eea',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  logoEmoji: {
-    fontSize: 36,
+    gap: 10,
   },
   logoText: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#ffffff',
-    marginBottom: 8,
-    letterSpacing: -1,
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+    letterSpacing: -0.8,
   },
   taglineContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: COLORS.surfaceSecondary,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: COLORS.border,
   },
   tagline: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '600',
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   slidesContainer: {
-    height: 400,
+    height: 380,
     overflow: 'hidden',
     marginBottom: 20,
-    borderRadius: 24,
+    borderRadius: 16,
   },
   slidesWrapper: {
     flexDirection: 'row',
@@ -515,245 +282,162 @@ const styles = StyleSheet.create({
   slide: {
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
-  slideGradient: {
+  slideCard: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 24,
-  },
-  slideContent: {
-    alignItems: 'center',
-    maxWidth: 320,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    padding: 28,
   },
   iconContainer: {
-    position: 'relative',
-    marginBottom: 32,
-  },
-  sparkle: {
-    position: 'absolute',
-    top: -15,
-    right: -15,
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+    backgroundColor: COLORS.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   slideTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    color: '#ffffff',
+    color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: -0.5,
+    marginBottom: 8,
+    letterSpacing: -0.4,
+    fontFamily: 'Inter-Bold',
   },
   slideSubtitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    fontFamily: 'Inter-SemiBold',
   },
   slideDescription: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 15,
+    color: COLORS.textTertiary,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 10,
+    lineHeight: 22,
+    fontFamily: 'Inter-Regular',
   },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
-    gap: 12,
+    marginBottom: 24,
+    gap: 8,
   },
   dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.border,
   },
   activeDot: {
-    width: 32,
-    height: 12,
-    borderRadius: 6,
+    width: 24,
+    backgroundColor: COLORS.action,
   },
   featuresSection: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   featuresTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    fontFamily: 'Inter-Bold',
   },
   featuresGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.border,
   },
   featureItem: {
     alignItems: 'center',
     flex: 1,
   },
   featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   featureText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#ffffff',
+    color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
+    fontFamily: 'Inter-Bold',
   },
   featureSubtext: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: COLORS.textTertiary,
     textAlign: 'center',
-  },
-  statsSection: {
-    marginBottom: 32,
-  },
-  statsCard: {
-    flexDirection: 'row',
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginHorizontal: 16,
+    fontFamily: 'Inter-Regular',
   },
   actionButtons: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   primaryButton: {
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  buttonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 16,
+    backgroundColor: COLORS.action,
+    paddingVertical: 16,
+    borderRadius: 999,
+    marginBottom: 14,
+    gap: 8,
   },
   primaryButtonText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#ffffff',
-    marginRight: 8,
+    color: COLORS.actionText,
+    fontFamily: 'Inter-Bold',
   },
   secondaryButton: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   secondaryButtonText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+    fontFamily: 'Inter-Medium',
   },
   trustSection: {
     alignItems: 'center',
-    paddingBottom: 40,
-    gap: 12,
+    paddingBottom: 32,
+    gap: 8,
   },
   trustItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   trustText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    color: COLORS.textTertiary,
     fontWeight: '500',
-  },
-  backgroundPattern: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: -1,
-  },
-  patternDot: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  balanceCard: {
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  balanceGradient: {
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  balanceContent: {
-    alignItems: 'center',
-  },
-  balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  balanceTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginLeft: 8,
-  },
-  balanceValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  balanceStatus: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
+    fontFamily: 'Inter-Medium',
   },
 });

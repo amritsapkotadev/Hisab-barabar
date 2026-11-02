@@ -43,8 +43,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update FCM token if provided
+    // Update FCM token if provided. The token is unique, so release it from
+    // any previous account first.
     if (fcmToken) {
+      await User.updateMany(
+        { fcmToken, _id: { $ne: user._id } },
+        { $unset: { fcmToken: 1 } }
+      )
       user.fcmToken = fcmToken
       await user.save()
     }

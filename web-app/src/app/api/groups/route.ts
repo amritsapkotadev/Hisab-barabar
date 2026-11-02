@@ -3,6 +3,21 @@ import connectDB from '@/lib/mongodb'
 import Group from '@/models/Group'
 import Expense from '@/models/Expense'
 import { authenticateUser } from '@/middleware/auth'
+import { buildMembersFromNames } from '@/utils/groupMembers'
+import { calculateGroupBalances } from '@/utils/groupBalances'
+
+// Serialize a group member for API responses, surfacing the linked
+// account's picture (if any) so clients can show a real avatar without an
+// extra lookup, while keeping the stable `id` as the source of truth.
+function serializeMember(member: any) {
+  const linkedUser = member.userId && typeof member.userId === 'object' ? member.userId : null
+  return {
+    id: member.id,
+    name: member.name,
+    userId: linkedUser ? linkedUser._id : member.userId || undefined,
+    picture: linkedUser ? linkedUser.picture : undefined,
+  }
+}
 
 // Create a new group
 export async function POST(request: NextRequest) {
@@ -30,14 +45,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Filter out empty members
-    const validMembers = members.filter((member) => member && member.trim() !== '')
+    const groupMembers = buildMembersFromNames(members)
 
-    if (validMembers.length === 0) {
+    if (groupMembers.length === 0) {
       return NextResponse.json(
         { message: 'At least one valid member is required' },
         { status: 400 }
       )
+    }
+
+    // Link the creator's own entry to their real account, if their name was
+    // included among the members (the mobile app pre-fills it).
+    const creatorEntry = groupMembers.find(
+      (member) => member.name.trim().toLowerCase() === auth.user.name.trim().toLowerCase()
+    )
+    if (creatorEntry) {
+      creatorEntry.userId = auth.userId as any
     }
 
     // Create group
@@ -45,7 +68,7 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       description: description ? description.trim() : '',
       createdBy: auth.userId,
-      members: validMembers.map((member) => member.trim()),
+      members: groupMembers,
       emoji: emoji ? emoji.trim() : '',
     })
 
@@ -62,7 +85,8 @@ export async function POST(request: NextRequest) {
           id: savedGroup._id,
           name: savedGroup.name,
           description: savedGroup.description,
-          members: savedGroup.members,
+          createdBy: savedGroup.createdBy.toString(),
+          members: savedGroup.members.map(serializeMember),
           emoji: savedGroup.emoji,
           totalExpenses: 0,
           balances: {},
@@ -92,74 +116,36 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // Find groups where user is either creator or member
+    // Find groups where user is either creator or a linked member
     const groups = await Group.find({
-      $or: [{ createdBy: auth.userId }, { members: auth.user.name }],
-    }).sort({ createdAt: -1 })
+      $or: [{ createdBy: auth.userId }, { 'members.userId': auth.userId }],
+    })
+      .sort({ createdAt: -1 })
+      .populate('members.userId', 'picture')
 
     // Calculate expenses and balances for each group
     const groupsWithStats = await Promise.all(
-      groups.map(async (group) => {
-        try {
-          // Get expenses for this group
-          const expenses = await Expense.find({ groupId: group._id })
-
-          // Calculate total expenses
-          const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-
-          // Calculate balances
-          const balances: Record<string, number> = {}
-          group.members.forEach((member) => {
-            balances[member] = 0
-          })
-
-          expenses.forEach((expense) => {
-            const splitAmount = expense.amount / expense.participants!.length
-
-            // Add to payer's balance
-            if (expense.paidBy && balances.hasOwnProperty(expense.paidBy)) {
-              balances[expense.paidBy] += expense.amount
-            }
-
-            // Subtract split amount from each participant
-            expense.participants?.forEach((participant) => {
-              if (balances.hasOwnProperty(participant)) {
-                balances[participant] -= splitAmount
-              }
-            })
-          })
-
-          // Generate invite link
-          const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-          const inviteLink = `${APP_DOMAIN}/join/${group._id}`
-
-          return {
-            id: group._id,
-            name: group.name,
-            description: group.description,
-            members: group.members,
-            emoji: group.emoji,
-            totalExpenses,
-            balances,
-            inviteCode: group.inviteCode,
-            inviteLink: inviteLink,
-            createdAt: group.createdAt,
-          }
-        } catch (error) {
-          console.error(`Error calculating stats for group ${group._id}:`, error)
-          const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-          return {
-            id: group._id,
-            name: group.name,
-            description: group.description,
-            members: group.members,
-            emoji: group.emoji,
-            totalExpenses: 0,
-            balances: {},
-            inviteCode: group.inviteCode,
-            inviteLink: `${APP_DOMAIN}/join/${group._id}`,
-            createdAt: group.createdAt,
-          }
+      groups.map(async group => {
+        const expenses = await Expense.find({ groupId: group._id })
+        const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+        const balances = calculateGroupBalances(
+          group.members.map(member => member.id),
+          expenses,
+          group.settlements ?? [],
+        )
+        const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        return {
+          id: group._id,
+          name: group.name,
+          description: group.description,
+          createdBy: group.createdBy.toString(),
+          members: group.members.map(serializeMember),
+          emoji: group.emoji,
+          totalExpenses,
+          balances,
+          inviteCode: group.inviteCode,
+          inviteLink: `${APP_DOMAIN}/join/${group._id}`,
+          createdAt: group.createdAt,
         }
       })
     )

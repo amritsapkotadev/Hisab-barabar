@@ -6,9 +6,11 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { X, Play, Gift, Star } from 'lucide-react-native';
+import { useToast } from '@/components/Toast';
+import { type ThemeColors } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/useTheme';
 
 interface AdModalProps {
   visible: boolean;
@@ -18,6 +20,8 @@ interface AdModalProps {
 }
 
 export default function AdModal({ visible, onClose, onAdWatched, adType }: AdModalProps) {
+  const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const toast = useToast();
   const [adState, setAdState] = useState<'loading' | 'ready' | 'playing' | 'completed'>('loading');
   const [countdown, setCountdown] = useState(30);
 
@@ -36,7 +40,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
   }, [visible]);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     
     if (adState === 'playing' && countdown > 0) {
       timer = setTimeout(() => {
@@ -62,13 +66,9 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
   const handleClaimReward = () => {
     onAdWatched();
     onClose();
-    Alert.alert(
-      'Reward Claimed!',
-      adType === 'transaction' 
-        ? 'You can now add 5 more transactions today!' 
-        : 'You can now create 1 more group!',
-      [{ text: 'Great!', style: 'default' }]
-    );
+    toast.success(adType === 'transaction'
+      ? 'You can now add 5 more transactions today!'
+      : 'You can now create 1 more group!');
   };
 
   const renderAdContent = () => {
@@ -76,7 +76,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
       case 'loading':
         return (
           <View style={styles.adContent}>
-            <ActivityIndicator size="large" color="#2563eb" />
+            <ActivityIndicator size="large" color={COLORS.action} />
             <Text style={styles.loadingText}>Loading ad...</Text>
           </View>
         );
@@ -85,7 +85,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
         return (
           <View style={styles.adContent}>
             <View style={styles.adPreview}>
-              <Play size={48} color="#2563eb" />
+              <Play size={48} color={COLORS.action} />
             </View>
             <Text style={styles.adTitle}>Watch a short ad to continue</Text>
             <Text style={styles.adDescription}>
@@ -95,7 +95,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
               }
             </Text>
             <TouchableOpacity style={styles.playButton} onPress={handlePlayAd}>
-              <Play size={20} color="#ffffff" />
+              <Play size={20} color={COLORS.actionText} />
               <Text style={styles.playButtonText}>Watch Ad (30s)</Text>
             </TouchableOpacity>
           </View>
@@ -106,7 +106,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
           <View style={styles.adContent}>
             <View style={styles.adPlayer}>
               <View style={styles.adVideo}>
-                <Text style={styles.adVideoText}>🎬 Ad Playing...</Text>
+                <Text style={styles.adVideoText}>Ad playing...</Text>
                 <Text style={styles.adVideoSubtext}>Demo Advertisement</Text>
               </View>
               <View style={styles.adControls}>
@@ -125,7 +125,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
         return (
           <View style={styles.adContent}>
             <View style={styles.rewardContent}>
-              <Gift size={48} color="#059669" />
+              <Gift size={48} color={COLORS.positive} />
               <Text style={styles.rewardTitle}>Ad Complete!</Text>
               <Text style={styles.rewardDescription}>
                 {adType === 'transaction' 
@@ -134,7 +134,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
                 }
               </Text>
               <TouchableOpacity style={styles.claimButton} onPress={handleClaimReward}>
-                <Star size={20} color="#ffffff" />
+                <Star size={20} color={COLORS.actionText} />
                 <Text style={styles.claimButtonText}>Claim Reward</Text>
               </TouchableOpacity>
             </View>
@@ -158,8 +158,13 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
           <Text style={styles.headerTitle}>
             {adType === 'transaction' ? 'More Transactions' : 'More Groups'}
           </Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color="#374151" />
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close ad"
+          >
+            <X size={24} color={COLORS.text} />
           </TouchableOpacity>
         </View>
 
@@ -167,7 +172,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Ads help us keep SplitWise free for everyone
+            Ads help us keep Hisab Barabar free for everyone
           </Text>
         </View>
       </View>
@@ -175,10 +180,10 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -186,14 +191,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: COLORS.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
+    color: COLORS.text,
   },
   closeButton: {
     padding: 4,
@@ -207,29 +212,29 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
   },
   adPreview: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#eff6ff',
+    backgroundColor: COLORS.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: '#bfdbfe',
+    borderColor: COLORS.border,
   },
   adTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: COLORS.text,
     marginBottom: 12,
     textAlign: 'center',
   },
   adDescription: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -238,13 +243,13 @@ const styles = StyleSheet.create({
   playButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563eb',
+    backgroundColor: COLORS.action,
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: '#2563eb',
+    borderRadius: 999,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 8,
   },
@@ -252,7 +257,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.actionText,
   },
   adPlayer: {
     width: '100%',
@@ -267,12 +272,12 @@ const styles = StyleSheet.create({
   },
   adVideoText: {
     fontSize: 24,
-    color: '#ffffff',
+    color: COLORS.actionText,
     marginBottom: 8,
   },
   adVideoSubtext: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: COLORS.textTertiary,
   },
   adControls: {
     flexDirection: 'row',
@@ -282,10 +287,10 @@ const styles = StyleSheet.create({
   countdownText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.text,
   },
   skipButton: {
-    backgroundColor: '#6b7280',
+    backgroundColor: COLORS.textSecondary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -293,7 +298,7 @@ const styles = StyleSheet.create({
   skipButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.actionText,
   },
   rewardContent: {
     alignItems: 'center',
@@ -301,13 +306,13 @@ const styles = StyleSheet.create({
   rewardTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#059669',
+    color: COLORS.positive,
     marginTop: 16,
     marginBottom: 12,
   },
   rewardDescription: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -316,13 +321,13 @@ const styles = StyleSheet.create({
   claimButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: COLORS.positive,
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: '#059669',
+    borderRadius: 999,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 8,
   },
@@ -330,7 +335,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: COLORS.actionText,
   },
   footer: {
     padding: 20,
@@ -338,7 +343,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: COLORS.textTertiary,
     textAlign: 'center',
   },
 });

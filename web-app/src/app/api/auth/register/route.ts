@@ -48,6 +48,10 @@ export async function POST(request: NextRequest) {
     const otp = generateOTP()
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000)
 
+    if (fcmToken) {
+      await User.updateMany({ fcmToken }, { $unset: { fcmToken: 1 } })
+    }
+
     // Create user
     const user = await User.create({
       name: name.trim(),
