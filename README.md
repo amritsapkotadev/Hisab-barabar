@@ -18,17 +18,17 @@
 
 ## 📱 About
 
-**Hisab Barabar** (meaning "Accounts Settled" ) is a comprehensive expense-splitting application that helps you manage shared expenses with friends, roommates, or travel companions. Split bills fairly, track who owes what, and settle up easily.
+**Hisab Barabar** (meaning "Accounts Settled") is a comprehensive expense-splitting application that helps you manage shared expenses with friends, roommates, or travel companions. Split bills fairly, track who owes what, and settle up easily.
 
 ### Why Hisab Barabar?
 
 - ✅ **Smart Splitting**: Equal, unequal, percentage, or share-based splits
 - ✅ **Group Management**: Create groups for trips, roommates, or any shared expenses
 - ✅ **Optimized Settlements**: Minimize transactions when settling up
-- ✅ **Cross-Platform**: iOS, Android, and Web
-- ✅ **Real-time Sync**: All your data synced across devices
-- ✅ **Budget Tracking**: Set budgets and get alerts
-- ✅ **Beautiful UI**: Modern, intuitive interface
+- ✅ **Cross-Platform**: iOS and Android apps plus a web landing/admin site
+- ✅ **Sync**: Shared server data with 24h offline reads on mobile
+- ✅ **Budget Tracking**: Set budgets and see a gauge
+- ✅ **Beautiful UI**: Modern, neutral design with light/dark themes
 
 ---
 
@@ -36,26 +36,30 @@
 
 ```
 hisab-barabar/
-├── mobile-app/              # React Native mobile application (iOS & Android)
+├── mobile-app/              # Expo React Native client (iOS & Android)
 │   ├── app/                 # Expo Router screens
-│   ├── components/          # Reusable UI components
-│   ├── services/            # API integration
-│   ├── config/              # App configuration
-│   └── package.json
+│   ├── components/          # Reusable UI (Toast, OfflineStatus, modals)
+│   ├── services/            # API client, cache/offline journal, notifications
+│   ├── contexts/            # AuthContext
+│   ├── hooks/               # theme, refresh, preferences
+│   ├── i18n/                # English + Nepali
+│   └── docs/                # Mobile audit, plan, caching, architecture
 │
-├── web-app/                 # Next.js web application (Landing page + Backend API)
+├── web-app/                 # Next.js monolith (landing + admin + API)
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── api/         # Backend API routes
+│   │   │   ├── admin/       # Admin dashboard
+│   │   │   ├── join/        # Invite landing page
 │   │   │   ├── page.tsx     # Landing page
 │   │   │   └── layout.tsx
-│   │   ├── components/      # React components
-│   │   ├── lib/            # Utilities (MongoDB, Firebase, Email)
-│   │   ├── middleware/     # Authentication middleware
-│   │   └── models/         # Database models
-│   └── package.json
-│
-└── backend/                 # [DEPRECATED] Old Express backend (kept for reference)
+│   │   ├── components/      # Landing components
+│   │   ├── lib/             # MongoDB, Firebase, Email, idempotency
+│   │   ├── middleware/      # Auth helpers (not Next middleware)
+│   │   ├── models/          # Mongoose models
+│   │   └── utils/           # Settlement/member/summary logic
+│   ├── scripts/             # Legacy-data migration + dev seed
+│   └── docs/                # Web audit, architecture, rules, design
 ```
 
 ---
@@ -67,32 +71,32 @@ hisab-barabar/
 - **Group Expenses**: Share costs with friends
 - **Multiple Split Types**: Equal, unequal, percentage, and share-based
 - **Multiple Payers**: Handle situations where multiple people pay
-- **Categories & Tags**: Organize expenses efficiently
+- **Categories**: Organize expenses efficiently
 
 ### 👥 Group Features
 - **Easy Group Creation**: Set up groups in seconds
-- **QR Code Sharing**: Join groups by scanning QR codes
-- **Invite Links**: Share groups via deep links
-- **Member Management**: Add/remove members easily
+- **Invite Links**: Share groups via `hisabbarabar.qzz.io/join/<id>` deep links
+- **Member Management**: Add/remove members; stable member ids survive duplicate names
 - **Balance Tracking**: See who owes what at a glance
 
 ### 🔄 Smart Settlements
 - **Optimized Algorithm**: Minimize the number of transactions
 - **Settlement History**: Track past settlements
-- **Multiple Currency Support**: Handle international groups
-- **Payment Methods**: Track how money was transferred
+- **Payment Methods**: Track personal-expense payment methods
 
 ### 🔐 Security & Privacy
 - **JWT Authentication**: Secure token-based auth
-- **End-to-End Encryption**: Your data is safe
+- **Secure Token Storage**: Expo SecureStore on mobile
 - **Google OAuth**: Easy sign-in with Google
 - **OTP Verification**: Email verification for security
 
 ### 📊 Additional Features
-- **Budget Limits**: Set spending limits and get alerts
+- **Budget Limits**: Set spending limits and see a budget gauge
 - **Push Notifications**: Stay updated on group activities
-- **Export Data**: Download your expense history
-- **Dark Mode Ready**: (Coming soon)
+- **Dark Mode**: System, light, and dark themes
+- **Offline Support**: Cached reads for 24h + queued idempotent expense creates
+- **English + Nepali**: Language selection in Settings
+- **Export Data**: UI present; file export still being wired
 
 ---
 
@@ -100,15 +104,16 @@ hisab-barabar/
 
 ### Prerequisites
 
-- **Node.js** 18+ ([Download](https://nodejs.org/))
+- **Node.js** 20+ ([Download](https://nodejs.org/))
 - **MongoDB** ([Local](https://www.mongodb.com/try/download/community) or [Atlas](https://www.mongodb.com/cloud/atlas))
-- **Expo CLI** (installed automatically)
+- **Expo CLI** via `npx expo` (no global install)
 - **iOS Simulator** (Mac only) or **Android Studio** (for Android)
+- **EAS account** or local native toolchain for development builds (Expo Go is not supported)
 
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/hisab-barabar.git
+git clone <this-repository-url>
 cd hisab-barabar
 ```
 
@@ -121,9 +126,10 @@ cd web-app
 # Install dependencies
 npm install
 
-# Configure environment variables
-cp .env.example .env.local
-# Edit .env.local with your MongoDB URI, Firebase config, etc.
+# Create .env.local (there is no committed .env.example yet)
+# Required: MONGODB_URI, JWT_SECRET, EMAIL_USER/PASS,
+# FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY,
+# NEXT_PUBLIC_APP_URL, ADMIN_SETUP_KEY
 
 # Start development server
 npm run dev
@@ -139,6 +145,8 @@ cd mobile-app
 
 # Install dependencies
 npm install
+cp .env.example .env
+# Set EXPO_PUBLIC_API_URL to an API reachable from the device
 
 # Start Expo
 npm start
@@ -147,7 +155,7 @@ npm start
 Then:
 - Press `i` for iOS simulator
 - Press `a` for Android emulator
-- Scan QR code with Expo Go app on your phone
+- Scan the QR code with a development build (native modules such as Firebase/SecureStore are required; Expo Go is not enough)
 
 ---
 
@@ -155,30 +163,35 @@ Then:
 
 ### For Developers
 
-- **[Mobile App README](./mobile-app/README.md)** - React Native app setup and development
-- **[Web App README](./web-app/README.md)** - Next.js backend and landing page
-- **[API Documentation](./web-app/README.md#api-endpoints)** - Complete API reference
-- **[Deployment Guide](./web-app/DEPLOYMENT.md)** - Deploy to production
+- **[Mobile App README](./mobile-app/README.md)** - Expo setup and development
+- **[Mobile overview](./mobile-app/docs/OVERVIEW.md)** - current state + entry points
+- **[Mobile architecture](./mobile-app/docs/ARCHITECTURE.md)** - layers, navigation, data flow
+- **[Mobile plan](./mobile-app/docs/PLAN.md)** - production-readiness backlog
+- **[Mobile caching/offline](./mobile-app/docs/CACHING_PLAN.md)** - cache + expense journal
+- **[Web overview](./web-app/docs/OVERVIEW.md)** - backend + landing + admin
+- **[Web architecture](./web-app/docs/ARCHITECTURE.md)** - API surface, models, idempotency contract
+- **[Web rules](./web-app/docs/RULES.md)** - setup and change conventions
 
 ### Architecture Docs
 
-- **Mobile App**: React Native with Expo Router for navigation
+- **Mobile App**: Expo Router + TanStack Query + SecureStore
 - **Backend**: Next.js 14 API Routes with TypeScript
 - **Database**: MongoDB with Mongoose ODM
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Push Notifications**: Firebase Cloud Messaging
 - **Email**: Nodemailer for OTP and notifications
+- **Offline**: 24h read cache + idempotent expense-create replay
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Mobile App
-- **Framework**: React Native with Expo
+- **Framework**: React Native 0.79 + Expo SDK 53
 - **Navigation**: Expo Router (file-based)
-- **UI Library**: React Native Paper
-- **State Management**: React Hooks
-- **HTTP Client**: Axios
+- **Data**: TanStack Query + Axios; SecureStore for tokens
+- **UI**: custom themed components + lucide icons (no Paper)
+- **i18n**: i18next (English + Nepali)
 - **Language**: TypeScript
 
 ### Backend (Web App)
@@ -190,24 +203,30 @@ Then:
 - **Email**: Nodemailer
 - **Push Notifications**: Firebase Admin SDK
 - **Styling**: Tailwind CSS
+- **Offline**: optional `Idempotency-Key` on expense creates
 
 ---
 
 ## 🧪 Testing
 
-### Test Backend API
+### Test Backend
 
 ```bash
 cd web-app
-./test-api.sh
+npx tsc --noEmit
+npm run build
+# node assertion scripts: idempotency + personal expense summary
+# (commands are in web-app/docs/ARCHITECTURE.md §7)
 ```
 
 ### Test Mobile App
 
 ```bash
 cd mobile-app
-npm start
-# Run on simulator/emulator and test features
+npx tsc --noEmit
+npm run lint
+npm test -- --runInBand
+# then smoke-test on a simulator/device
 ```
 
 ---
@@ -223,7 +242,7 @@ cd web-app
 vercel
 ```
 
-See [Deployment Guide](./web-app/DEPLOYMENT.md) for other platforms (Railway, Render, AWS, etc.)
+Production API: `https://hisabbarabar.qzz.io/api`.
 
 ### Mobile App
 
@@ -257,32 +276,32 @@ EMAIL_PASS=your_gmail_app_password
 FIREBASE_PROJECT_ID=your_firebase_project_id
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk@your-project.iam.gserviceaccount.com
-NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+ADMIN_SETUP_KEY=your_one_time_admin_setup_key
 ```
 
 ### Mobile App Configuration
 
-Edit `mobile-app/config/api.config.ts`:
+Set `EXPO_PUBLIC_API_URL` in `mobile-app/.env`:
 
-```typescript
-// For local development
-export const API_URL = 'http://localhost:3000/api'
+```env
+# Android emulator
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3000/api
 
-// For production
-export const API_URL = 'https://your-app.vercel.app/api'
+# iOS simulator
+EXPO_PUBLIC_API_URL=http://localhost:3000/api
+
+# Physical device
+EXPO_PUBLIC_API_URL=http://<computer-LAN-IP>:3000/api
 ```
+
+Release builds default to `https://hisabbarabar.qzz.io/api` when the variable is unset.
 
 ---
 
-## 📱 App Screenshots
+## 📱 App Screenshot
 
-<div align="center">
-
-| Home | Groups | Expenses | Profile |
-|------|--------|----------|---------|
-| ![Home](docs/screenshots/home.png) | ![Groups](docs/screenshots/groups.png) | ![Expenses](docs/screenshots/expenses.png) | ![Profile](docs/screenshots/profile.png) |
-
-</div>
+The landing hero uses the current Android screenshot at `web-app/public/screenshot.jpg`, framed by `web-app/public/phone-frame.png`.
 
 ---
 
@@ -308,7 +327,7 @@ We welcome contributions! Please follow these steps:
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+No license file is present in this repository. Add one before distributing or accepting external contributions.
 
 ---
 
@@ -323,7 +342,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Expo](https://expo.dev/) - For the amazing React Native framework
 - [Next.js](https://nextjs.org/) - For the powerful full-stack framework
 - [MongoDB](https://www.mongodb.com/) - For the flexible database
-- [React Native Paper](https://reactnativepaper.com/) - For beautiful UI components
+- [TanStack Query](https://tanstack.com/query) - For mobile data caching and sync
 - [Firebase](https://firebase.google.com/) - For push notifications
 - [Vercel](https://vercel.com/) - For seamless deployment
 
@@ -331,21 +350,22 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/hisab-barabar/issues)
+- **Issues**: open an issue in this repository
 - **Email**: support@hisabbarabar.com
-- **Documentation**: [Full Docs](./docs)
+- **Documentation**: `web-app/docs/` and `mobile-app/docs/`
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] Dark mode support
-- [ ] Offline mode with sync
+- [x] Dark mode (web + mobile)
+- [x] Offline reads + queued idempotent expense creates
+- [ ] Verified app links (`assetlinks.json` / AASA)
 - [ ] Receipt scanning with OCR
 - [ ] Multiple currency conversion
 - [ ] Recurring expenses
 - [ ] Expense categories customization
-- [ ] Export to PDF/Excel
+- [ ] Export to PDF/Excel (UI exists, file writing pending)
 - [ ] Analytics and insights
 - [ ] Web dashboard for expense management
 
@@ -357,6 +377,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ⭐ Star us on GitHub if you find this useful!
 
-[Website](https://hisabbarabar.com) • [Twitter](https://twitter.com/hisabbarabar) • [Discord](https://discord.gg/hisabbarabar)
+[Website](https://hisabbarabar.qzz.io)
 
 </div>
