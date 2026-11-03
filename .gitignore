@@ -64,6 +64,7 @@ docs/
 # Local-only generated (contexts, skills)
 mobile-app/contexts/*
 !mobile-app/contexts/AuthContext.tsx
+!mobile-app/contexts/AppAlertContext.tsx
 mobile-app/skills/
 web-app/skills/
 
