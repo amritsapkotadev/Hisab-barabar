@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useServerRefresh } from '@/hooks/useServerRefresh';
 import {
   View,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Share,
   Image
 } from 'react-native';
@@ -37,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
+import { SkeletonBlock } from '@/components/LoadingSkeletons';
 
 export default function ProfileScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
@@ -135,17 +135,6 @@ export default function ProfileScreen() {
     </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.action} />
-          <Text style={styles.loadingText}>{t('profile.loading')}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView 
@@ -162,7 +151,9 @@ export default function ProfileScreen() {
             <View style={styles.headerContent}>
               <View style={styles.userInfoContainer}>
                 <View style={styles.avatarContainer}>
-                  {user?.picture ? (
+                  {loading && !user ? (
+                    <SkeletonBlock style={styles.avatarSkeleton} />
+                  ) : user?.picture ? (
                     <Image
                       source={{ uri: user.picture }}
                       style={styles.avatar}
@@ -175,12 +166,21 @@ export default function ProfileScreen() {
                 </View>
                 
                 <View style={styles.userInfo}>
-                  <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">
-                    {user?.name || t('profile.defaultName')}
-                  </Text>
-                  <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">
-                    {user?.email || t('profile.defaultEmail')}
-                  </Text>
+                  {loading && !user ? (
+                    <>
+                      <SkeletonBlock style={styles.nameSkeleton} />
+                      <SkeletonBlock style={styles.emailSkeleton} />
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">
+                        {user?.name || t('profile.defaultName')}
+                      </Text>
+                      <Text style={styles.userEmail} numberOfLines={1} ellipsizeMode="tail">
+                        {user?.email || t('profile.defaultEmail')}
+                      </Text>
+                    </>
+                  )}
                 </View>
                 
                 <TouchableOpacity
@@ -341,18 +341,6 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    gap: 20,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    fontFamily: 'Inter-Medium',
-  },
   headerSection: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -387,6 +375,11 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
+  avatarSkeleton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
   avatarPlaceholder: {
     width: 64,
     height: 64,
@@ -409,10 +402,19 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     marginBottom: 4,
     letterSpacing: -0.4,
   },
+  nameSkeleton: {
+    width: 142,
+    height: 22,
+    marginBottom: 8,
+  },
   userEmail: {
     fontSize: 15,
     color: COLORS.textSecondary,
     fontFamily: 'Inter-Medium',
+  },
+  emailSkeleton: {
+    width: 168,
+    height: 16,
   },
   editButton: {
     width: 40,

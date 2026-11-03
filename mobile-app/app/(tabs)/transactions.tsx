@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { useServerRefresh } from '@/hooks/useServerRefresh';
 import { useExpensePages } from '@/hooks/useExpensePages';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +35,7 @@ import AnimatedAmount from '@/components/AnimatedAmount';
 import * as Haptics from 'expo-haptics';
 import { type ThemeColors } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
+import { SkeletonBlock } from '@/components/LoadingSkeletons';
 
 const PAGE_SIZE = 20;
 
@@ -49,6 +50,7 @@ export default function TransactionsScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const fetchGeneration = useRef(0);
   const { user } = useAuth();
   const createdAfter = useMemo(() => selectedFilter === 'all' ? undefined :
     new Date(Date.now() - (selectedFilter === 'week' ? 7 : 30) * 86400000).toISOString(), [selectedFilter]);
@@ -56,20 +58,25 @@ export default function TransactionsScreen() {
     apiService.getExpensePage({
       limit: PAGE_SIZE, page, type: 'group', ...(createdAfter && { createdAfter }),
     }), [createdAfter]);
-  const list = useExpensePages(fetchPage);
+  const filterCacheKey = `${user?.id ?? 'anonymous'}:${selectedFilter}`;
+  const list = useExpensePages(fetchPage, filterCacheKey);
 
   const fetchData = async () => {
+    const generation = ++fetchGeneration.current;
     try {
       const [groupsData] = await Promise.all([
         apiService.getGroups(),
         list.refresh(),
       ]);
+      if (generation !== fetchGeneration.current) return;
       setGroups(groupsData);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error(error instanceof Error ? error.message : 'Could not load transactions.');
+      if (generation === fetchGeneration.current) {
+        console.error('Error fetching data:', error);
+        toast.error(error instanceof Error ? error.message : 'Could not load transactions.');
+      }
     } finally {
-      setLoading(false);
+      if (generation === fetchGeneration.current) setLoading(false);
     }
   };
 
@@ -86,6 +93,13 @@ export default function TransactionsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedExpense(expense);
     setDeleteModalVisible(true);
+  };
+
+  const handleFilterChange = (filter: 'all' | 'week' | 'month') => {
+    if (filter === selectedFilter) return;
+    fetchGeneration.current++;
+    setLoading(!list.hasCachedData(`${user?.id ?? 'anonymous'}:${filter}`));
+    setSelectedFilter(filter);
   };
 
   const confirmDeleteExpense = async () => {
@@ -246,7 +260,7 @@ export default function TransactionsScreen() {
       ]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setSelectedFilter(filter);
+        handleFilterChange(filter);
       }}
       activeOpacity={0.8}
     >
@@ -271,39 +285,39 @@ export default function TransactionsScreen() {
             <HandCoins size={14} color={COLORS.textSecondary} />
             <Text style={styles.statsTitle}>Total Expenses</Text>
           </View>
-          <AnimatedAmount
-            value={formatAmount(totalAmount)}
-            prefix="रु "
-            style={styles.totalValue}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-          />
+          {loading ? (
+            <SkeletonBlock style={{ width: 150, height: 28, marginTop: 4 }} />
+          ) : (
+            <AnimatedAmount
+              value={formatAmount(totalAmount)}
+              prefix="रु "
+              style={styles.totalValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            />
+          )}
         </View>
         <View style={styles.statsSide}>
           <View style={styles.statsItem}>
             <Text style={styles.statsLabel}>Transactions</Text>
-            <AnimatedAmount value={String(list.page?.summary.count ?? 0)} style={styles.statsValue} />
+            {loading ? (
+              <SkeletonBlock style={{ width: 42, height: 16 }} />
+            ) : (
+              <AnimatedAmount value={String(list.page?.summary.count ?? 0)} style={styles.statsValue} />
+            )}
           </View>
           <View style={styles.statsItem}>
             <Text style={styles.statsLabel}>Average</Text>
-            <AnimatedAmount value={formatAmount(averageAmount)} prefix="रु " style={styles.statsValue} />
+            {loading ? (
+              <SkeletonBlock style={{ width: 74, height: 16 }} />
+            ) : (
+              <AnimatedAmount value={formatAmount(averageAmount)} prefix="रु " style={styles.statsValue} />
+            )}
           </View>
         </View>
       </View>
     );
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.action} />
-          <Text style={styles.loadingText}>Loading transactions...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -350,7 +364,7 @@ export default function TransactionsScreen() {
 
       {/* Transactions List */}
       <FlatList
-        data={list.expenses}
+        data={loading ? [] : list.expenses}
         renderItem={renderExpenseCard}
         keyExtractor={(item) => item.id}
         style={styles.transactionsList}
@@ -365,7 +379,31 @@ export default function TransactionsScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={() => (
+        ListEmptyComponent={() => loading ? (
+          <View>
+            {[0, 1, 2, 3].map((item) => (
+              <View key={item} style={styles.expenseCardShadowWrap}>
+                <View style={styles.expenseCardClip}>
+                  <View style={styles.expenseCard}>
+                    <View style={styles.expenseContent}>
+                      <View style={styles.expenseLeft}>
+                        <View style={[styles.expenseInfo, { gap: 8 }]}>
+                          <SkeletonBlock style={{ width: '66%', height: 16 }} />
+                          <SkeletonBlock style={{ width: '42%', height: 13 }} />
+                          <SkeletonBlock style={{ width: '54%', height: 12 }} />
+                        </View>
+                      </View>
+                      <View style={[styles.expenseRight, { gap: 8 }]}>
+                        <SkeletonBlock style={{ width: 72, height: 16 }} />
+                        <SkeletonBlock style={{ width: 84, height: 12 }} />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
               <Receipt size={48} color={COLORS.textTertiary} />
@@ -392,8 +430,8 @@ export default function TransactionsScreen() {
         )}
         ListFooterComponent={<>
           {list.error && <Text style={{ color: COLORS.negative }}>{list.error}</Text>}
-          {!list.online && <Text style={{ color: COLORS.textSecondary }}>Showing downloaded expenses. More may require internet.</Text>}
-          {list.page?.pageInfo.hasMore ? (
+          {!loading && !list.online && <Text style={{ color: COLORS.textSecondary }}>Showing downloaded expenses. More may require internet.</Text>}
+          {!loading && list.page?.pageInfo.hasMore ? (
             <TouchableOpacity
               style={styles.showMoreButton}
               onPress={list.loadMore}

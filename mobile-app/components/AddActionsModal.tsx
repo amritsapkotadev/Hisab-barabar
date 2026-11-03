@@ -20,9 +20,16 @@ const ACTIONS = [
 export default function AddActionsModal({ visible, onClose }: AddActionsModalProps) {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const slide = useRef(new Animated.Value(0)).current;
+  const closing = useRef(false);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      slide.setValue(0);
+      closing.current = false;
+      return;
+    }
+
+    closing.current = false;
     slide.setValue(0);
     Animated.timing(slide, {
       toValue: 1,
@@ -32,19 +39,49 @@ export default function AddActionsModal({ visible, onClose }: AddActionsModalPro
     }).start();
   }, [visible, slide]);
 
+  const handleClose = (afterClose?: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.timing(slide, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) {
+        closing.current = false;
+        return;
+      }
+      onClose();
+      afterClose?.();
+    });
+  };
+
   const handlePress = (route: (typeof ACTIONS)[number]['route']) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
-    router.push(route);
+    handleClose(() => router.push(route));
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.overlay} onPress={onClose} accessibilityLabel="Close">
+    <Modal visible={visible} transparent animationType="none" onRequestClose={() => handleClose()} statusBarTranslucent>
+      <View style={styles.overlay}>
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: slide }]}
+        />
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => handleClose()}
+          accessibilityRole="button"
+          accessibilityLabel="Close create menu"
+        />
         <Animated.View
           style={[
             styles.sheet,
-            { transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] },
+            {
+              opacity: slide,
+              transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [280, 0] }) }],
+            },
           ]}
         >
           <Pressable>
@@ -56,7 +93,7 @@ export default function AddActionsModal({ visible, onClose }: AddActionsModalPro
               </View>
               <TouchableOpacity
                 style={styles.closeButton}
-                onPress={onClose}
+                onPress={() => handleClose()}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
@@ -87,7 +124,7 @@ export default function AddActionsModal({ visible, onClose }: AddActionsModalPro
             </View>
           </Pressable>
         </Animated.View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -95,8 +132,10 @@ export default function AddActionsModal({ visible, onClose }: AddActionsModalPro
 const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
+  },
+  backdrop: {
+    backgroundColor: COLORS.overlay,
   },
   sheet: {
     backgroundColor: COLORS.surface,

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppState, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Bell, ChevronRight, Settings } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import type { ThemeColors } from '@/constants/theme';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ErrorMessage from '@/components/ErrorMessage';
 import { useToast } from '@/components/Toast';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 import { useNotificationInbox } from '@/hooks/useNotificationInbox';
 import { groupNotificationsByDate, isNotificationUnread, notificationDestination } from '@/utils/notificationInbox';
 import {
@@ -21,6 +22,7 @@ export default function NotificationsScreen() {
   const { user } = useAuth();
   const { colors, styles } = useThemedStyles(createStyles);
   const toast = useToast();
+  const showAlert = useAppAlert();
   const { items, loading, error, unreadCount, refresh } = useNotificationInbox(user?.id);
   const [saving, setSaving] = useState(false);
   const [visibleCount, setVisibleCount] = useState(7);
@@ -89,7 +91,7 @@ export default function NotificationsScreen() {
     if (!user || savingRef.current) return;
     const userId = user.id;
     const ids = items.map(item => item.id);
-    Alert.alert('Clear all notifications?', 'This removes your current notification history on this device. This cannot be undone.', [
+    showAlert('Clear all notifications?', 'This removes your current notification history on this device. This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Clear all', style: 'destructive', onPress: () => {
         if (!active.current || currentUserId.current !== userId || savingRef.current) return;

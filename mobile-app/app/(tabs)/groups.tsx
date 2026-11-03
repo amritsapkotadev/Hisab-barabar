@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  ActivityIndicator,
   Pressable,
   Dimensions,
   StatusBar
@@ -28,6 +27,7 @@ import Animated, {
 
 import { type ThemeColors } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
+import { SkeletonBlock } from '@/components/LoadingSkeletons';
 
 const { width } = Dimensions.get('window');
 const CARD_PADDING = 24;
@@ -130,22 +130,6 @@ export default function GroupsScreen() {
     );
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
-        <View style={styles.header}>
-          <Text style={styles.title}>Your Groups</Text>
-          {/* <Text style={styles.subtitle}>Loading your groups...</Text> */}
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.action} />
-          <Text style={styles.loadingText}>Gathering your groups</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
@@ -180,7 +164,7 @@ export default function GroupsScreen() {
           style={styles.groupsList}
           contentContainerStyle={[
             styles.groupsContent,
-            groups.length === 0 && styles.emptyContainer
+            groups.length === 0 && !loading && styles.emptyContainer
           ]}
           refreshControl={
             <RefreshControl 
@@ -192,12 +176,31 @@ export default function GroupsScreen() {
             />
           }
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={() => groups.length > 0 ? (
+          ListHeaderComponent={() => loading ? (
+            <View style={styles.listHeader}>
+              <SkeletonBlock style={{ width: 104, height: 16 }} />
+            </View>
+          ) : groups.length > 0 ? (
             <Text style={styles.listHeader}>
               {groups.length} {groups.length === 1 ? 'Group' : 'Groups'}
             </Text>
           ) : null}
-          ListEmptyComponent={() => (
+          ListEmptyComponent={() => loading ? (
+            <View>
+              {[0, 1, 2, 3].map((item) => (
+                <View key={item} style={styles.cardContainer}>
+                  <View style={styles.groupCard}>
+                    <SkeletonBlock style={styles.groupIcon} />
+                    <View style={[styles.groupInfo, { gap: 8 }]}>
+                      <SkeletonBlock style={{ width: '68%', height: 16 }} />
+                      <SkeletonBlock style={{ width: '38%', height: 13 }} />
+                    </View>
+                    <SkeletonBlock style={{ width: 92, height: 28, borderRadius: 14 }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
             <View style={styles.emptyState}>
               <View style={styles.emptyIllustration}>
                 <UserPlus size={42} color={COLORS.text} />

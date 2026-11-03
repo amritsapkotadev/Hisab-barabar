@@ -78,7 +78,7 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   },
   container: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
+    borderRadius: 22,
     padding: 24,
     width: '80%',
     alignItems: 'center',
@@ -95,9 +95,10 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   },
   okButton: {
     backgroundColor: COLORS.action,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 999,
+    minHeight: 48,
+    paddingHorizontal: 36,
+    justifyContent: 'center',
+    borderRadius: 14,
     marginTop: 8
   },
   okButtonText: {

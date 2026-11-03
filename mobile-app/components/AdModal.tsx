@@ -154,6 +154,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
       onRequestClose={onClose}
     >
       <View style={styles.container}>
+        <View style={styles.sheetHandle} />
         <View style={styles.header}>
           <Text style={styles.headerTitle}>
             {adType === 'transaction' ? 'More Transactions' : 'More Groups'}
@@ -164,7 +165,7 @@ export default function AdModal({ visible, onClose, onAdWatched, adType }: AdMod
             accessibilityRole="button"
             accessibilityLabel="Close ad"
           >
-            <X size={24} color={COLORS.text} />
+            <X size={18} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -184,24 +185,36 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+    paddingTop: 10,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderStrong,
+    marginBottom: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: COLORS.card,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingVertical: 12,
+    backgroundColor: COLORS.background,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: COLORS.text,
   },
   closeButton: {
-    padding: 4,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: COLORS.surfaceSecondary,
   },
   adContent: {
     flex: 1,
@@ -246,7 +259,7 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     backgroundColor: COLORS.action,
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderRadius: 999,
+    borderRadius: 14,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
@@ -293,7 +306,7 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     backgroundColor: COLORS.textSecondary,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   skipButtonText: {
     fontSize: 14,
@@ -324,7 +337,7 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     backgroundColor: COLORS.positive,
     paddingHorizontal: 24,
     paddingVertical: 16,
-    borderRadius: 999,
+    borderRadius: 14,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,

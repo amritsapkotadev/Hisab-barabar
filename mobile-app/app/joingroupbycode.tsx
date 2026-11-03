@@ -6,8 +6,8 @@ import { subscribeToGroupTopic } from '@/services/notifications';
 import { getGroupIdFromInviteQr, normalizeInviteCode } from '@/utils/invite';
 import { useToast } from '@/components/Toast';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Users, Key, CheckCircle, AlertCircle, QrCode } from 'lucide-react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { ArrowLeft, CheckCircle, AlertCircle, QrCode } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
 import { type ThemeColors } from '@/constants/theme';
@@ -108,39 +108,27 @@ export default function JoinGroup() {
           <View style={styles.headerSpacer} />
         </Animated.View>
 
-        {/* Main Content */}
         <ScrollView
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero Section */}
-          <Animated.View 
-            style={styles.heroSection}
-            entering={FadeInDown.duration(800).delay(200)}
+          <Animated.View
+            style={styles.formSection}
+            entering={FadeInDown.duration(500).delay(120)}
           >
-            <View style={styles.heroGradient}>
-              <View style={styles.heroIcon}>
-                <Users size={32} color={COLORS.text} />
-              </View>
-              <Text style={styles.heroTitle}>Join Your Friends</Text>
+            <View style={styles.intro}>
               <Text style={styles.heroSubtitle}>
-                Enter the group code to start splitting expenses together
+                Enter the invite code shared by a group member, or scan their QR code.
               </Text>
             </View>
-          </Animated.View>
 
-          {/* Form Section */}
-          <Animated.View 
-            style={styles.formSection}
-            entering={FadeInUp.duration(800).delay(400)}
-          >
             <View style={styles.formCard}>
               <View style={styles.inputContainer}>
                 <View style={styles.inputLabel}>
-                  <Key size={18} color={COLORS.action} />
-                  <Text style={styles.inputLabelText}>Group Code</Text>
+                  <Text style={styles.inputLabelText}>Invite code</Text>
+                  <Text style={styles.inputHint}>8 characters</Text>
                 </View>
                 <TextInput
                   style={[
@@ -149,7 +137,7 @@ export default function JoinGroup() {
                     isValidCode && styles.inputValid,
                     code.length > 0 && !isValidCode && styles.inputInvalid
                   ]}
-                  placeholder="Enter 8 digit code"
+                  placeholder="AB12CD34"
                   value={code}
                   onChangeText={(text) => setCode(validateCode(text.toUpperCase()))}
                   autoCapitalize="characters"
@@ -173,17 +161,6 @@ export default function JoinGroup() {
               </View>
 
               <TouchableOpacity
-                style={styles.scanQrButton}
-                onPress={handleOpenScanner}
-                disabled={loading}
-                accessibilityRole="button"
-                accessibilityLabel="Scan group QR code"
-              >
-                <QrCode size={18} color={COLORS.action} />
-                <Text style={styles.scanQrText}>Scan QR Code</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
                 style={[
                   styles.joinButton,
                   (!isValidCode || loading) && styles.joinButtonDisabled
@@ -197,15 +174,29 @@ export default function JoinGroup() {
                   <Text style={styles.buttonText}>Join Group</Text>
                 )}
               </TouchableOpacity>
-
-              <View style={styles.helpSection}>
-                <Text style={styles.helpTitle}>How to get a group code?</Text>
-                <Text style={styles.helpText}>
-                  Ask your group admin to share the invite code with you. 
-                  The code is usually 8 characters long.
-                </Text>
-              </View>
             </View>
+
+            <View style={styles.alternative}>
+              <View style={styles.divider} />
+              <Text style={styles.alternativeText}>OR</Text>
+              <View style={styles.divider} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.scanQrButton}
+              onPress={handleOpenScanner}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Scan group QR code"
+              activeOpacity={0.75}
+            >
+              <QrCode size={18} color={COLORS.text} />
+              <Text style={styles.scanQrText}>Scan group QR code</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.helpText}>
+              Don’t have a code? Ask a group member to share their invite link or QR code.
+            </Text>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -286,82 +277,61 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 20,
   },
   contentContainer: {
-    paddingBottom: 24,
-    flexGrow: 1,
+    paddingTop: 28,
+    paddingBottom: 32,
   },
-  heroSection: {
-    marginTop: 20,
-    marginBottom: 32,
-  },
-  heroGradient: {
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  heroIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.text,
-    fontFamily: 'Inter-Bold',
-    marginBottom: 8,
-    textAlign: 'center',
+  intro: {
+    marginBottom: 20,
+    paddingHorizontal: 2,
   },
   heroSubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.textSecondary,
     fontFamily: 'Inter-Regular',
-    textAlign: 'center',
     lineHeight: 22,
   },
   formSection: {
-    flex: 1,
+    gap: 16,
   },
   formCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 18,
+    padding: 20,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 18,
   },
   inputLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   inputLabelText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-SemiBold',
   },
+  inputHint: {
+    fontSize: 12,
+    color: COLORS.textTertiary,
+  },
   input: {
     width: '100%',
-    height: 56,
+    height: 58,
     borderColor: COLORS.border,
-    borderWidth: 2,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    fontSize: 18,
-    backgroundColor: COLORS.surfaceSecondary,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingRight: 48,
+    fontSize: 20,
+    backgroundColor: COLORS.background,
     color: COLORS.text,
     fontFamily: 'Inter-Medium',
-    letterSpacing: 2,
+    letterSpacing: 3,
     textAlign: 'center',
   },
   inputFocused: {
@@ -375,19 +345,19 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   },
   validationIcon: {
     position: 'absolute',
-    right: 16,
-    top: 52,
+    right: 14,
+    top: 43,
   },
   scanQrButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    minHeight: 48,
-    borderRadius: 999,
+    minHeight: 52,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 16,
+    backgroundColor: COLORS.card,
   },
   scanQrText: {
     color: COLORS.text,
@@ -395,42 +365,45 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     fontWeight: '600',
   },
   joinButton: {
-    borderRadius: 999,
+    borderRadius: 14,
     backgroundColor: COLORS.action,
-    height: 56,
+    height: 54,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
   },
   joinButtonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
     color: COLORS.actionText,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     fontFamily: 'Inter-Bold',
-    letterSpacing: 0.5,
   },
-  helpSection: {
-    backgroundColor: COLORS.surfaceSecondary,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
+  alternative: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 2,
   },
-  helpTitle: {
-    fontSize: 16,
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  alternativeText: {
+    color: COLORS.textTertiary,
+    fontSize: 11,
     fontWeight: '600',
-    color: COLORS.text,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: 8,
+    letterSpacing: 1,
   },
   helpText: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textSecondary,
     fontFamily: 'Inter-Regular',
-    lineHeight: 20,
+    lineHeight: 19,
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
   scannerModal: {
     flex: 1,

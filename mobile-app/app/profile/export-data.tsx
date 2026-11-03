@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +13,7 @@ import { ArrowLeft, Download, FileText, Calendar, Users, DollarSign, CircleCheck
 import { apiService } from '@/services/api';
 import { Group } from '@/types';
 import { useToast } from '@/components/Toast';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
 
@@ -33,6 +33,7 @@ interface ExportOption {
 export default function ExportDataScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const toast = useToast();
+  const showAlert = useAppAlert();
   const [exporting, setExporting] = useState<string | null>(null);
   const [lastExport, setLastExport] = useState<Date | null>(null);
 
@@ -223,7 +224,7 @@ export default function ExportDataScreen() {
   };
 
   const handleEmailExport = () => {
-    Alert.alert(
+    showAlert(
       'Email Export',
       'Send your data export to your email address?',
       [

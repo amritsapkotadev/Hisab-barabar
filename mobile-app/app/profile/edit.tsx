@@ -6,17 +6,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Modal,
+  Pressable,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Image,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
-import { ArrowLeft, User, Mail, Save, Camera, Phone } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, Save, Camera, Phone, Image as ImageIcon, X, ChevronRight } from 'lucide-react-native';
 import { apiService } from '@/services/api';
 import { useToast } from '@/components/Toast';
 import * as ImagePicker from 'expo-image-picker';
@@ -32,6 +33,7 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [photoOptionsVisible, setPhotoOptionsVisible] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
@@ -122,11 +124,7 @@ export default function EditProfileScreen() {
   };
 
   const handleChangePicture = () => {
-    Alert.alert('Change profile photo', 'Choose how to add your profile photo.', [
-      { text: 'Take Photo', onPress: () => { void uploadProfilePicture(true); } },
-      { text: 'Choose from Library', onPress: () => { void uploadProfilePicture(false); } },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setPhotoOptionsVisible(true);
   };
 
   if (loading) {
@@ -271,6 +269,89 @@ export default function EditProfileScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        visible={photoOptionsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoOptionsVisible(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          style={styles.photoModalOverlay}
+          onPress={() => setPhotoOptionsVisible(false)}
+          accessibilityLabel="Close photo options"
+        >
+          <Pressable
+            style={styles.photoSheet}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <View style={styles.photoSheetHandle} />
+            <View style={styles.photoSheetHeader}>
+              <View style={styles.photoSheetHeading}>
+                <Text style={styles.photoSheetTitle}>Change profile photo</Text>
+                <Text style={styles.photoSheetSubtitle}>Choose how you'd like to update your photo.</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.photoSheetClose}
+                onPress={() => setPhotoOptionsVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close photo options"
+              >
+                <X size={18} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.photoOptions}>
+              <TouchableOpacity
+                style={styles.photoOption}
+                onPress={() => {
+                  setPhotoOptionsVisible(false);
+                  void uploadProfilePicture(true);
+                }}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Take a profile photo"
+              >
+                <View style={styles.photoOptionIcon}>
+                  <Camera size={19} color={COLORS.text} />
+                </View>
+                <View style={styles.photoOptionCopy}>
+                  <Text style={styles.photoOptionTitle}>Take a photo</Text>
+                  <Text style={styles.photoOptionSubtitle}>Use your camera</Text>
+                </View>
+                <ChevronRight size={18} color={COLORS.textTertiary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.photoOption}
+                onPress={() => {
+                  setPhotoOptionsVisible(false);
+                  void uploadProfilePicture(false);
+                }}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Choose a photo from your library"
+              >
+                <View style={styles.photoOptionIcon}>
+                  <ImageIcon size={19} color={COLORS.text} />
+                </View>
+                <View style={styles.photoOptionCopy}>
+                  <Text style={styles.photoOptionTitle}>Choose from library</Text>
+                  <Text style={styles.photoOptionSubtitle}>Select an existing photo</Text>
+                </View>
+                <ChevronRight size={18} color={COLORS.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.photoCancelButton}
+              onPress={() => setPhotoOptionsVisible(false)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel changing profile photo"
+            >
+              <Text style={styles.photoCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -454,5 +535,107 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     fontFamily: 'Inter-Regular',
     marginTop: 4,
     marginLeft: 8,
+  },
+  photoModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: COLORS.overlay,
+  },
+  photoSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 24,
+  },
+  photoSheetHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderStrong,
+    marginBottom: 16,
+  },
+  photoSheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  photoSheetHeading: {
+    flex: 1,
+    gap: 4,
+  },
+  photoSheetTitle: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: 'Inter-Bold',
+  },
+  photoSheetSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  photoSheetClose: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+    marginLeft: 12,
+  },
+  photoOptions: {
+    gap: 10,
+  },
+  photoOption: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+  },
+  photoOptionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+  },
+  photoOptionCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  photoOptionTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
+  },
+  photoOptionSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+  },
+  photoCancelButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    marginTop: 14,
+    borderRadius: 14,
+    backgroundColor: COLORS.surfaceSecondary,
+  },
+  photoCancelText: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
 });

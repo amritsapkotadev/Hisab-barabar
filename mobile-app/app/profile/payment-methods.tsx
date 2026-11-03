@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Switch,
   Image,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Plus, CreditCard, Smartphone, Trash2, CircleCheck as CheckCircle, Circle, Wallet, DollarSign } from 'lucide-react-native';
 import { useToast } from '@/components/Toast';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
 import { useAccountPreference } from '@/hooks/useAccountPreference';
@@ -23,6 +23,7 @@ import ErrorMessage from '@/components/ErrorMessage';
 export default function PaymentMethodsScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const toast = useToast();
+  const showAlert = useAppAlert();
   const { value: paymentMethods, save, loading, saving, error, retry } = useAccountPreference(
     'paymentMethods', DEFAULT_PAYMENT_METHODS, isPaymentMethods
   );
@@ -62,7 +63,7 @@ export default function PaymentMethodsScreen() {
       return;
     }
 
-    Alert.alert(
+    showAlert(
       'Remove Payment Method',
       'Are you sure you want to remove this payment method?',
       [
@@ -79,7 +80,7 @@ export default function PaymentMethodsScreen() {
   };
 
   const handleAddESewa = () => {
-    Alert.alert(
+    showAlert(
       'Add eSewa Account',
       'Enter your eSewa mobile number to add it as a payment method.',
       [
@@ -93,7 +94,7 @@ export default function PaymentMethodsScreen() {
   };
 
   const handleAddBankAccount = () => {
-    Alert.alert(
+    showAlert(
       'Add Bank Account',
       'Add your bank account details for bank transfers.',
       [

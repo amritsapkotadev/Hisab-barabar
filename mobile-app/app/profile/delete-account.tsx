@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   TextInput,
   Switch,
 } from 'react-native';
@@ -18,10 +17,12 @@ import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import { apiService } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toast';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 
 export default function DeleteAccountScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const toast = useToast();
+  const showAlert = useAppAlert();
   const { signOut } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [exportData, setExportData] = useState(true);
@@ -42,7 +43,7 @@ export default function DeleteAccountScreen() {
   };
 
   const handleExportBeforeDelete = () => {
-    Alert.alert(
+    showAlert(
       'Export Data',
       'Your data will be exported before account deletion. This may take a few moments.',
       [

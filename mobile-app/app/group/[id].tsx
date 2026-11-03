@@ -41,7 +41,6 @@ import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import { Group, Expense, GroupMember } from '@/types';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 const { height: WINDOW_HEIGHT } = Dimensions.get('window');
@@ -632,11 +631,23 @@ const GroupScreen = () => {
         animationType="fade"
         onRequestClose={() => setShowAddMemberModal(false)}
       >
-        <BlurView intensity={30} style={styles.modalContainer}>
+        <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-
-            <Text style={styles.modalTitle}>Add Member</Text>
-            <View style={{ width: '100%', marginTop: 8, marginBottom: 8 }}>
+            <View style={styles.addMemberHeader}>
+              <View>
+                <Text style={styles.settingsTitle}>Add member</Text>
+                <Text style={styles.settingsSubtitle}>Enter their phone number</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowAddMemberModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close add member dialog"
+              >
+                <X size={18} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.addMemberInputContainer}>
               <TextInput
                 style={styles.input}
                 placeholder="Phone number"
@@ -671,7 +682,7 @@ const GroupScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
-        </BlurView>
+        </View>
       </Modal>
 
       {/* Member Detail Bottom Sheet */}
@@ -732,11 +743,14 @@ const GroupScreen = () => {
           style={styles.settingsBackdrop}
           onPress={() => setShowSettings(false)}
         >
-          <BlurView intensity={30} style={styles.settingsContainer}>
+          <View style={styles.settingsContainer}>
             <Pressable style={styles.settingsContent}>
+              <View style={styles.sheetHandle} />
               <View style={styles.modalHeader}>
-                <View style={styles.modalHeaderSide} />
-                <Text style={[styles.modalTitle, styles.settingsTitle]}>Group Settings</Text>
+                <View>
+                  <Text style={[styles.modalTitle, styles.settingsTitle]}>Group settings</Text>
+                  <Text style={styles.settingsSubtitle} numberOfLines={1}>{group?.name}</Text>
+                </View>
                 <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={() => setShowSettings(false)}
@@ -744,7 +758,7 @@ const GroupScreen = () => {
                   accessibilityRole="button"
                   accessibilityLabel="Close group settings"
                 >
-                  <X size={24} color={COLORS.muted} />
+                    <X size={18} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -756,9 +770,15 @@ const GroupScreen = () => {
                     setShowShareModal(true);
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
                 >
-                  <Share2 size={20} color={COLORS.action} />
-                  <Text style={styles.settingsOptionText}>Share Group</Text>
+                  <View style={styles.settingsOptionIcon}>
+                    <Share2 size={19} color={COLORS.text} />
+                  </View>
+                  <View style={styles.settingsOptionCopy}>
+                    <Text style={styles.settingsOptionText}>Share group</Text>
+                    <Text style={styles.settingsOptionDescription}>Invite people to join</Text>
+                  </View>
                   <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
 
@@ -769,9 +789,15 @@ const GroupScreen = () => {
                     handleExport();
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
                 >
-                  <Download size={20} color={COLORS.action} />
-                  <Text style={styles.settingsOptionText}>Export Data</Text>
+                  <View style={styles.settingsOptionIcon}>
+                    <Download size={19} color={COLORS.text} />
+                  </View>
+                  <View style={styles.settingsOptionCopy}>
+                    <Text style={styles.settingsOptionText}>Export data</Text>
+                    <Text style={styles.settingsOptionDescription}>Save this group's records</Text>
+                  </View>
                   <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
 
@@ -782,16 +808,20 @@ const GroupScreen = () => {
                     setShowDeleteModal(true);
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
                 >
-                  <Trash2 size={20} color={COLORS.negative} />
-                  <Text style={[styles.settingsOptionText, { color: COLORS.negative }]}>
-                    Delete Group
-                  </Text>
+                  <View style={[styles.settingsOptionIcon, styles.settingsDangerIcon]}>
+                    <Trash2 size={19} color={COLORS.negative} />
+                  </View>
+                  <View style={styles.settingsOptionCopy}>
+                    <Text style={[styles.settingsOptionText, { color: COLORS.negative }]}>Delete group</Text>
+                    <Text style={styles.settingsOptionDescription}>Permanently remove this group</Text>
+                  </View>
                   <ChevronRight size={20} color={COLORS.muted} />
                 </TouchableOpacity>
               </View>
             </Pressable>
-          </BlurView>
+          </View>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -1134,26 +1164,43 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   modalContent: {
     width: '100%',
     backgroundColor: COLORS.card,
-    borderRadius: 28,
-    padding: 28,
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 10,
   },
-  modalCloseButton: {
-    padding: 8,
-    backgroundColor: COLORS.background,
-    borderRadius: 20,
+  addMemberHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
   },
-  modalHeaderSide: {
-    width: 40,
-    height: 40,
+  addMemberInputContainer: {
+    width: '100%',
+    marginBottom: 18,
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 18,
   },
   settingsTitle: {
-    flex: 1,
     marginBottom: 0,
+    textAlign: 'left',
+    fontSize: 20,
+  },
+  settingsSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 3,
   },
   modalTitle: {
     color: COLORS.text,
@@ -1176,9 +1223,15 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     gap: 8,
   },
   cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   cancelText: {
     color: COLORS.muted,
@@ -1187,9 +1240,10 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: COLORS.action,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 999,
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     alignItems: 'center',
   },
   confirmText: {
@@ -1204,44 +1258,58 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   },
   settingsContainer: {
     width: '100%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    overflow: 'hidden',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: COLORS.surface,
   },
   settingsContent: {
-    backgroundColor: COLORS.card,
-    padding: 24,
-    paddingTop: 24,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 32,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   settingsOptionsContainer: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    gap: 10,
   },
   settingsOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    gap: 16,
+    padding: 12,
+    gap: 12,
     backgroundColor: COLORS.card,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    minHeight: 68,
+  },
+  settingsOptionIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: 13,
+  },
+  settingsDangerIcon: {
+    backgroundColor: `${COLORS.negative}12`,
+  },
+  settingsOptionCopy: {
+    flex: 1,
+    gap: 3,
   },
   settingsOptionText: {
-    flex: 1,
     color: COLORS.text,
-    fontWeight: '500',
-    fontSize: 17,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  settingsOptionDescription: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
   },
   loadingContainer: {
     flex: 1,
@@ -1310,16 +1378,16 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     paddingBottom: 28,
     borderTopWidth: 1,
     borderColor: COLORS.border,
-    minHeight: Math.round(WINDOW_HEIGHT * 0.5),
-    maxHeight: Math.round(WINDOW_HEIGHT * 0.85),
+    minHeight: 300,
+    maxHeight: Math.round(WINDOW_HEIGHT * 0.8),
   },
   sheetHandle: {
     alignSelf: 'center',
-    width: 56,
-    height: 6,
-    borderRadius: 4,
-    backgroundColor: COLORS.border,
-    marginBottom: 14,
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderStrong,
+    marginBottom: 16,
   },
   sheetCloseButton: {
     position: 'absolute',

@@ -9,7 +9,6 @@ import {
   StatusBar,
   useWindowDimensions,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight, Users, WifiOff, Languages, Wallet, Check, Percent, Sun, Moon } from 'lucide-react-native';
 import { type ThemeColors } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 
 const HORIZONTAL_PADDING = 24;
 
@@ -30,6 +30,7 @@ type Slide = {
 export default function WelcomeScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const { isDark, setPreference } = useTheme();
+  const showAlert = useAppAlert();
   const { width, height, fontScale } = useWindowDimensions();
   const slideWidth = Math.max(width - HORIZONTAL_PADDING * 2, 0);
   const slideHeight = Math.max(560 * fontScale, height * 0.62);
@@ -84,14 +85,14 @@ export default function WelcomeScreen() {
       } catch (error) {
         console.error('Failed to check welcome status:', error);
         if (!active) return;
-        Alert.alert('Welcome', 'Unable to check whether this screen has already been shown.', [
+        showAlert('Welcome', 'Unable to check whether this screen has already been shown.', [
           { text: 'Retry', onPress: () => { void checkWelcomeStatus(); } },
         ]);
       }
     };
     void checkWelcomeStatus();
     return () => { active = false; };
-  }, []);
+  }, [showAlert]);
 
   useEffect(() => {
     carouselRef.current?.scrollTo({ x: currentSlide * slideWidth, animated: true });

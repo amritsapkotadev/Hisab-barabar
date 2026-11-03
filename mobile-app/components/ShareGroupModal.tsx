@@ -7,8 +7,9 @@ import {
   Modal,
   Share,
   ScrollView,
+  Pressable,
 } from 'react-native';
-import { X, Share2, Copy, Link, Users } from 'lucide-react-native';
+import { X, Share2, Copy, Link, Users, Key } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { buildInviteQrUrl, buildInviteUrl } from '@/utils/invite';
@@ -69,244 +70,275 @@ export default function ShareGroupModal({ visible, onClose, group }: ShareGroupM
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalContainer}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Share Group</Text>
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.closeButton}
-            accessibilityRole="button"
-            accessibilityLabel="Close share dialog"
-          >
-            <X size={24} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        </View>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={styles.overlay} onPress={onClose} accessibilityLabel="Close">
+        <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
+          <View style={styles.handle} />
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>Share group</Text>
+              <Text style={styles.subtitle}>Invite people to join your group</Text>
+            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Close share dialog"
+            >
+              <X size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
-          {/* Group Info */}
-          <View style={styles.groupCard}>
-            <Users size={24} color={COLORS.text} />
-            <Text style={styles.groupName}>{group.name}</Text>
-            {group.memberCount !== undefined && (
-              <Text style={styles.memberCount}>{group.memberCount} members</Text>
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.groupSummary}>
+            <View style={styles.groupIcon}>
+              <Users size={20} color={COLORS.text} />
+            </View>
+            <View style={styles.groupDetails}>
+              <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
+              {group.memberCount !== undefined && (
+                <Text style={styles.memberCount}>{group.memberCount} members</Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.qrCard}>
+            <Text style={styles.qrTitle}>Scan to join</Text>
+            <View
+              style={styles.qrFrame}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={`Invite QR code for ${group.name}`}
+            >
+              <QRCode value={qrUrl} size={168} color="#000000" backgroundColor="#ffffff" />
+            </View>
+            <Text style={styles.qrHint}>Scan with your camera to join this group.</Text>
+          </View>
+
+          <View style={styles.inviteOptions}>
+            <Text style={styles.sectionTitle}>Other ways to invite</Text>
+            <TouchableOpacity
+              style={styles.optionRow}
+              onPress={handleCopyLink}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="Copy invite link"
+            >
+              <View style={styles.optionIcon}>
+                <Link size={18} color={COLORS.textSecondary} />
+              </View>
+              <View style={styles.optionCopy}>
+                <Text style={styles.optionTitle}>Invite link</Text>
+                <Text style={styles.optionValue} numberOfLines={1}>{shareUrl}</Text>
+              </View>
+              <Copy size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+            {code && (
+              <TouchableOpacity
+                style={styles.optionRow}
+                onPress={handleCopyCode}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Copy invite code"
+              >
+                <View style={styles.optionIcon}>
+                  <Key size={18} color={COLORS.textSecondary} />
+                </View>
+                <View style={styles.optionCopy}>
+                  <Text style={styles.optionTitle}>Invite code</Text>
+                  <Text style={styles.optionValue}>{code}</Text>
+                </View>
+                <Copy size={18} color={COLORS.textSecondary} />
+              </TouchableOpacity>
             )}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Group QR Code</Text>
-            <View style={[styles.card, styles.qrCard]}>
-              <View
-                accessible
-                accessibilityRole="image"
-                accessibilityLabel={`Invite QR code for ${group.name}`}
-              >
-                <QRCode value={qrUrl} size={180} color="#000000" backgroundColor="#ffffff" />
-              </View>
-              <Text style={styles.qrHint}>Scan to open this group invite</Text>
-            </View>
-          </View>
-
-          {/* Link Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Invite Link</Text>
-            <View style={styles.card}>
-              <View style={styles.linkHeader}>
-                <Link size={18} color={COLORS.text} />
-                <Text style={styles.linkLabel}>Share this link to invite members</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.linkContainer} 
-                onPress={handleCopyLink}
-              >
-                <Text style={styles.linkText} numberOfLines={1}>{shareUrl}</Text>
-                <Copy size={18} color={COLORS.text} style={styles.copyIcon} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Code Section - Only shown if code exists */}
-          {code && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Invite Code</Text>
-              <View style={styles.card}>
-                <Text style={styles.codeLabel}>Share this code if the link doesn't work</Text>
-                <TouchableOpacity 
-                  style={styles.codeContainer} 
-                  onPress={handleCopyCode}
-                >
-                  <Text style={styles.codeText}>{code}</Text>
-                  <Copy size={18} color={COLORS.text} style={styles.copyIcon} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Share Button */}
-          <TouchableOpacity 
-            style={styles.primaryButton} 
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.shareButton}
             onPress={handleShare}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Share group invite"
           >
-            <Share2 size={20} color={COLORS.actionText} style={styles.buttonIcon} />
-            <Text style={styles.primaryButtonText}>Share Invite</Text>
+            <Share2 size={18} color={COLORS.actionText} />
+            <Text style={styles.shareButtonText}>Share invite</Text>
           </TouchableOpacity>
-        </ScrollView>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
 
 const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
-  modalContainer: {
+  overlay: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    paddingTop: 24,
+    justifyContent: 'flex-end',
+    backgroundColor: COLORS.overlay,
+  },
+  sheet: {
+    maxHeight: '94%',
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 24,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderStrong,
+    marginBottom: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    marginBottom: 8,
+  },
+  headerCopy: {
+    gap: 3,
   },
   title: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '700',
     color: COLORS.text,
   },
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
   closeButton: {
-    padding: 8,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
     backgroundColor: COLORS.surfaceSecondary,
   },
   content: {
-    padding: 24,
-    paddingBottom: 40,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 14,
   },
-  groupCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 32,
+  groupSummary: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  groupName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: 12,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  memberCount: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 16,
-  },
-  card: {
+    gap: 12,
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 1,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: 16,
+    padding: 14,
+  },
+  groupIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surfaceSecondary,
+  },
+  groupDetails: {
+    flex: 1,
+    gap: 3,
+  },
+  groupName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  memberCount: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
   qrCard: {
     alignItems: 'center',
-    gap: 12,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    gap: 14,
+  },
+  qrTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  qrFrame: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   qrHint: {
     color: COLORS.textSecondary,
     fontSize: 14,
     textAlign: 'center',
+    lineHeight: 20,
   },
-  linkHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+  inviteOptions: {
+    gap: 10,
   },
-  linkLabel: {
+  sectionTitle: {
+    color: COLORS.text,
     fontSize: 14,
-    color: COLORS.textSecondary,
-    marginLeft: 8,
-    flex: 1,
+    fontWeight: '700',
+    marginBottom: 2,
   },
-  linkContainer: {
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    padding: 16,
+    gap: 12,
+    minHeight: 68,
+    padding: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
+    borderRadius: 14,
+    backgroundColor: COLORS.card,
   },
-  linkText: {
-    flex: 1,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  codeLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 16,
-  },
-  codeContainer: {
-    flexDirection: 'row',
+  optionIcon: {
+    width: 38,
+    height: 38,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
     backgroundColor: COLORS.surfaceSecondary,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
-  codeText: {
+  optionCopy: {
     flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
+    gap: 3,
+  },
+  optionTitle: {
     color: COLORS.text,
-    letterSpacing: 0.5,
+    fontSize: 14,
+    fontWeight: '600',
   },
-  copyIcon: {
-    marginLeft: 8,
+  optionValue: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
-  primaryButton: {
+  shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.action,
-    paddingVertical: 16,
-    borderRadius: 999,
-    marginTop: 8,
+    minHeight: 54,
+    gap: 9,
+    borderRadius: 16,
   },
-  primaryButtonText: {
+  shareButtonText: {
     color: COLORS.actionText,
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter-SemiBold',
-  },
-  buttonIcon: {
-    marginRight: 10,
   },
 });

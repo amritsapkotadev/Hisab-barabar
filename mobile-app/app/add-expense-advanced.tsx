@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
   SafeAreaView,
   FlatList,
@@ -356,8 +355,14 @@ export default function AddAdvancedExpenseScreen() {
       onRequestClose={() => setGroupModalVisible(false)}
     >
       <Pressable style={styles.modalOverlay} onPress={() => setGroupModalVisible(false)}>
-        <View style={styles.groupModalCard}>
-          <Text style={styles.groupModalTitle}>Select Group</Text>
+        <Pressable style={styles.groupModalCard} onPress={(event) => event.stopPropagation()}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.groupModalHeader}>
+            <View>
+              <Text style={styles.groupModalTitle}>Select group</Text>
+              <Text style={styles.groupModalSubtitle}>Choose where to add this expense</Text>
+            </View>
+          </View>
           <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.6 }}>
             {groups.map(group => (
               <Pressable
@@ -388,7 +393,7 @@ export default function AddAdvancedExpenseScreen() {
           <TouchableOpacity style={styles.groupModalClose} onPress={() => setGroupModalVisible(false)}>
             <Text style={styles.groupModalCloseText}>Cancel</Text>
           </TouchableOpacity>
-        </View>
+        </Pressable>
       </Pressable>
     </Modal>
   );
@@ -783,35 +788,50 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    justifyContent: 'flex-end',
   },
   groupModalCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 30,
     width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    maxHeight: '88%',
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderStrong,
+    marginBottom: 16,
+  },
+  groupModalHeader: {
+    marginBottom: 14,
   },
   groupModalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 20,
-    textAlign: 'center',
     fontFamily: 'Inter-Bold',
+  },
+  groupModalSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    marginTop: 3,
   },
   groupModalItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
   groupModalItemSelected: {
     backgroundColor: COLORS.surfaceSecondary,
@@ -855,15 +875,17 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     marginLeft: 8,
   },
   groupModalClose: {
-    marginTop: 20,
-    alignSelf: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 999,
+    marginTop: 12,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     backgroundColor: COLORS.surfaceSecondary,
   },
   groupModalCloseText: {
-    color: COLORS.action,
+    color: COLORS.text,
     fontWeight: '600',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',

@@ -15,6 +15,10 @@ function Probe({ fetcher = fetchPage }) {
   list = useExpensePages(fetcher);
   return null;
 }
+function CachedProbe({ fetcher, cacheKey }) {
+  list = useExpensePages(fetcher, cacheKey);
+  return null;
+}
 const page = (ids, nextPage = null) => ({
   success: true, data: ids.map(id => ({ id })), summary: { count: 40, totalAmount: 1000 },
   pageInfo: { page: nextPage ? nextPage - 1 : 2, limit: 20, hasMore: nextPage !== null, nextPage },
@@ -121,5 +125,21 @@ describe('expense page loading', () => {
     });
     expect(list.expenses).toEqual([]);
     expect(list.page).toBeNull();
+  });
+
+  it('restores cached pages immediately when switching back to a visited filter', async () => {
+    const allTimeFetcher = jest.fn().mockResolvedValueOnce(page(['all-time']));
+    const weekFetcher = jest.fn().mockResolvedValueOnce(page(['week']));
+    await act(async () => renderer.update(<CachedProbe fetcher={allTimeFetcher} cacheKey="user:all" />));
+    await act(async () => list.refresh());
+    await act(async () => renderer.update(<CachedProbe fetcher={weekFetcher} cacheKey="user:week" />));
+    expect(list.expenses).toEqual([]);
+    await act(async () => list.refresh());
+    expect(list.expenses.map(expense => expense.id)).toEqual(['week']);
+    await act(async () => renderer.update(<CachedProbe fetcher={allTimeFetcher} cacheKey="user:all" />));
+    expect(list.hasCachedData('user:all')).toBe(true);
+    expect(list.expenses.map(expense => expense.id)).toEqual(['all-time']);
+    await act(async () => renderer.update(<CachedProbe fetcher={allTimeFetcher} cacheKey="other-user:all" />));
+    expect(list.expenses).toEqual([]);
   });
 });

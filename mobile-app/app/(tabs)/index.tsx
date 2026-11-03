@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { useServerRefresh } from '@/hooks/useServerRefresh';
 import { useExpensePages } from '@/hooks/useExpensePages';
@@ -30,8 +31,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import BudgetGauge from '@/components/BudgetGauge';
 import AnimatedAmount from '@/components/AnimatedAmount';
+import { BudgetGaugeLoadingSkeleton, SkeletonBlock } from '@/components/LoadingSkeletons';
 import { type ThemeColors } from '@/constants/theme';
-import { useThemedStyles } from '@/hooks/useTheme';
+import { useTheme, useThemedStyles } from '@/hooks/useTheme';
 import { CATEGORY_COLORS, CATEGORY_ICONS, PAYMENT_COLORS, PAYMENT_ICONS } from '@/constants/categories';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -97,6 +99,7 @@ const formatMoney = (n: number) =>
 
 export default function HomeScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
+  const { isDark } = useTheme();
   const toast = useToast();
   const { user } = useAuth();
   const notifications = useNotificationInbox(user?.id);
@@ -110,6 +113,7 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [activeTab, setActiveTab] = useState<'personal' | 'shared'>('personal');
+  const fetchGeneration = useRef(0);
   const toggleAnim = useRef(new Animated.Value(0)).current;
   const [toggleWidth, setToggleWidth] = useState(0);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
@@ -127,19 +131,23 @@ export default function HomeScreen() {
   const refreshPersonal = personal.refresh;
 
   const fetchAll = useCallback(async () => {
+    const generation = ++fetchGeneration.current;
+    const tab = activeTab;
     setLoading(true);
     setError(null);
     try {
-      if (activeTab === 'personal') {
+      if (tab === 'personal') {
         await refreshPersonal();
       } else {
         const [groupsRes, expensesRes] = await Promise.all([
           apiService.getGroups(),
           apiService.getExpensePage({ limit: 5, page: 1, type: 'group' }),
         ]);
+        if (generation !== fetchGeneration.current) return;
         setGroups(groupsRes);
         setExpenses(expensesRes.data);
       }
+      if (generation !== fetchGeneration.current) return;
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -147,14 +155,24 @@ export default function HomeScreen() {
         useNativeDriver: true,
       }).start();
     } catch (err: any) {
-      setError(err?.message || 'Failed to load data');
+      if (generation === fetchGeneration.current) setError(err?.message || 'Failed to load data');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (generation === fetchGeneration.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [activeTab, fadeAnim, refreshPersonal]);
 
   useServerRefresh(fetchAll, activeTab);
+
+  const changeTab = (tab: 'personal' | 'shared') => {
+    if (tab === activeTab) return;
+    fetchGeneration.current++;
+    setLoading(true);
+    setError(null);
+    setActiveTab(tab);
+  };
 
   useEffect(() => {
     Animated.timing(toggleAnim, {
@@ -169,6 +187,19 @@ export default function HomeScreen() {
     setRefreshing(true);
     await refreshServerData(false);
     await fetchAll();
+  };
+
+  const openBudgetEditor = () => {
+    setBudgetInput(String(personalBudget));
+    setShowBudgetModal(true);
+  };
+
+  const focusBudgetInput = () => {
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const saveBudgetFromModal = () => {
+    void handleSetBudget();
   };
 
   const handleSetBudget = async () => {
@@ -264,13 +295,22 @@ export default function HomeScreen() {
             <View style={styles.balanceHeader}>
               <Text style={styles.balanceTitle}>Net Balance</Text>
             </View>
-            <CurrencyAmount value={Math.abs(roundedNet).toLocaleString('en-IN', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })} />
-            <Text style={[styles.balanceStatus, { color: balanceStatus.color }]}>
-              {balanceStatus.text}
-            </Text>
+            {loading ? (
+              <>
+                <SkeletonBlock style={{ width: 150, height: 28, marginTop: 8 }} />
+                <SkeletonBlock style={{ width: 96, height: 14, marginTop: 8 }} />
+              </>
+            ) : (
+              <>
+                <CurrencyAmount value={Math.abs(roundedNet).toLocaleString('en-IN', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })} />
+                <Text style={[styles.balanceStatus, { color: balanceStatus.color }]}>
+                  {balanceStatus.text}
+                </Text>
+              </>
+            )}
           </View>
           <View style={styles.balanceIconCircle}>
             <Wallet size={24} color={COLORS.text} />
@@ -316,7 +356,21 @@ export default function HomeScreen() {
           <ChevronRight size={16} color={COLORS.subtext} />
         </TouchableOpacity>
       </View>
-      {groups.length === 0 ? (
+      {loading ? (
+        <View style={styles.groupsContainer}>
+          {[0, 1].map((item) => (
+            <View key={item} style={styles.groupCard}>
+              <View style={styles.groupCardInner}>
+                <SkeletonBlock style={styles.groupIcon} />
+                <View style={{ flex: 1, gap: 8 }}>
+                  <SkeletonBlock style={{ width: '58%', height: 16 }} />
+                  <SkeletonBlock style={{ width: '34%', height: 13 }} />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : groups.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No groups yet</Text>
           <Text style={styles.emptySubtext}>Create your first group to get started</Text>
@@ -541,7 +595,25 @@ export default function HomeScreen() {
           <ChevronRight size={16} color={COLORS.subtext} />
         </TouchableOpacity>
       </View>
-      {expenses.length === 0 ? (
+      {loading ? (
+        <View style={styles.expensesContainer}>
+          {[0, 1, 2].map((item) => (
+            <View key={item} style={styles.expenseCard}>
+              <View style={styles.expenseCardInner}>
+                <SkeletonBlock style={styles.expenseIcon} />
+                <View style={{ flex: 1, gap: 8 }}>
+                  <SkeletonBlock style={{ width: '72%', height: 16 }} />
+                  <SkeletonBlock style={{ width: '46%', height: 13 }} />
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                  <SkeletonBlock style={{ width: 76, height: 15 }} />
+                  <SkeletonBlock style={{ width: 52, height: 12 }} />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : expenses.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No expenses yet</Text>
           <Text style={styles.emptySubtext}>Add your first expense to see it here</Text>
@@ -583,7 +655,7 @@ export default function HomeScreen() {
           />
           <TouchableOpacity
             style={styles.toggleButton}
-            onPress={() => setActiveTab('personal')}
+            onPress={() => changeTab('personal')}
           >
             <Text style={[
               styles.toggleText,
@@ -592,7 +664,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.toggleButton}
-            onPress={() => setActiveTab('shared')}
+            onPress={() => changeTab('shared')}
           >
             <Text style={[
               styles.toggleText,
@@ -603,15 +675,6 @@ export default function HomeScreen() {
       </View>
     );
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.action} />
-        <Text style={styles.loadingText}>Loading your dashboard...</Text>
-      </SafeAreaView>
-    );
-  }
 
   if (error) {
     return (
@@ -629,7 +692,8 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Animated.ScrollView
-        style={{ opacity: fadeAnim }}
+        style={{ opacity: loading ? 1 : fadeAnim }}
+        keyboardShouldPersistTaps="always"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -654,49 +718,59 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.budgetAmountRow}>
                   <Text style={styles.budgetCurrency}>रु</Text>
-                  <AnimatedAmount
-                    value={formatMoney(personalBudget)}
-                    style={styles.budgetAmount}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                  />
-                  <TouchableOpacity
-                    style={styles.budgetEditButton}
-                    onPress={() => {
-                      setBudgetInput(String(personalBudget));
-                      setShowBudgetModal(true);
-                      setTimeout(() => inputRef.current?.focus(), 200);
-                    }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Edit monthly budget"
-                  >
-                    <Edit3 size={13} color={COLORS.textSecondary} />
-                  </TouchableOpacity>
+                  {loading ? (
+                    <SkeletonBlock style={{ width: 132, height: 28 }} />
+                  ) : (
+                    <AnimatedAmount
+                      value={formatMoney(personalBudget)}
+                      style={styles.budgetAmount}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    />
+                  )}
+                  {!loading && personal.page && (
+                    <TouchableOpacity
+                      style={styles.budgetEditButton}
+                      onPress={openBudgetEditor}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Edit monthly budget"
+                    >
+                      <Edit3 size={13} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <View style={styles.budgetStats}>
                   <View style={styles.budgetStatRow}>
                     <View style={[styles.budgetDot, { backgroundColor: COLORS.negative }]} />
                     <Text style={styles.budgetStatLabel}>Spent</Text>
-                    <AnimatedAmount
-                      value={formatMoney(spentThisMonth)}
-                      prefix="रु "
-                      style={styles.budgetStatValue}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                    />
+                    {loading ? (
+                      <SkeletonBlock style={{ width: 62, height: 14 }} />
+                    ) : (
+                      <AnimatedAmount
+                        value={formatMoney(spentThisMonth)}
+                        prefix="रु "
+                        style={styles.budgetStatValue}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                      />
+                    )}
                   </View>
                   <View style={styles.budgetStatRow}>
                     <View style={[styles.budgetDot, { backgroundColor: isOverBudget ? COLORS.negative : COLORS.positive }]} />
-                    <Text style={styles.budgetStatLabel}>{isOverBudget ? 'Over by' : 'Left'}</Text>
-                    <AnimatedAmount
-                      value={formatMoney(isOverBudget ? spentThisMonth - personalBudget : leftThisMonth)}
-                      prefix="रु "
-                      style={[styles.budgetStatValue, isOverBudget && { color: COLORS.negative }]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                    />
+                    <Text style={styles.budgetStatLabel}>{loading ? 'Left' : isOverBudget ? 'Over by' : 'Left'}</Text>
+                    {loading ? (
+                      <SkeletonBlock style={{ width: 62, height: 14 }} />
+                    ) : (
+                      <AnimatedAmount
+                        value={formatMoney(isOverBudget ? spentThisMonth - personalBudget : leftThisMonth)}
+                        prefix="रु "
+                        style={[styles.budgetStatValue, isOverBudget && { color: COLORS.negative }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                      />
+                    )}
                   </View>
                 </View>
               </View>
@@ -704,11 +778,15 @@ export default function HomeScreen() {
               <View style={styles.budgetDivider} />
 
               <View style={styles.budgetRight}>
-                <BudgetGauge
-                  size={112}
-                  used={personalBudget > 0 ? spentThisMonth / personalBudget : 0}
-                  hasBudget={personalBudget > 0}
-                />
+                {loading ? (
+                  <BudgetGaugeLoadingSkeleton size={112} />
+                ) : (
+                  <BudgetGauge
+                    size={112}
+                    used={personalBudget > 0 ? spentThisMonth / personalBudget : 0}
+                    hasBudget={personalBudget > 0}
+                  />
+                )}
               </View>
             </View>
             
@@ -716,7 +794,9 @@ export default function HomeScreen() {
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleRow}>
                   <Text style={styles.sectionTitle}>Personal Expenses</Text>
-                  {personalExpenseCount > 0 && (
+                  {loading ? (
+                    <SkeletonBlock style={{ width: 24, height: 18, borderRadius: 9 }} />
+                  ) : personalExpenseCount > 0 && (
                     <Text style={styles.sectionCount}>{personalExpenseCount}</Text>
                   )}
                 </View>
@@ -732,7 +812,21 @@ export default function HomeScreen() {
               </View>
               {personal.error && <Text style={{ color: COLORS.negative }}>{personal.error}</Text>}
               {!personal.online && <Text style={{ color: COLORS.textSecondary }}>Showing downloaded expenses. More may require internet.</Text>}
-              {perExpenses.length === 0 ? (
+              {loading ? (
+                <View style={styles.personalList}>
+                  <View style={styles.dayCard}>
+                    {[0, 1, 2].map((item) => (
+                      <View key={item} style={[styles.personalRow, item > 0 && styles.personalRowDivider]}>
+                        <View style={{ flex: 1, gap: 8 }}>
+                          <SkeletonBlock style={{ width: '68%', height: 16 }} />
+                          <SkeletonBlock style={{ width: '42%', height: 13 }} />
+                        </View>
+                        <SkeletonBlock style={{ width: 76, height: 16 }} />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : perExpenses.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No personal expenses yet</Text>
                   <Text style={styles.emptySubtext}>Add a personal expense to see it here</Text>
@@ -745,9 +839,17 @@ export default function HomeScreen() {
               visible={showBudgetModal}
               transparent
               animationType="fade"
+              onShow={focusBudgetInput}
               onRequestClose={() => setShowBudgetModal(false)}
             >
-              <KeyboardAvoidingView style={styles.budgetModalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <KeyboardAvoidingView style={styles.budgetModalContainer} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                <BlurView
+                  intensity={7}
+                  tint={isDark ? 'dark' : 'light'}
+                  experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'}
+                  pointerEvents="none"
+                  style={StyleSheet.absoluteFillObject}
+                />
                 <View style={styles.budgetModalContent}>
                   <Text style={styles.budgetModalTitle}>Set Monthly Budget</Text>
                   <TextInput
@@ -758,7 +860,7 @@ export default function HomeScreen() {
                     placeholderTextColor={COLORS.textTertiary}
                     value={budgetInput}
                     onChangeText={setBudgetInput}
-                    onSubmitEditing={handleSetBudget}
+                    onSubmitEditing={saveBudgetFromModal}
                   />
                   <View style={{ flexDirection: 'row', marginTop: 16, gap: 12 }}>
                     <TouchableOpacity
@@ -769,7 +871,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.budgetModalBtn, { backgroundColor: COLORS.action }]}
-                      onPress={handleSetBudget}
+                      onPress={saveBudgetFromModal}
                     >
                       <Text style={styles.budgetModalBtnText}>Save</Text>
                     </TouchableOpacity>
@@ -1427,15 +1529,15 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   },
   budgetModalContent: {
     width: '85%',
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 1.5,
+    borderColor: COLORS.borderStrong,
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
   },

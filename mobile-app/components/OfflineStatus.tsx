@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { AppState, ActivityIndicator, Alert, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
+import { AppState, ActivityIndicator, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Network from 'expo-network';
 import { router } from 'expo-router';
@@ -11,6 +11,7 @@ import {
   dismissQueuedExpense, resumeDataReads, retryQueuedExpense,
 } from '@/services/dataClient';
 import { useToast } from '@/components/Toast';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 import { apiService } from '@/services/api';
 import { ArrowLeft, ChevronRight, CloudOff, Cloud, RefreshCw, AlertCircle, Clock, CheckCircle2 } from 'lucide-react-native';
 
@@ -112,6 +113,7 @@ export function OfflineSyncScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const { queue, online, error, syncing, lastExpenseSyncAt } = useDataState();
   const toast = useToast();
+  const showAlert = useAppAlert();
   const [preparing, setPreparing] = useState(false);
   const pending = queue.filter(item => item.status === 'pending').length;
   const failed = queue.filter(item => item.status === 'failed').length;
@@ -209,7 +211,7 @@ export function OfflineSyncScreen() {
           {item.status === 'failed' && <Pressable style={styles.retry}
             accessibilityRole="button" accessibilityLabel="Retry saved expense"
             disabled={!online || busy} accessibilityState={{ disabled: !online || busy }}
-            onPress={() => Alert.alert(
+            onPress={() => showAlert(
               'Retry with the same reference?',
               'The original expense data and reference will be reused. A confirmed result is returned without creating another expense. Uncertain requests may still need server review.',
               [{ text: 'Cancel', style: 'cancel' }, { text: 'Retry safely', onPress: () => { void retry(item.id); } }],
@@ -217,7 +219,7 @@ export function OfflineSyncScreen() {
             <RefreshCw size={16} color={online && !busy ? COLORS.text : COLORS.textTertiary} />
             <Text style={styles.text}>{online ? 'Retry with same reference' : 'Connect to retry'}</Text>
           </Pressable>}
-          <Pressable style={styles.remove} accessibilityRole="button" disabled={!canRemove || busy} accessibilityState={{ disabled: !canRemove || busy }} onPress={() => Alert.alert(
+          <Pressable style={styles.remove} accessibilityRole="button" disabled={!canRemove || busy} accessibilityState={{ disabled: !canRemove || busy }} onPress={() => showAlert(
             'Remove local sync entry?',
             item.status === 'synced' ? 'This only removes the local receipt, not the server expense.' :
               'This operation has not been sent to the server. Removing it will discard the local change.',

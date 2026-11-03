@@ -454,9 +454,10 @@ const AddExpenseScreen = () => {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
+              <View style={styles.sheetHandle} />
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
-                  <Ionicons name="grid" size={24} color={COLORS.primary} />
+                  <Ionicons name="grid" size={20} color={COLORS.text} />
                   <Text style={styles.modalTitle}>Select Category</Text>
                 </View>
                 <TouchableOpacity 
@@ -466,7 +467,7 @@ const AddExpenseScreen = () => {
                   accessibilityRole="button"
                   accessibilityLabel="Close category picker"
                 >
-                  <Ionicons name="close-circle" size={28} color={COLORS.textSecondary} />
+                  <Ionicons name="close" size={20} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -698,18 +699,26 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: COLORS.card,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 24,
-    maxHeight: '75%',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 24,
+    maxHeight: '85%',
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderStrong,
+    marginBottom: 16,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   modalTitleContainer: {
     flexDirection: 'row',
@@ -717,13 +726,18 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     gap: 8,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     fontFamily: 'Inter-Bold',
   },
   closeButton: {
-    padding: 4,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: COLORS.surfaceSecondary,
   },
   categoryGrid: {
     paddingBottom: 20,

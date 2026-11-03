@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useToast } from '@/components/Toast';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 import { useTranslation } from 'react-i18next';
 import { setLanguage } from '@/i18n';
 import { router } from 'expo-router';
@@ -36,6 +36,7 @@ export default function SettingsScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const { preference, setPreference } = useTheme();
   const toast = useToast();
+  const showAlert = useAppAlert();
   const { t } = useTranslation();
   const {
     value: notificationSettings,
@@ -72,7 +73,7 @@ export default function SettingsScreen() {
   };
 
   const handleCurrencyChange = () => {
-    Alert.alert(
+    showAlert(
       t('settings.currency'),
       t('settings.currencyPrompt'),
       [
@@ -85,7 +86,7 @@ export default function SettingsScreen() {
   };
 
   const handleDateFormatChange = () => {
-    Alert.alert(
+    showAlert(
       t('settings.dateFormat'),
       t('settings.dateFormatPrompt'),
       [
@@ -98,7 +99,7 @@ export default function SettingsScreen() {
   };
 
   const handleLanguageChange = () => {
-    Alert.alert(
+    showAlert(
       t('settings.language'),
       t('settings.languagePrompt'),
       [
@@ -122,7 +123,7 @@ export default function SettingsScreen() {
   };
 
   const handleExportData = () => {
-    Alert.alert(
+    showAlert(
       t('settings.exportData'),
       t('settings.exportPrompt'),
       [
@@ -133,7 +134,7 @@ export default function SettingsScreen() {
   };
 
   const handleClearCache = () => {
-    Alert.alert(
+    showAlert(
       t('settings.clearCache'),
       t('settings.clearCachePrompt'),
       [
@@ -144,7 +145,7 @@ export default function SettingsScreen() {
   };
 
   const handleResetSettings = () => {
-    Alert.alert(
+    showAlert(
       t('settings.resetSettings'),
       t('settings.resetPrompt'),
       [

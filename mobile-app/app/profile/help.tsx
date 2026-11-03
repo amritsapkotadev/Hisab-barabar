@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useToast } from '@/components/Toast';
+import { useAppAlert } from '@/contexts/AppAlertContext';
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
 import { router } from 'expo-router';
@@ -30,6 +30,7 @@ import {
 export default function HelpScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const toast = useToast();
+  const showAlert = useAppAlert();
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null);
 
   const faqs = [
@@ -68,7 +69,7 @@ export default function HelpScreen() {
   ];
 
   const handleContactSupport = () => {
-    Alert.alert(
+    showAlert(
       'Contact Support',
       'Choose how you\'d like to contact us:',
       [
