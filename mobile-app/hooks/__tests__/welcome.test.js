@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
-import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -9,6 +9,7 @@ import WelcomeScreen from '../../app/welcome';
 let mockDark = false;
 let mockDimensions;
 const mockSetPreference = jest.fn();
+const mockShowAlert = jest.fn();
 jest.mock('expo-blur', () => {
   throw new Error('Welcome must render without a native blur module');
 });
@@ -24,6 +25,7 @@ jest.mock('@/hooks/useTheme', () => ({
     return { colors, styles: createStyles(colors) };
   },
 }));
+jest.mock('@/contexts/AppAlertContext', () => ({ useAppAlert: () => mockShowAlert }));
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
 jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -70,12 +72,11 @@ describe('welcome screen', () => {
   it('shows a retry action when it cannot read the welcome flag', async () => {
     const error = new Error('Storage unavailable');
     const log = jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     AsyncStorage.getItem.mockRejectedValueOnce(error).mockResolvedValueOnce(null);
 
     await act(async () => { renderer = create(<WelcomeScreen />); });
     expect(log).toHaveBeenCalledWith('Failed to check welcome status:', error);
-    expect(Alert.alert).toHaveBeenCalledWith(
+    expect(mockShowAlert).toHaveBeenCalledWith(
       'Welcome',
       expect.any(String),
       expect.arrayContaining([expect.objectContaining({ text: 'Retry' })]),
@@ -83,7 +84,7 @@ describe('welcome screen', () => {
     expect(renderer.root.findAllByProps({ accessibilityLabel: 'Next slide' })).toHaveLength(0);
 
     await act(async () => {
-      Alert.alert.mock.calls[0][2][0].onPress();
+      mockShowAlert.mock.calls[0][2][0].onPress();
       await Promise.resolve();
     });
     expect(renderer.root.findByProps({ accessibilityLabel: 'Next slide' })).toBeDefined();

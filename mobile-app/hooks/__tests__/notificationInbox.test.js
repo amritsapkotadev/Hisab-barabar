@@ -1,7 +1,7 @@
 import React from 'react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { act, create } from 'react-test-renderer';
-import { Alert, AppState, SectionList, Text } from 'react-native';
+import { AppState, SectionList, Text } from 'react-native';
 import { router } from 'expo-router';
 import NotificationsScreen from '../../app/notifications';
 import ErrorMessage from '@/components/ErrorMessage';
@@ -10,8 +10,10 @@ import { clearReceivedNotifications, getReceivedNotifications, markNotifications
 let mockUser = { id: 'user-1' };
 let mockDark = false;
 const mockToastError = jest.fn();
+const mockShowAlert = jest.fn();
 jest.mock('@/components/Toast', () => ({ useToast: () => ({ error: mockToastError }) }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
+jest.mock('@/contexts/AppAlertContext', () => ({ useAppAlert: () => mockShowAlert }));
 jest.mock('@/hooks/useTheme', () => ({
   useThemedStyles: createStyles => {
     const { COLORS, DARK_COLORS } = require('@/constants/theme');
@@ -76,26 +78,24 @@ describe('received notification screen', () => {
     const items = Array.from({ length: 21 }, (_, index) => ({
       id: `item-${index}`, title: `Title ${index}`, body: '', readAt: null, receivedAt: Date.now() - index,
     }));
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     getReceivedNotifications.mockResolvedValue(items);
     await act(async () => { renderer = create(<NotificationsScreen />); });
     await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Clear all notifications' }).props.onPress());
     expect(clearReceivedNotifications).not.toHaveBeenCalled();
-    expect(alert.mock.calls[0][2][0].style).toBe('cancel');
+    expect(mockShowAlert.mock.calls[0][2][0].style).toBe('cancel');
     getReceivedNotifications.mockResolvedValue([]);
-    await act(async () => alert.mock.calls[0][2][1].onPress());
+    await act(async () => mockShowAlert.mock.calls[0][2][1].onPress());
     expect(clearReceivedNotifications).toHaveBeenCalledWith('user-1', items.map(item => item.id));
     expect(renderer.root.findAllByProps({ accessibilityLabel: 'Clear all notifications' })).toHaveLength(0);
   });
 
   it('reports clear failures and keeps the action retryable', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     getReceivedNotifications.mockResolvedValue([{ id: 'one', title: 'One', body: '', receivedAt: Date.now() }]);
     clearReceivedNotifications.mockRejectedValueOnce(new Error('Clear failed'));
     await act(async () => { renderer = create(<NotificationsScreen />); });
     await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Clear all notifications' }).props.onPress());
-    await act(async () => alert.mock.calls[0][2][1].onPress());
+    await act(async () => mockShowAlert.mock.calls[0][2][1].onPress());
     expect(mockToastError).toHaveBeenCalledWith('Clear failed');
     expect(renderer.root.findByProps({ accessibilityLabel: 'Clear all notifications' }).props.disabled).toBe(false);
   });

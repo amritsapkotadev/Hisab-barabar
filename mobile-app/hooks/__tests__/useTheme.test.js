@@ -2,14 +2,14 @@ import React from 'react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { act, create } from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Appearance } from 'react-native';
+import { Appearance } from 'react-native';
 import { ThemeProvider, useTheme, useThemedStyles } from '../useTheme';
 import { COLORS, DARK_COLORS } from '../../constants/theme';
 
 let mockScheme = 'light';
+const mockThemedAlert = jest.fn(() => null);
 jest.mock('react-native', () => ({
   useColorScheme: () => mockScheme,
-  Alert: { alert: jest.fn() },
   Appearance: { setColorScheme: jest.fn() },
 }));
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -17,6 +17,13 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(),
 }));
 jest.mock('@/i18n', () => ({ t: key => key }));
+jest.mock('@/components/ThemedAlert', () => ({
+  __esModule: true,
+  default: props => {
+    mockThemedAlert(props);
+    return null;
+  },
+}));
 
 const createStyles = colors => ({ backgroundColor: colors.background });
 let theme;
@@ -103,7 +110,11 @@ describe('ThemeProvider', () => {
     expect(saved).toBe(false);
     expect(theme.preference).toBe('light');
     expect(log).toHaveBeenCalledWith('Failed to save appearance:', error);
-    expect(Alert.alert).toHaveBeenCalled();
+    expect(mockThemedAlert.mock.calls.at(-1)[0].alert).toMatchObject({
+      title: 'settings.theme',
+      message: 'settings.saveAppearanceFailed',
+      buttons: [{ text: 'OK' }],
+    });
   });
 
   it('reports restore failures and falls back to light', async () => {
@@ -116,6 +127,10 @@ describe('ThemeProvider', () => {
     expect(theme.isDark).toBe(false);
     expect(styles.backgroundColor).toBe(COLORS.background);
     expect(log).toHaveBeenCalledWith('Failed to restore appearance:', error);
-    expect(Alert.alert).toHaveBeenCalled();
+    expect(mockThemedAlert.mock.calls.at(-1)[0].alert).toMatchObject({
+      title: 'settings.theme',
+      message: 'settings.restoreAppearanceFailed',
+      buttons: [{ text: 'OK' }],
+    });
   });
 });

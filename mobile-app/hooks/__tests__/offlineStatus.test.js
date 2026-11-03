@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import OfflineStatus, { OfflineSyncScreen } from '@/components/OfflineStatus';
 import { apiService } from '@/services/api';
 import { replayQueuedExpenses, dismissQueuedExpense, retryQueuedExpense } from '@/services/dataClient';
@@ -9,7 +9,9 @@ import { replayQueuedExpenses, dismissQueuedExpense, retryQueuedExpense } from '
 let mockStatus = 'authenticated';
 let mockState;
 const mockToast = { error: jest.fn(), info: jest.fn() };
+const mockShowAlert = jest.fn();
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ status: mockStatus }) }));
+jest.mock('@/contexts/AppAlertContext', () => ({ useAppAlert: () => mockShowAlert }));
 jest.mock('@/hooks/useTheme', () => ({
   useThemedStyles: createStyles => ({ colors: {}, styles: createStyles({}) }),
 }));
@@ -85,7 +87,6 @@ describe('offline setup and sync UI', () => {
   });
 
   it('protects unresolved attempted changes and confirms discarding unsent changes', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     mockState = { ...mockState, queue: [
       { id: 'unsent', method: 'post', status: 'pending', body: '{"description":"Test","amount":10}', createdAt: 1, attemptedAt: null },
       { id: 'attempted', method: 'delete', status: 'failed', body: null, createdAt: 2, attemptedAt: 2 },
@@ -97,12 +98,11 @@ describe('offline setup and sync UI', () => {
     const discard = buttons.find(button => button.props.children?.props?.children === 'Discard unsent change');
     await act(async () => discard.props.onPress());
     expect(dismissQueuedExpense).not.toHaveBeenCalled();
-    await act(async () => alert.mock.calls[0][2][1].onPress());
+    await act(async () => mockShowAlert.mock.calls[0][2][1].onPress());
     expect(dismissQueuedExpense).toHaveBeenCalledWith('unsent');
   });
 
   it('retries a failed entry only after confirmation', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     mockState = { ...mockState, queue: [
       { id: 'original-key', method: 'post', status: 'failed', body: '{"description":"Saved"}',
         createdAt: 1, attemptedAt: 2, message: 'Sync rejected (409). Outcome uncertain.' },
@@ -110,7 +110,7 @@ describe('offline setup and sync UI', () => {
     await act(async () => { renderer = create(<OfflineSyncScreen />); });
     await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Retry saved expense' }).props.onPress());
     expect(retryQueuedExpense).not.toHaveBeenCalled();
-    await act(async () => alert.mock.calls[0][2][1].onPress());
+    await act(async () => mockShowAlert.mock.calls[0][2][1].onPress());
     expect(retryQueuedExpense).toHaveBeenCalledWith('original-key');
     expect(dismissQueuedExpense).not.toHaveBeenCalled();
   });

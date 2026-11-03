@@ -47,7 +47,7 @@ jest.mock('@/hooks/useServerRefresh', () => ({
 }));
 jest.mock('@/hooks/useTheme', () => ({
   useThemedStyles: () => ({ colors: {}, styles: {} }),
-  useTheme: () => ({ isDark: false }),
+  useTheme: () => ({ isDark: false, colors: { surfaceMuted: '#eee' } }),
 }));
 jest.mock('@/components/Toast', () => ({ useToast: () => ({ error: jest.fn() }) }));
 jest.mock('@/components/BudgetGauge', () => jest.fn(() => null));
