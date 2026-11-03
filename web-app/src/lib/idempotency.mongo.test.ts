@@ -5,15 +5,19 @@ import ExpenseIdempotency, { expenseIdempotencyStore as store } from '../models/
 import Expense from '../models/Expense'
 import { expenseRevisionFilter } from './expenseRevision'
 import { idempotentCreate, MANUAL_REVIEW_MESSAGE } from './idempotency'
+import { calculateGroupBalances, updateExpenseAllocations } from '../utils/groupBalances'
 
 async function main() {
   const uri = process.env.MONGO_TEST_URI || 'mongodb://127.0.0.1:27017'
   const url = new URL(uri)
   assert.equal(url.protocol, 'mongodb:', 'Only a local MongoDB test instance is allowed')
   assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname), 'Remote databases are not allowed')
+  await ExpenseIdempotency.init()
+  assert.equal(mongoose.connection.readyState, 0, 'model import must not start database initialization')
   const dbName = `hisab_idempotency_test_${randomUUID().replaceAll('-', '')}`
   await mongoose.connect(uri, { dbName, serverSelectionTimeoutMS: 5000 })
   try {
+    await Promise.all([store.initialize(), store.initialize()])
     const userId = new mongoose.Types.ObjectId().toHexString()
     const key = randomUUID()
     const request = (amount = 10, requestKey = key) => new Request('http://localhost/api/expenses/personal', {
@@ -143,6 +147,51 @@ async function main() {
     assert.equal(await deleteReplay.text(), await deleteResult.text())
     assert.equal(deleteCalls, 1, 'a retried Mongo delete replays success after deletion')
     assert.equal(await Expense.findById(mutationId), null)
+
+    const allocationExpense = await Expense.create({
+      description: 'Resize synced expense', amount: 99, type: 'group',
+      date: '2026-11-02', createdBy: new mongoose.Types.ObjectId(userId),
+      groupId: new mongoose.Types.ObjectId(), paidBy: 'a', participants: ['a', 'b', 'c'],
+      payers: [{ name: 'a', amountPaid: 99 }],
+      splits: ['a', 'b', 'c'].map(participant => ({ participant, amount: 33 })),
+      splitType: 'equal', revision: 0,
+    })
+    const allocationKey = randomUUID()
+    const allocationRequest = () => new Request(`http://localhost/api/expenses/${allocationExpense._id}`, {
+      method: 'PUT',
+      headers: { 'Idempotency-Key': allocationKey, 'If-Match': '"0"' },
+      body: JSON.stringify({ amount: 100 }),
+    })
+    await idempotentCreate(allocationRequest(), userId, store, async () =>
+      Response.json({ message: 'Expense payer amounts do not equal the expense total.' }, { status: 400 }))
+    let repairs = 0
+    const repair = async () => {
+      repairs++
+      const current = await Expense.findById(allocationExpense._id)
+      assert.ok(current)
+      const allocations = updateExpenseAllocations(current, { amount: 100 })
+      assert.doesNotThrow(() => calculateGroupBalances(['a', 'b', 'c'], [allocations]))
+      const updated = await Expense.findOneAndUpdate(
+        expenseRevisionFilter(String(current._id), 0),
+        { $set: allocations, $inc: { revision: 1 } },
+        { new: true, runValidators: true },
+      )
+      return updated ? Response.json({ id: String(updated._id), revision: updated.revision }) :
+        Response.json({ code: 'EXPENSE_CONFLICT' }, { status: 409 })
+    }
+    const repairResults = await Promise.all(Array.from({ length: 8 }, () =>
+      idempotentCreate(allocationRequest(), userId, store, repair)))
+    assert.ok(repairResults.some(result => result.status === 200))
+    assert.equal(repairs, 1, 'only one retry may reacquire the rejected reservation')
+    assert.equal((await idempotentCreate(allocationRequest(), userId, store, repair)).status, 200)
+    const repaired = await Expense.findById(allocationExpense._id)
+    assert.ok(repaired)
+    assert.equal(repaired.amount, 100)
+    assert.equal(repaired.revision, 1)
+    assert.equal(repaired.payers?.reduce((sum, payer) => sum + payer.amountPaid, 0), 100)
+    assert.deepEqual(repaired.splits?.map(split => split.amount), [33.34, 33.33, 33.33])
+    assert.equal(repairs, 1, 'later replays return the stored success')
+
     console.log('Mongo expense idempotency integration checks passed')
   } finally {
     try {

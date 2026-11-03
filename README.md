@@ -76,6 +76,7 @@ hisab-barabar/
 ### 👥 Group Features
 - **Easy Group Creation**: Set up groups in seconds
 - **Invite Links**: Share groups via `hisabbarabar.qzz.io/join/<id>` deep links
+- **QR Invites**: Display group invite QR codes or scan them to join
 - **Member Management**: Add/remove members; stable member ids survive duplicate names
 - **Balance Tracking**: See who owes what at a glance
 
@@ -88,6 +89,7 @@ hisab-barabar/
 - **JWT Authentication**: Secure token-based auth
 - **Secure Token Storage**: Expo SecureStore on mobile
 - **Google OAuth**: Easy sign-in with Google
+- **Profile Photos**: Upload a custom photo; private images are stored in Cloudflare R2
 - **OTP Verification**: Email verification for security
 
 ### 📊 Additional Features
@@ -129,13 +131,16 @@ npm install
 # Create .env.local (there is no committed .env.example yet)
 # Required: MONGODB_URI, JWT_SECRET, EMAIL_USER/PASS,
 # FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY,
-# NEXT_PUBLIC_APP_URL, ADMIN_SETUP_KEY
+# NEXT_PUBLIC_APP_URL, ADMIN_SETUP_KEY,
+# R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
 
 # Start development server
 npm run dev
 ```
 
 Backend will run at: `http://localhost:3000`
+
+Profile photo uploads require a **private Cloudflare R2 bucket** and an R2 API token with object read/write access. JPEG, PNG, and WebP uploads are limited to 5 MB and validated before storage. Keep the four `R2_*` values in the backend environment only; the API stores object keys and returns signed image URLs that expire after 24 hours.
 
 ### 3️⃣ Set Up Mobile App (React Native)
 

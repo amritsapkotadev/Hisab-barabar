@@ -15,8 +15,8 @@ const schema = new Schema<IExpenseIdempotency>({
   responseBody: String,
 }, {
   timestamps: true,
-  autoIndex: true,
-  autoCreate: true,
+  autoIndex: false,
+  autoCreate: false,
   writeConcern: { w: 'majority', j: true },
 })
 
@@ -27,8 +27,22 @@ const ExpenseIdempotency: Model<IExpenseIdempotency> =
   mongoose.models.ExpenseIdempotency ||
   mongoose.model<IExpenseIdempotency>('ExpenseIdempotency', schema)
 
+let initialization: Promise<void> | null = null
+
 export const expenseIdempotencyStore: IdempotencyStore = {
-  initialize: () => ExpenseIdempotency.init(),
+  initialize() {
+    if (!initialization) {
+      // Model.init() caches import-time connection failures permanently.
+      initialization = (async () => {
+        await ExpenseIdempotency.createCollection()
+        await ExpenseIdempotency.createIndexes()
+      })().catch(error => {
+        initialization = null
+        throw error
+      })
+    }
+    return initialization
+  },
   async reserve(userId, key, requestHash) {
     try {
       await ExpenseIdempotency.create({ userId, key, requestHash, state: 'reserved' })
@@ -47,6 +61,13 @@ export const expenseIdempotencyStore: IdempotencyStore = {
       { $set: { state: 'completed', responseStatus, responseBody } },
     )
     if (result.modifiedCount !== 1) throw new Error('Idempotency completion was not confirmed')
+  },
+  async reopenRejectedUpdate(userId, key, requestHash, responseBody) {
+    const result = await ExpenseIdempotency.updateOne(
+      { userId, key, requestHash, state: 'completed', responseStatus: 400, responseBody },
+      { $set: { state: 'reserved' }, $unset: { responseStatus: 1, responseBody: 1 } },
+    )
+    return result.modifiedCount === 1
   },
 }
 

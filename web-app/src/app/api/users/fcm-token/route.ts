@@ -14,9 +14,32 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { fcmToken } = await request.json()
+    const body: unknown = await request.json()
+    if (typeof body !== 'object' || body === null || !('fcmToken' in body)) {
+      return NextResponse.json(
+        { error: 'FCM token is required' },
+        { status: 400 }
+      )
+    }
+    const { fcmToken } = body as { fcmToken: unknown }
 
-    if (!fcmToken) {
+    if (fcmToken === null) {
+      await connectDB()
+      const user = await User.findByIdAndUpdate(
+        auth.user._id,
+        { $unset: { fcmToken: 1 } },
+        { new: true }
+      )
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Push notifications disabled successfully'
+      })
+    }
+
+    if (typeof fcmToken !== 'string' || !fcmToken.trim()) {
       return NextResponse.json(
         { error: 'FCM token is required' },
         { status: 400 }

@@ -6,7 +6,7 @@ import { authenticateUser } from '@/middleware/auth'
 import { canAccessGroup } from '@/utils/groupMembers'
 import { expenseRevisionFilter, readExpenseRevision } from '@/lib/expenseRevision'
 import { withExpenseIdempotency } from '@/lib/expenseIdempotency'
-import { calculateGroupBalances } from '@/utils/groupBalances'
+import { calculateGroupBalances, updateExpenseAllocations, validateExpenseMembers } from '@/utils/groupBalances'
 
 function isSplit(value: unknown): value is { participant: string; amount?: number } {
   return !!value && typeof value === 'object' && 'participant' in value &&
@@ -147,30 +147,50 @@ async function updateExpense(
       const nextPaidBy = updateData.paidBy === undefined ? expense.paidBy : updateData.paidBy
       const nextParticipants = updateData.participants === undefined
         ? expense.participants ?? [] : updateData.participants
-      const splitSource = updateData.splits === undefined ? expense.splits ?? [] : updateData.splits
-      const payerSource = updateData.payers === undefined ? expense.payers ?? [] : updateData.payers
+      const requestedSplits = updateData.splits === undefined ? expense.splits ?? [] : updateData.splits
+      const requestedPayers = updateData.payers === undefined ? expense.payers ?? [] : updateData.payers
       const nextSplitType = updateData.splitType === undefined ? expense.splitType : updateData.splitType
 
       if (typeof nextAmount !== 'number' || !Number.isFinite(nextAmount) ||
-          typeof nextPaidBy !== 'string' ||
+          (nextPaidBy !== undefined && typeof nextPaidBy !== 'string') ||
           !Array.isArray(nextParticipants) ||
           nextParticipants.some((participant: unknown) => typeof participant !== 'string') ||
-          !Array.isArray(splitSource) || !splitSource.every(isSplit) ||
-          !Array.isArray(payerSource) || !payerSource.every(isPayer) ||
+          !Array.isArray(requestedSplits) || !requestedSplits.every(isSplit) ||
+          !Array.isArray(requestedPayers) || !requestedPayers.every(isPayer) ||
           typeof nextSplitType !== 'string') {
         return NextResponse.json({ message: 'Expense allocations are invalid' }, { status: 400 })
       }
+
+      let allocations: ReturnType<typeof updateExpenseAllocations>
+      try {
+        allocations = updateExpenseAllocations(expense, {
+          amount: nextAmount,
+          paidBy: nextPaidBy,
+          participants: nextParticipants,
+          splitType: nextSplitType,
+          ...(updateData.splits !== undefined && { splits: requestedSplits }),
+          ...(updateData.payers !== undefined && { payers: requestedPayers }),
+        })
+      } catch (error) {
+        return NextResponse.json({
+          message: error instanceof Error ? error.message : 'Expense allocations are invalid',
+        }, { status: 400 })
+      }
+      const { splits: splitSource, payers: payerSource } = allocations
+      updateData.splits = splitSource
+      updateData.payers = payerSource
 
       if (new Set(nextParticipants).size !== nextParticipants.length ||
           new Set(splitSource.map(split => split.participant)).size !== splitSource.length ||
           new Set(payerSource.map(payer => payer.name)).size !== payerSource.length) {
         return NextResponse.json({ message: 'Expense allocations must use unique group members' }, { status: 400 })
       }
-      if (!validMemberIds.includes(nextPaidBy) ||
-          nextParticipants.some((participant: string) => !validMemberIds.includes(participant)) ||
-          splitSource.some(split => !validMemberIds.includes(split.participant)) ||
-          payerSource.some(payer => !validMemberIds.includes(payer.name))) {
-        return NextResponse.json({ message: 'Expense allocations must reference group members' }, { status: 400 })
+      try {
+        validateExpenseMembers(validMemberIds, allocations)
+      } catch (error) {
+        return NextResponse.json({
+          message: error instanceof Error ? error.message : 'Expense allocations are invalid',
+        }, { status: 400 })
       }
       if (splitSource.length &&
           (new Set(splitSource.map(split => split.participant)).size !== new Set(nextParticipants).size ||

@@ -2,7 +2,7 @@ interface ExpenseInput {
   amount: number
   paidBy?: string
   participants?: string[]
-  splits?: Array<{ participant: string; amount?: number }>
+  splits?: Array<{ participant: string; amount?: number; percentage?: number }>
   payers?: Array<{ name: string; amountPaid: number }>
   splitType?: string
 }
@@ -50,6 +50,78 @@ function requireMember(id: string, balances: Record<string, number>) {
   if (!Object.prototype.hasOwnProperty.call(balances, id)) {
     throw new Error(`Expense references unknown group member "${id}".`)
   }
+}
+
+export function validateExpenseMembers(memberIds: string[], expense: ExpenseInput) {
+  const members = new Set(memberIds)
+  const invalid: string[] = []
+  const check = (field: string, id: string) => {
+    if (!members.has(id)) invalid.push(`${field}=${JSON.stringify(id)}`)
+  }
+  if (expense.paidBy && expense.paidBy !== 'Multiple') {
+    check('paidBy', expense.paidBy)
+  } else if (!expense.payers?.length) {
+    throw new Error('Expense is missing valid payer allocations.')
+  }
+  expense.participants?.forEach((id, index) => check(`participants[${index}]`, id))
+  expense.splits?.forEach((split, index) => check(`splits[${index}].participant`, split.participant))
+  expense.payers?.forEach((payer, index) => check(`payers[${index}].name`, payer.name))
+  if (invalid.length) {
+    throw new Error(`Expense allocations must reference group members: ${invalid.join(', ')}. Refresh the expense and review these references; names and account IDs are not group member IDs.`)
+  }
+}
+
+export function updateExpenseAllocations(expense: ExpenseInput, updates: Partial<ExpenseInput>) {
+  const next = {
+    amount: updates.amount ?? expense.amount,
+    paidBy: updates.paidBy ?? expense.paidBy,
+    participants: updates.participants ?? expense.participants ?? [],
+    splits: updates.splits ?? expense.splits ?? [],
+    payers: updates.payers ?? expense.payers ?? [],
+    splitType: updates.splitType ?? expense.splitType ?? 'equal',
+  }
+  const amountChanged = next.amount !== expense.amount
+  const payerChanged = next.paidBy !== expense.paidBy
+  const participantsChanged = JSON.stringify(next.participants) !== JSON.stringify(expense.participants ?? [])
+  if (!amountChanged && !payerChanged && !participantsChanged) return next
+
+  const total = amountInCents(next.amount)
+  if (!Number.isSafeInteger(total) || total < 1) {
+    throw new Error('Enter a valid expense amount before saving.')
+  }
+  const amounts = (weights: Array<{ id: string; weight: number }>) =>
+    allocate(total, weights).sort((a, b) => a.index - b.index).map(row => row.cents / 100)
+
+  if (updates.payers === undefined && (amountChanged || payerChanged)) {
+    if (payerChanged) {
+      if (!next.paidBy || next.paidBy === 'Multiple') {
+        throw new Error('Select a payer or provide explicit payer amounts.')
+      }
+      next.payers = [{ name: next.paidBy, amountPaid: next.amount }]
+    } else if (next.payers.length) {
+      const paid = amounts(next.payers.map(payer => ({ id: payer.name, weight: payer.amountPaid })))
+      next.payers = next.payers.map((payer, index) => ({ name: payer.name, amountPaid: paid[index] }))
+    }
+  }
+  if (updates.splits === undefined && (amountChanged || participantsChanged)) {
+    if (next.splitType === 'equal') {
+      const shares = amounts(next.participants.map(id => ({ id, weight: 1 })))
+      next.splits = next.participants.map((participant, index) => ({ participant, amount: shares[index] }))
+    } else if (next.splitType === 'percentage' || next.splitType === 'shares') {
+      if (participantsChanged || next.splits.some(split => split.amount === undefined)) {
+        throw new Error('Review percentage or share allocations before changing participants.')
+      }
+      const shares = amounts(next.splits.map(split => ({ id: split.participant, weight: split.amount! })))
+      next.splits = next.splits.map((split, index) => ({
+        participant: split.participant,
+        amount: shares[index],
+        ...(split.percentage !== undefined && { percentage: split.percentage }),
+      }))
+    } else {
+      throw new Error('Unequal splits use fixed amounts. Update the split amounts explicitly before changing the total or participants.')
+    }
+  }
+  return next
 }
 
 export function calculateGroupBalances(

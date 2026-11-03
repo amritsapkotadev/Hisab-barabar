@@ -4,6 +4,8 @@ import Expense from '@/models/Expense'
 import { authenticateUser } from '@/middleware/auth'
 import { personalExpenseSummary } from '@/utils/personalExpenseSummary'
 import { withExpenseIdempotency } from '@/lib/expenseIdempotency'
+import { Types } from 'mongoose'
+import { expensePagination, expensePage } from '@/utils/expensePagination'
 
 // Create personal expense
 export async function POST(request: NextRequest) {
@@ -79,11 +81,37 @@ export async function GET(request: NextRequest) {
     }
 
     await connectDB()
-    const expenses = await Expense.find({ createdBy: auth.userId, type: 'personal' }).sort({
-      createdAt: -1,
-    })
+    let pagination
+    try {
+      pagination = expensePagination(request.nextUrl.searchParams)
+    } catch (error) {
+      return NextResponse.json({ message: error instanceof Error ? error.message : 'Invalid pagination' }, { status: 400 })
+    }
+    const filter = { createdBy: new Types.ObjectId(auth.userId), type: 'personal' }
+    const query = Expense.find(filter).sort({ createdAt: -1, _id: -1 })
+    if (pagination) query.skip(pagination.skip).limit(pagination.limit + 1)
+    const expenses = await query
+    const page = expensePage(expenses, pagination)
+    const [totals] = pagination ? await Expense.aggregate([
+      { $match: filter },
+      { $set: { expenseDate: { $convert: {
+        input: { $cond: [{ $eq: ['$date', ''] }, '$createdAt', { $ifNull: ['$date', '$createdAt'] }] },
+        to: 'date', onError: null, onNull: null,
+      } } } },
+      { $group: {
+        _id: null,
+        count: { $sum: 1 },
+        monthlySpent: { $sum: { $cond: [
+          { $and: [
+            { $gte: ['$expenseDate', monthStart] },
+            { $lt: ['$expenseDate', monthEnd] },
+          ] },
+          '$amount', 0,
+        ] } },
+      } },
+    ]) : []
 
-    const transformedExpenses = expenses.map((expense) => ({
+    const transformedExpenses = page.rows.map((expense) => ({
       id: expense._id,
       description: expense.description,
       amount: expense.amount,
@@ -106,7 +134,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: transformedExpenses,
-      summary: personalExpenseSummary(expenses, monthStart, monthEnd),
+      budget: auth.user.budget ?? 0,
+      summary: pagination
+        ? { count: totals?.count ?? 0, monthlySpent: totals?.monthlySpent ?? 0 }
+        : personalExpenseSummary(expenses, monthStart, monthEnd),
+      ...(page.pageInfo && { pageInfo: page.pageInfo }),
     })
   } catch (error) {
     console.error('Get personal expenses error:', error)

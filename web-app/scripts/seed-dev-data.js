@@ -7,7 +7,7 @@
  *   node scripts/seed-dev-data.js --user <userId> --clean --restore-budget 99
  *
  * Reads MONGODB_URI from .env.local. Every document it creates carries
- * `seedTag`, so --clean deletes only those. Fake members use made-up names and
+ * `seedTag`, so --clean deletes only those owned by the selected user. Fake members use made-up names and
  * the script aborts if one matches a real user (groups are matched by member
  * name, so a clash would show seeded groups in a real person's app).
  */
@@ -156,10 +156,11 @@ async function main() {
   const user = await db.collection('users').findOne({ _id: userOid })
   if (!user) throw new Error(`No user with id ${userId}`)
   const ME = user.name
+  const seedFilter = { seedTag: SEED_TAG, createdBy: userOid }
 
   if (clean) {
-    const e = await db.collection('expenses').deleteMany({ seedTag: SEED_TAG })
-    const g = await db.collection('groups').deleteMany({ seedTag: SEED_TAG })
+    const e = await db.collection('expenses').deleteMany(seedFilter)
+    const g = await db.collection('groups').deleteMany(seedFilter)
     console.log(`Removed ${g.deletedCount} groups and ${e.deletedCount} expenses.`)
     if (restoreBudget !== undefined) {
       await db.collection('users').updateOne({ _id: userOid }, { $set: { budget: Number(restoreBudget) } })
@@ -168,7 +169,8 @@ async function main() {
     return
   }
 
-  if ((await db.collection('groups').countDocuments({ seedTag: SEED_TAG })) > 0) {
+  if ((await db.collection('groups').countDocuments(seedFilter)) > 0 ||
+      (await db.collection('expenses').countDocuments(seedFilter)) > 0) {
     throw new Error('Seed data already present. Run with --clean first.')
   }
   const clash = await db.collection('users').find({ name: { $in: FAKE_PEOPLE } }, { projection: { name: 1 } }).toArray()
@@ -239,6 +241,7 @@ async function main() {
         splits: participants.map((p) => ({ participant: p, amount: share })),
         payers: [{ name: payerId, amountPaid: e.amt }],
         splitType: 'equal',
+        revision: 0,
         seedTag: SEED_TAG,
         createdAt: when,
         updatedAt: when,
@@ -264,6 +267,7 @@ async function main() {
       splits: [],
       payers: [],
       splitType: 'equal',
+      revision: 0,
       seedTag: SEED_TAG,
       createdAt: when,
       updatedAt: when,

@@ -4,6 +4,8 @@ import Expense from '@/models/Expense'
 import Group from '@/models/Group'
 import { authenticateUser } from '@/middleware/auth'
 import { canAccessGroup } from '@/utils/groupMembers'
+import { Types } from 'mongoose'
+import { expensePagination, expensePage } from '@/utils/expensePagination'
 
 export async function GET(
   request: NextRequest,
@@ -31,10 +33,23 @@ export async function GET(
     }
 
     // Get expenses for the group
-    const expenses = await Expense.find({ groupId: params.groupId }).sort({ createdAt: -1 })
+    let pagination
+    try {
+      pagination = expensePagination(request.nextUrl.searchParams)
+    } catch (error) {
+      return NextResponse.json({ message: error instanceof Error ? error.message : 'Invalid pagination' }, { status: 400 })
+    }
+    const filter = { groupId: new Types.ObjectId(params.groupId) }
+    const query = Expense.find(filter).sort({ createdAt: -1, _id: -1 })
+    if (pagination) query.skip(pagination.skip).limit(pagination.limit + 1)
+    const page = expensePage(await query, pagination)
+    const [totals] = pagination ? await Expense.aggregate([
+      { $match: filter },
+      { $group: { _id: null, count: { $sum: 1 }, totalAmount: { $sum: '$amount' } } },
+    ]) : []
 
     // Transform expenses
-    const transformedExpenses = expenses.map((expense) => ({
+    const transformedExpenses = page.rows.map((expense) => ({
       id: expense._id,
       groupId: expense.groupId,
       description: expense.description,
@@ -57,6 +72,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: transformedExpenses,
+      ...(page.pageInfo && {
+        pageInfo: page.pageInfo,
+        summary: { count: totals?.count ?? 0, totalAmount: totals?.totalAmount ?? 0 },
+      }),
     })
   } catch (error) {
     console.error('Get expenses error:', error)

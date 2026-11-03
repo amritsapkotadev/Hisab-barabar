@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import { authenticateUser } from '@/middleware/auth'
+import { resolveProfilePicture } from '@/lib/profilePictures'
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        picture: user.picture,
+        picture: await resolveProfilePicture(user),
         createdAt: user.createdAt,
         budget: user.budget,
       },
@@ -91,6 +92,7 @@ export async function PUT(request: NextRequest) {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        picture: await resolveProfilePicture(user),
       },
       message: 'Profile updated successfully',
     })

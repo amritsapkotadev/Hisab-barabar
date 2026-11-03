@@ -3,6 +3,8 @@ import {
   hashRequest, idempotentCreate, MANUAL_REVIEW_MESSAGE, MAX_REQUEST_BYTES,
   MAX_RESPONSE_BYTES, type IdempotencyRecord, type IdempotencyStore,
 } from './idempotency'
+import Expense from '../models/Expense'
+import { calculateGroupBalances, updateExpenseAllocations, validateExpenseMembers } from '../utils/groupBalances'
 
 const KEY = 'd741b4a5-cd34-469f-b939-d2d2389c29be'
 const PATH = '/api/expenses/personal'
@@ -38,6 +40,13 @@ class MemoryStore implements IdempotencyStore {
     if (this.completionFails) throw new Error('Write failed')
     const record = this.records.get(`${userId}:${key}`)!
     Object.assign(record, { state: 'completed', responseStatus, responseBody })
+  }
+  async reopenRejectedUpdate(userId: string, key: string, requestHash: string, responseBody: string) {
+    const record = this.records.get(`${userId}:${key}`)
+    if (!record || record.state !== 'completed' || record.responseStatus !== 400 ||
+        record.requestHash !== requestHash || record.responseBody !== responseBody) return false
+    Object.assign(record, { state: 'reserved', responseStatus: undefined, responseBody: undefined })
+    return true
   }
 }
 
@@ -167,6 +176,141 @@ async function main() {
   assert.equal(changedRevision.status, 409, 'the expected revision is part of the idempotency hash')
   assert.equal(mutationCalls, 1)
 
+  for (const message of [
+    'Expense payer amounts do not equal the expense total.',
+    'Expense split amounts do not equal the expense total.',
+    'Expense participants must match the saved splits',
+    'Expense allocations must reference group members',
+    'Expense allocations must reference group members: payers[0].name=undefined. Refresh the expense and review these references; names and account IDs are not group member IDs.',
+    'Expense allocations must reference group members: splits[0].participant=undefined, splits[1].participant=undefined, payers[0].name=undefined, payers[1].name=undefined. Refresh the expense and review these references; names and account IDs are not group member IDs.',
+  ]) {
+    const rejected = new MemoryStore()
+    const oldRequest = () => mutationRequest('PUT', '"2"', '{"amount":100,"participants":["a","b"]}')
+    const originalFailure = () => Response.json({ message }, { status: 400 })
+    assert.equal((await idempotentCreate(oldRequest(), 'u', rejected, async () => originalFailure())).status, 400)
+    let updateCount = 0
+    let release!: () => void
+    let entered!: () => void
+    const enteredUpdate = new Promise<void>(resolve => { entered = resolve })
+    const wait = new Promise<void>(resolve => { release = resolve })
+    const correctedUpdate = async () => {
+      updateCount++
+      entered()
+      await wait
+      return Response.json({ data: { id: 'expense-1', revision: 3 } })
+    }
+    const retry = idempotentCreate(oldRequest(), 'u', rejected, correctedUpdate)
+    await enteredUpdate
+    assert.equal((await idempotentCreate(oldRequest(), 'u', rejected, correctedUpdate)).status, 409)
+    release()
+    assert.equal((await retry).status, 200)
+    assert.equal((await idempotentCreate(oldRequest(), 'u', rejected, correctedUpdate)).status, 200)
+    assert.equal(updateCount, 1, 'a previously rejected update is recovered exactly once under its original key')
+  }
+
+  for (const body of ['{"amount":100,"payers":[]}', '{"amount":100,"splits":[]}']) {
+    const explicit = new MemoryStore()
+    const input = () => mutationRequest('PUT', '"2"', body)
+    let attempts = 0
+    const reject = async () => {
+      attempts++
+      return Response.json({ message: 'Expense payer amounts do not equal the expense total.' }, { status: 400 })
+    }
+    await idempotentCreate(input(), 'u', explicit, reject)
+    await idempotentCreate(input(), 'u', explicit, reject)
+    assert.equal(attempts, 1, 'explicit allocations are not rewritten or re-executed')
+  }
+  const invalidMemberUpdate = new MemoryStore()
+  const invalidMemberRequest = () => mutationRequest('PUT', '"2"', '{"amount":100,"paidBy":"outside"}')
+  await idempotentCreate(invalidMemberRequest(), 'u', invalidMemberUpdate, async () =>
+    Response.json({ message: 'Expense allocations must reference group members' }, { status: 400 }))
+  let memberChecks = 0
+  const detailedMemberCheck = async () => {
+    memberChecks++
+    return Response.json({
+      message: 'Expense allocations must reference group members: paidBy="outside".',
+    }, { status: 400 })
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await idempotentCreate(invalidMemberRequest(), 'u', invalidMemberUpdate, detailedMemberCheck)
+    assert.equal(result.status, 400, 'revalidating never bypasses membership validation')
+    assert.match((await result.json()).message, /paidBy="outside"/)
+  }
+  assert.equal(memberChecks, 1, 'the detailed rejection is persisted instead of repeatedly executing')
+
+  for (const references of [
+    'payers[0].name="outside"',
+    'splits[0].participant=undefined, payers[0].name="outside"',
+    'participants[0]=undefined',
+  ]) {
+    const invalidReference = new MemoryStore()
+    let attempts = 0
+    const reject = async () => {
+      attempts++
+      return Response.json({
+        message: `Expense allocations must reference group members: ${references}. Refresh the expense and review these references; names and account IDs are not group member IDs.`,
+      }, { status: 400 })
+    }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      assert.equal((await idempotentCreate(
+        mutationRequest('PUT', '"2"', '{"amount":100}'), 'u', invalidReference, reject,
+      )).status, 400)
+    }
+    assert.equal(attempts, 1, 'only dropped payer/split schema fields permit recovery')
+  }
+
+  const hydratedRecovery = new MemoryStore()
+  const hydrationRequest = () => mutationRequest('PUT', '"2"', '{"amount":100}')
+  const hydrationError = 'Expense allocations must reference group members: payers[0].name=undefined. Refresh the expense and review these references; names and account IDs are not group member IDs.'
+  await idempotentCreate(hydrationRequest(), 'u', hydratedRecovery, async () =>
+    Response.json({ message: hydrationError }, { status: 400 }))
+  const document = Expense.hydrate({
+    amount: 99, paidBy: 'a', participants: ['a', 'b', 'c'], splitType: 'equal', revision: 2,
+    payers: [{ name: 'a', amountPaid: 99 }],
+    splits: ['a', 'b', 'c'].map(participant => ({ participant, amount: 33 })),
+  })
+  let repairedWrites = 0
+  const repairHydrated = async () => {
+    const allocations = updateExpenseAllocations(document, { amount: 100 })
+    validateExpenseMembers(['a', 'b', 'c'], allocations)
+    calculateGroupBalances(['a', 'b', 'c'], [allocations])
+    const recast = new Expense({ ...document.toObject(), ...allocations, revision: 3 })
+    assert.equal(recast.payers?.[0].name, 'a')
+    assert.deepEqual(recast.splits?.map(split => split.participant), ['a', 'b', 'c'])
+    repairedWrites++
+    return Response.json({ data: recast.toObject() })
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await idempotentCreate(hydrationRequest(), 'u', hydratedRecovery, repairHydrated)
+    assert.equal(result.status, 200)
+    assert.equal((await result.json()).data.payers[0].name, 'a')
+  }
+  assert.equal(repairedWrites, 1, 'the hydration failure recovers under the original key exactly once')
+
+  const rejectedCreate = new MemoryStore()
+  let createAttempts = 0
+  const rejectCreate = async () => {
+    createAttempts++
+    return Response.json({ message: 'Expense payer amounts do not equal the expense total.' }, { status: 400 })
+  }
+  await idempotentCreate(request(), 'u', rejectedCreate, rejectCreate)
+  await idempotentCreate(request(), 'u', rejectedCreate, rejectCreate)
+  assert.equal(createAttempts, 1, 'recovery never reruns a create')
+
+  const interruptedRecovery = new MemoryStore()
+  const rejectedUpdate = () => mutationRequest('PUT', '"2"', '{"amount":100}')
+  await idempotentCreate(rejectedUpdate(), 'u', interruptedRecovery, async () =>
+    Response.json({ message: 'Expense payer amounts do not equal the expense total.' }, { status: 400 }))
+  const reopen = interruptedRecovery.reopenRejectedUpdate.bind(interruptedRecovery)
+  interruptedRecovery.reopenRejectedUpdate = async (...args) => {
+    await reopen(...args)
+    throw new Error('Recovery acknowledgement lost')
+  }
+  const mustNotExecute = async () => { throw new Error('Must not execute an uncertain recovery') }
+  assert.equal((await idempotentCreate(rejectedUpdate(), 'u', interruptedRecovery, mustNotExecute)).status, 409)
+  assert.equal((await idempotentCreate(rejectedUpdate(), 'u', interruptedRecovery, mustNotExecute)).status, 409)
+  assert.equal([...interruptedRecovery.records.values()][0].state, 'reserved')
+
   const deleteStore = new MemoryStore()
   let deleteCalls = 0
   const remove = async () => {
@@ -194,6 +338,41 @@ async function main() {
     complete: invalid.complete.bind(invalid),
   }
   assert.equal((await idempotentCreate(request(), 'u', unavailable, never)).status, 409)
+
+  const recovering = new MemoryStore()
+  let recoverCalls = 0
+  let unavailableOnce = true
+  recovering.initialize = async () => {
+    if (unavailableOnce) {
+      unavailableOnce = false
+      throw new Error('Temporary index initialization failure')
+    }
+    recovering.initialized = true
+  }
+  const recover = async () => {
+    recoverCalls++
+    return Response.json({ data: { id: 'recovered' } }, { status: 201 })
+  }
+  assert.equal((await idempotentCreate(request(), 'u', recovering, recover)).status, 409)
+  assert.equal(recoverCalls, 0)
+  assert.equal((await idempotentCreate(request(), 'u', recovering, recover)).status, 201)
+  assert.equal((await idempotentCreate(request(), 'u', recovering, recover)).status, 201)
+  assert.equal(recoverCalls, 1, 'same-key retry after infrastructure recovery executes once')
+
+  const lostCompletion = new MemoryStore()
+  const complete = lostCompletion.complete.bind(lostCompletion)
+  lostCompletion.complete = async (...args) => {
+    await complete(...args)
+    throw new Error('Completion acknowledgement lost')
+  }
+  let completedCalls = 0
+  const completeOnce = async () => {
+    completedCalls++
+    return Response.json({ data: { id: 'already-saved' } }, { status: 201 })
+  }
+  assert.equal((await idempotentCreate(request(), 'u', lostCompletion, completeOnce)).status, 409)
+  assert.equal((await idempotentCreate(request(), 'u', lostCompletion, completeOnce)).status, 201)
+  assert.equal(completedCalls, 1, 'same-key retry returns a committed result after a lost acknowledgement')
 
   let legacyCalls = 0
   const legacy = async () => {

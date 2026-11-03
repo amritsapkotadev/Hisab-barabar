@@ -5,17 +5,18 @@ import Expense from '@/models/Expense'
 import { authenticateUser } from '@/middleware/auth'
 import { buildMembersFromNames } from '@/utils/groupMembers'
 import { calculateGroupBalances } from '@/utils/groupBalances'
+import { resolveProfilePicture } from '@/lib/profilePictures'
 
 // Serialize a group member for API responses, surfacing the linked
 // account's picture (if any) so clients can show a real avatar without an
 // extra lookup, while keeping the stable `id` as the source of truth.
-function serializeMember(member: any) {
+async function serializeMember(member: any) {
   const linkedUser = member.userId && typeof member.userId === 'object' ? member.userId : null
   return {
     id: member.id,
     name: member.name,
     userId: linkedUser ? linkedUser._id : member.userId || undefined,
-    picture: linkedUser ? linkedUser.picture : undefined,
+    picture: linkedUser ? await resolveProfilePicture(linkedUser) : undefined,
   }
 }
 
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     })
 
     const savedGroup = await group.save()
+    await savedGroup.populate('members.userId', 'picture customPictureKey')
 
     // Generate invite link
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
           name: savedGroup.name,
           description: savedGroup.description,
           createdBy: savedGroup.createdBy.toString(),
-          members: savedGroup.members.map(serializeMember),
+          members: await Promise.all(savedGroup.members.map(serializeMember)),
           emoji: savedGroup.emoji,
           totalExpenses: 0,
           balances: {},
@@ -121,7 +123,7 @@ export async function GET(request: NextRequest) {
       $or: [{ createdBy: auth.userId }, { 'members.userId': auth.userId }],
     })
       .sort({ createdAt: -1 })
-      .populate('members.userId', 'picture')
+      .populate('members.userId', 'picture customPictureKey')
 
     // Calculate expenses and balances for each group
     const groupsWithStats = await Promise.all(
@@ -139,7 +141,7 @@ export async function GET(request: NextRequest) {
           name: group.name,
           description: group.description,
           createdBy: group.createdBy.toString(),
-          members: group.members.map(serializeMember),
+          members: await Promise.all(group.members.map(serializeMember)),
           emoji: group.emoji,
           totalExpenses,
           balances,

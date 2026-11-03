@@ -12,6 +12,7 @@ export interface IUser extends Document {
   fcmToken?: string
   googleId?: string
   picture?: string
+  customPictureKey?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -38,6 +39,7 @@ const userSchema = new Schema<IUser>(
     fcmToken: { type: String, unique: true, sparse: true },
     googleId: { type: String, unique: true, sparse: true },
     picture: { type: String },
+    customPictureKey: { type: String },
   },
   { timestamps: true }
 )

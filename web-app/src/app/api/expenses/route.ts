@@ -6,6 +6,8 @@ import { authenticateUser } from '@/middleware/auth'
 import { canAccessGroup } from '@/utils/groupMembers'
 import { withExpenseIdempotency } from '@/lib/expenseIdempotency'
 import { calculateGroupBalances } from '@/utils/groupBalances'
+import { Types } from 'mongoose'
+import { expensePagination, expensePage } from '@/utils/expensePagination'
 
 // Create a new group expense
 export async function POST(request: NextRequest) {
@@ -153,24 +155,38 @@ export async function GET(request: NextRequest) {
     })
     const groupIds = userGroups.map((group) => group._id)
 
-    // Get all group expenses
-    const groupExpenses = await Expense.find({
-      groupId: { $in: groupIds },
-    }).sort({ createdAt: -1 })
-
-    // Get all personal expenses for the user
-    const personalExpenses = await Expense.find({
-      createdBy: auth.userId,
-      type: 'personal',
-    }).sort({ createdAt: -1 })
-
-    // Combine and sort all expenses
-    const allExpenses = [...groupExpenses, ...personalExpenses].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    let pagination
+    try {
+      pagination = expensePagination(request.nextUrl.searchParams)
+    } catch (error) {
+      return NextResponse.json({ message: error instanceof Error ? error.message : 'Invalid pagination' }, { status: 400 })
+    }
+    const type = request.nextUrl.searchParams.get('type')
+    if (type !== null && type !== 'group' && type !== 'personal') {
+      return NextResponse.json({ message: 'Invalid expense type' }, { status: 400 })
+    }
+    const after = request.nextUrl.searchParams.get('createdAfter')
+    if (after !== null && !Number.isFinite(Date.parse(after))) {
+      return NextResponse.json({ message: 'Invalid createdAfter date' }, { status: 400 })
+    }
+    const filter = {
+      $or: [
+        { groupId: { $in: groupIds } },
+        { createdBy: new Types.ObjectId(auth.userId), type: 'personal' },
+      ],
+      ...(type && { type }),
+      ...(after && { createdAt: { $gte: new Date(after) } }),
+    }
+    const query = Expense.find(filter).sort({ createdAt: -1, _id: -1 })
+    if (pagination) query.skip(pagination.skip).limit(pagination.limit + 1)
+    const page = expensePage(await query, pagination)
+    const [totals] = pagination ? await Expense.aggregate([
+      { $match: filter },
+      { $group: { _id: null, count: { $sum: 1 }, totalAmount: { $sum: '$amount' } } },
+    ]) : []
 
     // Transform expenses
-    const transformedExpenses = allExpenses.map((expense) => ({
+    const transformedExpenses = page.rows.map((expense) => ({
       id: expense._id,
       groupId: expense.groupId,
       description: expense.description,
@@ -193,6 +209,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: transformedExpenses,
+      ...(page.pageInfo && {
+        pageInfo: page.pageInfo,
+        summary: { count: totals?.count ?? 0, totalAmount: totals?.totalAmount ?? 0 },
+      }),
     })
   } catch (error) {
     console.error('Get all expenses error:', error)

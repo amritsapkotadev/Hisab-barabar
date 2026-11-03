@@ -129,6 +129,9 @@ const expenseSchema = new Schema<IExpense>(
   }
 )
 
+expenseSchema.index({ createdBy: 1, type: 1, createdAt: -1, _id: -1 })
+expenseSchema.index({ groupId: 1, createdAt: -1, _id: -1 })
+
 const Expense: Model<IExpense> = mongoose.models.Expense || mongoose.model<IExpense>('Expense', expenseSchema)
 
 export default Expense

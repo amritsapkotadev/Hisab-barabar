@@ -6,14 +6,15 @@ import { authenticateUser } from '@/middleware/auth'
 import { calculateNetSettlements } from '@/utils/netSettlements'
 import { addOrClaimMember, canAccessGroup, findMemberByUserId } from '@/utils/groupMembers'
 import { calculateGroupBalances } from '@/utils/groupBalances'
+import { resolveProfilePicture } from '@/lib/profilePictures'
 
-function serializeMember(member: any) {
+async function serializeMember(member: any) {
   const linkedUser = member.userId && typeof member.userId === 'object' ? member.userId : null
   return {
     id: member.id,
     name: member.name,
     userId: linkedUser ? linkedUser._id : member.userId || undefined,
-    picture: linkedUser ? linkedUser.picture : undefined,
+    picture: linkedUser ? await resolveProfilePicture(linkedUser) : undefined,
   }
 }
 
@@ -53,7 +54,7 @@ export async function GET(
       await group.save()
     }
 
-    await group.populate('members.userId', 'picture')
+    await group.populate('members.userId', 'picture customPictureKey')
 
     // Get expenses for this group
     const expenses = await Expense.find({ groupId: group._id })
@@ -78,7 +79,7 @@ export async function GET(
         name: group.name,
         description: group.description,
         createdBy: group.createdBy.toString(),
-        members: group.members.map(serializeMember),
+        members: await Promise.all(group.members.map(serializeMember)),
         emoji: group.emoji,
         totalExpenses,
         balances,

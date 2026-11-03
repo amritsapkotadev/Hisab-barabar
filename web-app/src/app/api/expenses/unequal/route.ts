@@ -7,7 +7,7 @@ import { sendPushNotification } from '@/lib/firebase' // Add this import
 import User from '@/models/User'
 import { canAccessGroup } from '@/utils/groupMembers'
 import { withExpenseIdempotency } from '@/lib/expenseIdempotency'
-import { calculateGroupBalances } from '@/utils/groupBalances'
+import { calculateGroupBalances, validateExpenseMembers } from '@/utils/groupBalances'
 
 
 export async function POST(request: NextRequest) {
@@ -80,9 +80,6 @@ async function createExpense(request: NextRequest) {
 
     // Validate that paidBy, participants, and payers are real group member ids
     const validMemberIds = group.members.map((member) => member.id)
-    if (paidBy && !validMemberIds.includes(paidBy.trim())) {
-      return NextResponse.json({ message: 'Payer must be a group member' }, { status: 400 })
-    }
     const invalidParticipants = participants.filter((p: string) => !validMemberIds.includes((p || '').trim()))
     if (invalidParticipants.length > 0) {
       return NextResponse.json(
@@ -104,6 +101,14 @@ async function createExpense(request: NextRequest) {
     }
 
     try {
+      validateExpenseMembers(validMemberIds, {
+        amount,
+        paidBy,
+        participants,
+        splits,
+        payers,
+        splitType,
+      })
       calculateGroupBalances(validMemberIds, [{
         amount,
         paidBy,

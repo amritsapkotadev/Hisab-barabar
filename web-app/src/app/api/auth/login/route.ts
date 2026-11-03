@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import connectDB from '@/lib/mongodb'
 import User from '@/models/User'
 import { generateToken } from '@/middleware/auth'
+import { resolveProfilePicture } from '@/lib/profilePictures'
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        picture: user.picture,
+        picture: await resolveProfilePicture(user),
         budget: user.budget,
       },
       message: 'Login successful',
