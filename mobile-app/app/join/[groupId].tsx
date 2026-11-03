@@ -232,7 +232,7 @@ export default function JoinGroupScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Don't have the app? Visit splitsaathi.up.railway.app to get started!
+          Don't have the app? Visit hisabbarabar.qzz.io to get started!
         </Text>
       </View>
     </SafeAreaView>

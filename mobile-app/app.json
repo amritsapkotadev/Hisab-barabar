@@ -4,12 +4,12 @@
     "slug": "hisab-barabar",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/new_logo.png",
     "scheme": "hisabbarabar",
     "userInterfaceStyle": "automatic",
     "androidStatusBar": {
-      "barStyle": "dark-content",
-      "backgroundColor": "#FFFFFF",
+      "barStyle": "light-content",
+      "backgroundColor": "#000000",
       "translucent": false
     },
     "newArchEnabled": true,
@@ -20,7 +20,8 @@
         "applinks:hisabbarabar.qzz.io"
       ],
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera"
+        "NSCameraUsageDescription": "Allow Hisab Barabar to scan group invite QR codes and take profile photos.",
+        "NSPhotoLibraryUsageDescription": "Allow Hisab Barabar to choose a profile photo."
       },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
@@ -28,8 +29,8 @@
       "package": "com.hisabbarabar.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#4f46e5"
+        "foregroundImage": "./assets/images/new_logo.png",
+        "backgroundColor": "#000000"
       },
       "intentFilters": [
         {
@@ -68,7 +69,7 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/new_logo.png"
     },
     "plugins": [
       [
@@ -79,12 +80,28 @@
       ],
       "expo-font",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Hisab Barabar to scan group invite QR codes and take profile photos.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Hisab Barabar to choose a profile photo.",
+          "cameraPermission": "Allow Hisab Barabar to take a profile photo.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.jpeg",
+          "image": "./assets/images/new_logo.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF"
+          "backgroundColor": "#000000"
         }
       ],
       [

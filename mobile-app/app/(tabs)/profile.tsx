@@ -61,7 +61,7 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await signOut();
-    router.replace('/(auth)/login');
+    router.replace('/welcome');
   };
 
   const handleEditProfile = () => {

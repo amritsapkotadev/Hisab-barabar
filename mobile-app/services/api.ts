@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { Group, Expense, User, BudgetResponse, PersonalExpensesResponse } from '@/types';
+import { Group, Expense, User, BudgetResponse, PersonalExpensesResponse, ExpensePage, ExpensePageOptions, PersonalExpensePage } from '@/types';
 import { GoogleUser } from './googleAuth';
 import { API_URL } from '@/config/api.config';
 import {
@@ -20,6 +20,14 @@ import {
 // API Configuration - Use the centralized config
 const API_BASE_URL = API_URL;
 
+function formatLocalDateTime(date: Date): string {
+  const offset = -date.getTimezoneOffset();
+  const local = new Date(date.getTime() + offset * 60_000).toISOString().slice(0, 19);
+  const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0');
+  const minutes = String(Math.abs(offset) % 60).padStart(2, '0');
+  return `${local}${offset >= 0 ? '+' : '-'}${hours}:${minutes}`;
+}
+
 function expenseRevisionHeader(revision: number | undefined): string {
   if (revision === undefined || !Number.isSafeInteger(revision) || revision < 0) {
     throw new Error('Expense revision is missing. Refresh the expense before changing it.');
@@ -31,6 +39,22 @@ function expenseMutationHeaders(expenseId: string, revision: number | undefined)
   return isLocalExpenseId(expenseId) && revision === undefined
     ? {}
     : { 'If-Match': expenseRevisionHeader(revision) };
+}
+
+function validateExpensePage(page: ExpensePage | PersonalExpensesResponse): asserts page is ExpensePage {
+  if (!Array.isArray(page.data) || !('pageInfo' in page) || !page.pageInfo || typeof page.pageInfo.hasMore !== 'boolean' ||
+      !page.data.every(expense => expense && typeof expense.id === 'string') ||
+      !Number.isSafeInteger(page.pageInfo.page) || page.pageInfo.page < 1 ||
+      !Number.isSafeInteger(page.pageInfo.limit) || page.pageInfo.limit < 1 || page.pageInfo.limit > 100 ||
+      (page.pageInfo.hasMore ? page.pageInfo.nextPage !== page.pageInfo.page + 1 : page.pageInfo.nextPage !== null) ||
+      !page.summary || !Number.isSafeInteger(page.summary.count) || page.summary.count < 0) {
+    throw new Error('Expense pagination is missing or invalid. Update the backend and refresh.');
+  }
+}
+
+async function getFCMTokenForAuth() {
+  if (await AsyncStorage.getItem('pushNotificationsEnabled') === 'false') return null;
+  return AsyncStorage.getItem('fcmToken');
 }
 
 // Create axios instance
@@ -59,7 +83,7 @@ api.interceptors.request.use(
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
     }
-    console.log(`Making API request to: ${config.baseURL}${config.url}`);
+    console.log(`API call (cache or network): ${axios.getUri(config)}`);
     return config;
   },
   (error) => {
@@ -70,7 +94,7 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    console.log(`API response from ${response.config.url}:`, response.status);
+    console.log(`API result (cache or network) from ${response.config.url}:`, response.status);
     return response;
   },
   async (error: AxiosError) => {
@@ -81,6 +105,7 @@ api.interceptors.response.use(
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401 || error.code === 'SESSION_EXPIRED') {
       const requestToken = error.config?.headers.get('Authorization');
+      if (!requestToken) return Promise.reject(error);
       if (requestToken && requestToken !== `Bearer ${authToken}`) {
         return Promise.reject(new axios.CanceledError('Previous account request expired'));
       }
@@ -103,9 +128,8 @@ export const apiService = {
   async login(email: string, password: string): Promise<{ token: string; user: User; message?: string }> {
     try {
       console.log('Attempting login with:', { email });
-      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      const fcmToken = await getFCMTokenForAuth();
       const response = await api.post('/auth/login', { email, password, fcmToken });
-      console.log('Login response:', response.data);
       const { token, user, message } = response.data;
       authToken = token;
       await storeAuthToken(token);
@@ -119,10 +143,8 @@ export const apiService = {
   async register(name: string, email: string, phone: string, password: string): Promise<{ user: User; success?: boolean }> {
     try {
       console.log('Attempting registration with:', { name, email, phone });
-      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      const fcmToken = await getFCMTokenForAuth();
       const response = await api.post('/auth/register', { name, email, phone, password, fcmToken });
-      console.log('Registration response:', response.data);
-
       const { user, success } = response.data;
       return { user, success };
     } catch (error: any) {
@@ -135,7 +157,7 @@ export const apiService = {
   async loginWithGoogle(googleUser: GoogleUser): Promise<{ token: string; user: User }> {
     try {
       console.log('Attempting Google login with:', { email: googleUser.email });
-      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      const fcmToken = await getFCMTokenForAuth();
       const response = await api.post('/auth/google-login', {
         googleId: googleUser.id,
         email: googleUser.email,
@@ -143,8 +165,6 @@ export const apiService = {
         picture: googleUser.picture,
         fcmToken,
       });
-      console.log('Google login response:', response.data);
-
       const { token, user } = response.data;
       authToken = token;
       await storeAuthToken(token);
@@ -158,7 +178,7 @@ export const apiService = {
   async registerWithGoogle(googleUser: GoogleUser): Promise<{ token: string; user: User }> {
     try {
       console.log('Attempting Google registration with:', { email: googleUser.email });
-      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      const fcmToken = await getFCMTokenForAuth();
       const response = await api.post('/auth/google-register', {
         googleId: googleUser.id,
         email: googleUser.email,
@@ -166,8 +186,6 @@ export const apiService = {
         picture: googleUser.picture,
         fcmToken,
       });
-      console.log('Google registration response:', response.data);
-
       const { token, user } = response.data;
       authToken = token;
       await storeAuthToken(token);
@@ -183,7 +201,6 @@ export const apiService = {
     try {
       console.log('Fetching user profile...');
       const response = await api.get('/users/profile');
-      console.log('Profile response:', response.data);
       return response.data.user;
     } catch (error) {
       console.error('Get profile API call failed:', error);
@@ -195,11 +212,36 @@ export const apiService = {
     try {
       console.log('Updating user profile with:', updates);
       const response = await api.put('/users/profile', updates);
-      console.log('Update profile response:', response.data);
       return response.data.user;
     } catch (error: any) {
       console.error('Update profile API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to update profile');
+    }
+  },
+
+  async uploadUserProfilePicture(asset: {
+    uri: string;
+    fileName?: string | null;
+    mimeType?: string | null;
+  }): Promise<User> {
+    try {
+      const formData = new FormData();
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const extension = mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName || `profile-picture.${extension}`,
+        type: mimeType,
+      } as unknown as Blob);
+
+      const response = await api.post('/users/profile/picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60_000,
+      });
+      return response.data.user;
+    } catch (error: any) {
+      console.error('Profile picture upload API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to upload profile picture');
     }
   },
 
@@ -226,6 +268,16 @@ export const apiService = {
     return !!authToken;
   },
 
+  async prepareOfflineSync(): Promise<void> {
+    const response = await api.get<{
+      data?: { expenseCreateIdempotency?: boolean; expenseMutationIdempotency?: boolean };
+    }>('/offline-capabilities');
+    if (response.data.data?.expenseCreateIdempotency !== true ||
+        response.data.data?.expenseMutationIdempotency !== true) {
+      throw new Error('The server needs an update before offline expense sync is available.');
+    }
+  },
+
   // Personal budget
   async setPersonalBudget(budget: number): Promise<BudgetResponse> {
     try {
@@ -243,7 +295,6 @@ export const apiService = {
     try {
       console.log('Fetching groups...');
       const response = await api.get('/groups');
-      console.log('Groups response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
       console.error('Groups API call failed:', error);
@@ -255,7 +306,6 @@ export const apiService = {
     try {
       console.log('Fetching group:', id);
       const response = await api.get(`/groups/${id}`, onlineOnly ? { headers: { 'Cache-Control': 'no-cache' } } : undefined);
-      console.log('Group response:', response.data);
       return response.data.data || response.data;
     } catch (error) {
       console.error('Group API call failed:', error);
@@ -297,7 +347,6 @@ export const apiService = {
       const payload = { ...group, members: group.members.map((member) => member.name) };
       console.log('Creating group:', payload);
       const response = await api.post('/groups', payload);
-      console.log('Create group response:', response.data);
 
       const createdGroup = response.data.data || response.data;
       if (!createdGroup.id) {
@@ -316,7 +365,6 @@ export const apiService = {
     try {
       console.log('Joining group by ID:', groupId);
       const response = await api.post(`/groups/${groupId}/join`);
-      console.log('Join group response:', response.data);
       return {
         group: response.data.data || response.data,
         alreadyMember: response.data.message === 'You are already a member of this group',
@@ -367,32 +415,28 @@ export const apiService = {
     }
   },
 
-  // New method to get group invite details
-  async getGroupInviteDetails(groupId: string): Promise<{ inviteCode: string; qrCodeData: string }> {
-    try {
-      console.log('Fetching group invite details:', groupId);
-      const response = await api.get(`/groups/${groupId}/invite-details`);
-      console.log('Group invite details:', response.data);
-
-      // Generate QR code data string
-      const qrCodeData = JSON.stringify({
-        groupId,
-        inviteCode: response.data.inviteCode,
-        app: 'Hisab Barabar',
-        timestamp: new Date().toISOString()
-      });
-
-      return {
-        inviteCode: response.data.inviteCode,
-        qrCodeData
-      };
-    } catch (error: any) {
-      console.error('Get group invite details API call failed:', error);
-      throw new Error(error.response?.data?.message || 'Failed to get group invite details');
+  // Expenses
+  async getExpensePage(options: ExpensePageOptions, groupId?: string): Promise<ExpensePage> {
+    const path = groupId ? `/expenses/group/${groupId}` : '/expenses';
+    const response = await api.get<ExpensePage>(path, { params: options });
+    console.log('Expenses page response:', response.data);
+    validateExpensePage(response.data);
+    if (typeof response.data.summary.totalAmount !== 'number' ||
+        !Number.isFinite(response.data.summary.totalAmount)) {
+      throw new Error('Expense total is missing or invalid. Update the backend and refresh.');
     }
+    return response.data;
   },
 
-  // Expenses
+  async getPersonalExpensePage(options: ExpensePageOptions): Promise<PersonalExpensePage> {
+    const response = await apiService.getPersonalExpenses(options);
+    validateExpensePage(response);
+    if (!Number.isFinite(response.summary.monthlySpent)) {
+      throw new Error('Personal expense spending total is missing or invalid.');
+    }
+    return response;
+  },
+
   async getGroupExpenses(groupId: string): Promise<Expense[]> {
     try {
       console.log('Fetching expenses for group:', groupId);
@@ -417,19 +461,24 @@ export const apiService = {
     }
   },
 
-  async getPersonalExpenses(): Promise<PersonalExpensesResponse> {
+  async getPersonalExpenses(options?: ExpensePageOptions): Promise<PersonalExpensesResponse> {
     try {
       console.log('Fetching personal expenses...');
       const now = new Date();
       const response = await api.get<PersonalExpensesResponse>('/expenses/personal', {
         params: {
-          monthStart: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
-          monthEnd: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
+          ...options,
+          monthStart: formatLocalDateTime(new Date(now.getFullYear(), now.getMonth(), 1)),
+          monthEnd: formatLocalDateTime(new Date(now.getFullYear(), now.getMonth() + 1, 1)),
         },
       });
       console.log('Personal expenses response:', response.data);
       if (!response.data.summary) {
         throw new Error('Personal expense summary is missing from the API response');
+      }
+      if (typeof response.data.budget !== 'number' || !Number.isFinite(response.data.budget) ||
+          response.data.budget < 0) {
+        throw new Error('Personal expense budget is missing or invalid. Update the backend and refresh personal expenses.');
       }
       return response.data;
     } catch (error) {
@@ -644,6 +693,16 @@ export const apiService = {
     } catch (error: any) {
       console.error('Update FCM token API call failed:', error);
       throw new Error(error.response?.data?.message || 'Failed to update FCM token');
+    }
+  },
+
+  async clearFCMToken(): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await api.put('/users/fcm-token', { fcmToken: null });
+      return response.data;
+    } catch (error: any) {
+      console.error('Clear FCM token API call failed:', error);
+      throw new Error(error.response?.data?.message || 'Failed to disable push notifications');
     }
   },
 };

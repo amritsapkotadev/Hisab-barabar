@@ -1,4 +1,9 @@
-import { buildInviteUrl, normalizeInviteCode } from '../invite';
+import {
+  buildInviteQrUrl,
+  buildInviteUrl,
+  getGroupIdFromInviteQr,
+  normalizeInviteCode,
+} from '../invite';
 
 describe('buildInviteUrl', () => {
   it('builds the canonical join URL', () => {
@@ -30,5 +35,32 @@ describe('buildInviteUrl', () => {
 describe('normalizeInviteCode', () => {
   it('trims and uppercases the code', () => {
     expect(normalizeInviteCode('  ab12cd34 ')).toBe('AB12CD34');
+  });
+});
+
+describe('getGroupIdFromInviteQr', () => {
+  const groupId = '0123456789abcdef01234567';
+
+  it('accepts the canonical URL generated for QR codes', () => {
+    expect(getGroupIdFromInviteQr(buildInviteQrUrl(groupId))).toBe(groupId);
+  });
+
+  it('accepts the canonical HTTPS invite URL', () => {
+    expect(getGroupIdFromInviteQr(`https://hisabbarabar.qzz.io/join/${groupId}`)).toBe(groupId);
+  });
+
+  it('accepts the app deep link', () => {
+    expect(getGroupIdFromInviteQr(`hisabbarabar://join/${groupId}`)).toBe(groupId);
+  });
+
+  it.each([
+    'https://example.com/join/0123456789abcdef01234567',
+    'https://hisabbarabar.qzz.io/join/not-an-id',
+    'https://hisabbarabar.qzz.io/join/0123456789abcdef01234567/extra',
+    'https://hisabbarabar.qzz.io/join/0123456789abcdef01234567?redirect=https://example.com',
+    'javascript:alert(1)',
+    'not a URL',
+  ])('rejects unsupported payload %s', (value) => {
+    expect(getGroupIdFromInviteQr(value)).toBeNull();
   });
 });

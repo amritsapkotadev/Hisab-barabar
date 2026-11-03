@@ -7,40 +7,42 @@ import {
   Image,
 } from 'react-native';
 import { router } from 'expo-router';
-import messaging from '@react-native-firebase/messaging';
 
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { initializeNotifications } from '@/services/notifications';
-
-messaging().setBackgroundMessageHandler(async remoteMessage => {
-  console.log('Background message received:', remoteMessage?.notification?.title);
-  return Promise.resolve();
-});
+import { DEFAULT_NOTIFICATION_SETTINGS, isNotificationSettings, readPreference } from '@/services/preferences';
 
 export default function IndexScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
-  const { status } = useAuth();
+  const { status, user } = useAuth();
 
   useEffect(() => {
-    initializeNotifications().catch(error => {
+    if (status === 'loading') return;
+    const initialize = async () => {
+      const preferences = user
+        ? await readPreference(user.id, 'notifications', DEFAULT_NOTIFICATION_SETTINGS, isNotificationSettings)
+        : undefined;
+      await initializeNotifications(preferences?.pushNotifications);
+    };
+    initialize().catch(error => {
       console.error('Notification initialization error:', error);
     });
-  }, []);
+  }, [status, user]);
 
   useEffect(() => {
     if (status === 'authenticated') {
       router.replace('/(tabs)');
     } else if (status === 'unauthenticated') {
-      router.replace('/(auth)/login');
+      router.replace('/welcome');
     }
   }, [status]);
 
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        <Image source={require('../assets/images/icon.png')} style={styles.logoImage} />
+        <Image source={require('../assets/images/new_logo.png')} style={styles.logoImage} />
         <Text style={styles.logoText}>Hisab Barabar</Text>
       </View>
 

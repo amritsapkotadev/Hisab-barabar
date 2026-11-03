@@ -48,13 +48,35 @@ describe('ThemeProvider', () => {
     });
   }
 
-  it('follows system changes and recreates styles on mounted screens', async () => {
+  it('defaults to light on first use and follows the device when System is selected', async () => {
+    mockScheme = 'dark';
+    await mount();
+    expect(theme.preference).toBe('light');
+    expect(theme.isDark).toBe(false);
+    expect(styles.backgroundColor).toBe(COLORS.background);
+    expect(Appearance.setColorScheme).toHaveBeenCalledWith('light');
+
+    await act(async () => { await theme.setPreference('system'); });
+    expect(theme.preference).toBe('system');
+    expect(Appearance.setColorScheme).toHaveBeenLastCalledWith(null);
+    expect(styles.backgroundColor).toBe(DARK_COLORS.background);
+
+    mockScheme = 'light';
+    await act(async () => renderer.update(<ThemeProvider><Probe /></ThemeProvider>));
+    expect(styles.backgroundColor).toBe(COLORS.background);
+  });
+
+  it('restores a previously saved System preference', async () => {
+    AsyncStorage.getItem.mockResolvedValue('system');
+    mockScheme = 'dark';
     await mount();
     expect(theme.preference).toBe('system');
-    expect(styles.backgroundColor).toBe(COLORS.background);
-    mockScheme = 'dark';
-    await act(async () => renderer.update(<ThemeProvider><Probe /></ThemeProvider>));
+    expect(theme.isDark).toBe(true);
     expect(styles.backgroundColor).toBe(DARK_COLORS.background);
+    mockScheme = 'light';
+    await act(async () => renderer.update(<ThemeProvider><Probe /></ThemeProvider>));
+    expect(theme.isDark).toBe(false);
+    expect(styles.backgroundColor).toBe(COLORS.background);
     expect(Appearance.setColorScheme).toHaveBeenCalledWith(null);
   });
 
@@ -79,19 +101,20 @@ describe('ThemeProvider', () => {
     let saved;
     await act(async () => { saved = await theme.setPreference('dark'); });
     expect(saved).toBe(false);
-    expect(theme.preference).toBe('system');
+    expect(theme.preference).toBe('light');
     expect(log).toHaveBeenCalledWith('Failed to save appearance:', error);
     expect(Alert.alert).toHaveBeenCalled();
   });
 
-  it('reports restore failures and uses the device appearance', async () => {
+  it('reports restore failures and falls back to light', async () => {
     const error = new Error('Storage unavailable');
     const log = jest.spyOn(console, 'error').mockImplementation(() => {});
     AsyncStorage.getItem.mockRejectedValue(error);
     mockScheme = 'dark';
     await mount();
-    expect(theme.preference).toBe('system');
-    expect(theme.isDark).toBe(true);
+    expect(theme.preference).toBe('light');
+    expect(theme.isDark).toBe(false);
+    expect(styles.backgroundColor).toBe(COLORS.background);
     expect(log).toHaveBeenCalledWith('Failed to restore appearance:', error);
     expect(Alert.alert).toHaveBeenCalled();
   });

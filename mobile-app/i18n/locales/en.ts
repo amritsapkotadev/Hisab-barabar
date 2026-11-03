@@ -126,7 +126,7 @@ const en = {
     system: 'System',
     light: 'Light',
     dark: 'Dark',
-    restoreAppearanceFailed: 'Could not restore your appearance setting. Using the device theme.',
+    restoreAppearanceFailed: 'Could not restore your appearance setting. Using the light theme.',
     saveAppearanceFailed: 'Could not save your appearance setting. Please try again.',
     title: 'App Settings',
     displayFormat: 'Display & Format',
@@ -141,12 +141,9 @@ const en = {
     theme: 'Theme',
     themePrompt: 'Choose your preferred theme',
     appBehavior: 'App Behavior',
-    autoBackup: 'Auto Backup',
-    autoBackupSubtitle: 'Automatically backup your data to cloud',
-    offlineMode: 'Offline Mode',
-    offlineModeSubtitle: 'Allow app to work without internet',
-    smartNotifications: 'Smart Notifications',
-    smartNotificationsSubtitle: 'Intelligent notification timing',
+    pushNotifications: 'Push Notifications',
+    pushNotificationsSubtitle: 'Receive notifications on this device',
+    pushNotificationsFailed: 'Could not update push notifications. Please try again.',
     weeklyDigest: 'Weekly Digest',
     weeklyDigestSubtitle: 'Receive weekly expense summaries',
     dataManagement: 'Data Management',
@@ -168,7 +165,7 @@ const en = {
     resetSuccess: 'Settings reset to defaults!',
     about: 'About Settings',
     aboutText:
-      'These settings are synced across all your devices. Changes may take a few moments to apply.',
+      'App behavior preferences are saved locally for your signed-in account. Changes apply immediately.',
   },
 };
 

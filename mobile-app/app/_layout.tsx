@@ -110,6 +110,8 @@ function ThemedRoot() {
           <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <OfflineStatus />
+            {/* Measure screen insets below the banner, which already covers the status bar. */}
+            <SafeAreaProvider>
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.background } }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="welcome" />
@@ -124,8 +126,10 @@ function ThemedRoot() {
               <Stack.Screen name="add-expense/[groupId]" />
               <Stack.Screen name="add-personal-expense" />
               <Stack.Screen name="profile/offline-sync" />
+              <Stack.Screen name="notifications" />
               <Stack.Screen name="+not-found" />
             </Stack>
+            </SafeAreaProvider>
             <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={COLORS.background} />
           </AuthProvider>
           </QueryClientProvider>

@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { apiService, setUnauthorizedHandler } from '@/services/api';
 import { migrateLegacyAuthToken } from '@/services/tokenStorage';
+import { setNotificationAccount } from '@/services/notificationInbox';
 import type { User } from '@/types';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -23,12 +24,21 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+async function updateNotificationAccount(userId: string | null) {
+  try {
+    await setNotificationAccount(userId);
+  } catch (error) {
+    console.error('Notification history account could not be updated:', error);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      void updateNotificationAccount(null);
       setUser(null);
       setStatus('unauthenticated');
     });
@@ -43,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await migrateLegacyAuthToken();
 
       if (!token) {
+        await updateNotificationAccount(null);
         if (!cancelled) {
           setStatus('unauthenticated');
         }
@@ -53,12 +64,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await apiService.setAuthToken(token);
         const profile = await apiService.getUserProfile();
         if (!cancelled) {
+          await updateNotificationAccount(profile.id);
           setUser(profile);
           setStatus('authenticated');
         }
       } catch (error) {
         console.error('Session restoration failed:', error);
         try {
+          await updateNotificationAccount(null);
           await apiService.clearAuthToken();
         } finally {
           if (!cancelled) {
@@ -84,11 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (token: string, nextUser?: User) => {
     await apiService.setAuthToken(token);
-    setUser(nextUser ?? null);
+    const profile = nextUser ?? await apiService.getUserProfile();
+    await updateNotificationAccount(profile.id);
+    setUser(profile);
     setStatus('authenticated');
   }, []);
 
   const signOut = useCallback(async () => {
+    await updateNotificationAccount(null);
     try {
       await apiService.clearAuthToken();
     } finally {
@@ -99,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     const profile = await apiService.getUserProfile();
+    await updateNotificationAccount(profile.id);
     setUser(profile);
     return profile;
   }, []);

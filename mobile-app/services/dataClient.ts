@@ -18,12 +18,13 @@ import {
 } from './offlineStore';
 
 const MAX_AGE = 24 * 60 * 60 * 1000;
+const STALE_TIME = 30_000;
 const CACHE_VERSION = 1;
 const CREATE_PATHS = new Set(['/expenses', '/expenses/personal', '/expenses/unequal']);
 
 export const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, gcTime: MAX_AGE, retry: false, networkMode: 'always' },
+    queries: { staleTime: STALE_TIME, gcTime: MAX_AGE, retry: false, networkMode: 'always' },
   },
 });
 
@@ -47,6 +48,7 @@ interface DataState {
   error: string | null;
   revision: number;
   lastExpenseSyncAt: number | null;
+  syncing: boolean;
 }
 
 interface LegacyQueuedExpense {
@@ -59,7 +61,7 @@ interface LegacyQueuedExpense {
 }
 
 let state: DataState = {
-  online: true, ready: false, queue: [], error: null, revision: 0, lastExpenseSyncAt: null,
+  online: true, ready: false, queue: [], error: null, revision: 0, lastExpenseSyncAt: null, syncing: false,
 };
 let account: string | null = null;
 let session = 0;
@@ -91,6 +93,32 @@ function updateState(update: Partial<DataState>) {
 function report(error: unknown, message: string) {
   console.error(message, error);
   updateState({ error: message });
+}
+
+function expenseFailureMessage(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return error instanceof Error ? error.message : 'Sync failed. Review this expense.';
+  }
+  if (!error.response) return error.message;
+  const data: unknown = error.response?.data;
+  let body: unknown = data;
+  if (typeof data === 'string') {
+    try {
+      body = JSON.parse(data);
+    } catch {
+      body = null;
+    }
+  }
+  const message = body && typeof body === 'object' && 'message' in body &&
+    typeof body.message === 'string' ? body.message.trim() : '';
+  const status = error.response?.status;
+  return `Sync rejected${status ? ` (${status})` : ''}. ${
+    message || 'The server did not confirm this expense. Review before retrying.'
+  }`;
+}
+
+function logCache(outcome: 'HIT' | 'MISS', path: string, source: string) {
+  console.log(`[cache] ${outcome} GET ${path} (${source})`);
 }
 
 function cacheKey(userId: string) { return `server-cache:v${CACHE_VERSION}:${userId}`; }
@@ -165,6 +193,72 @@ function queuedCreateForLocalId(id: string) {
   return state.queue.find(item => item.id === operationId && item.method === 'post' && item.status !== 'synced');
 }
 
+function resizeLocalExpense(create: Record<string, unknown>, updates: Record<string, unknown>) {
+  const next = { ...create, ...updates };
+  if (create.type === 'personal' || (!create.groupId && !next.groupId)) return next;
+  const amountChanged = updates.amount !== undefined && updates.amount !== create.amount;
+  const participantsChanged = updates.participants !== undefined &&
+    JSON.stringify(updates.participants) !== JSON.stringify(create.participants);
+  const payerChanged = updates.paidBy !== undefined && updates.paidBy !== create.paidBy;
+  if (!amountChanged && !participantsChanged && !payerChanged) return next;
+  if (typeof next.amount !== 'number' || !Number.isFinite(next.amount) || next.amount <= 0 ||
+      !Number.isSafeInteger(Math.round(next.amount * 100))) {
+    throw new Error('Enter a valid expense amount before saving.');
+  }
+  const total = Math.round(next.amount * 100);
+  const allocate = (weights: number[]) => {
+    const sum = weights.reduce((sum, weight) => sum + weight, 0);
+    if (!weights.length || !Number.isFinite(sum) || sum <= 0 ||
+        weights.some(weight => !Number.isFinite(weight) || weight < 0)) {
+      throw new Error('Expense allocations are invalid. Review payer and split amounts.');
+    }
+    const rows = weights.map((weight, index) => {
+      const exact = total * (weight / sum);
+      return { index, cents: Math.floor(exact), fraction: exact - Math.floor(exact) };
+    });
+    const remainder = total - rows.reduce((sum, row) => sum + row.cents, 0);
+    const ranked = [...rows].sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+    for (let i = 0; i < remainder; i++) ranked[i % ranked.length].cents++;
+    return rows.map(row => row.cents / 100);
+  };
+  if (updates.payers === undefined && (amountChanged || payerChanged)) {
+    if (payerChanged) {
+      if (typeof next.paidBy !== 'string' || !next.paidBy || next.paidBy === 'Multiple') {
+        throw new Error('Select a payer or provide explicit payer amounts.');
+      }
+      next.payers = [{ name: next.paidBy, amountPaid: next.amount }];
+    } else if (Array.isArray(create.payers) && create.payers.length) {
+      const payers = create.payers;
+      if (!payers.every(payer => payer && typeof payer.name === 'string' && typeof payer.amountPaid === 'number')) {
+        throw new Error('Saved payer amounts are invalid. Review this expense.');
+      }
+      const amounts = allocate(payers.map(payer => payer.amountPaid));
+      next.payers = payers.map((payer, index) => ({ ...payer, amountPaid: amounts[index] }));
+    }
+  }
+  if (updates.splits === undefined && (amountChanged || participantsChanged)) {
+    if (next.splitType === 'equal' || next.splitType === undefined) {
+      const participants = next.participants;
+      if (!Array.isArray(participants) || !participants.every(id => typeof id === 'string')) {
+        throw new Error('Select valid participants before saving.');
+      }
+      const amounts = allocate(participants.map(() => 1));
+      next.splits = participants.map((participant, index) => ({ participant, amount: amounts[index] }));
+    } else if (next.splitType === 'percentage' || next.splitType === 'shares') {
+      if (participantsChanged || !Array.isArray(create.splits) ||
+          !create.splits.every(split => split && typeof split.participant === 'string' && typeof split.amount === 'number')) {
+        throw new Error('Review percentage or share allocations before changing participants.');
+      }
+      const splits = create.splits;
+      const amounts = allocate(splits.map(split => split.amount));
+      next.splits = splits.map((split, index) => ({ ...split, amount: amounts[index] }));
+    } else {
+      throw new Error('Unequal splits use fixed amounts. Update the split amounts explicitly before changing the total or participants.');
+    }
+  }
+  return next;
+}
+
 function pendingExpense(item: QueuedExpense) {
   if (item.method !== 'post' || item.status !== 'pending' || !item.body) return null;
   const payload = JSON.parse(item.body) as Record<string, unknown>;
@@ -187,13 +281,16 @@ function pendingExpense(item: QueuedExpense) {
   };
 }
 
-function overlayPendingExpenses(path: string, value: unknown) {
+function overlayPendingExpenses(path: string, value: unknown, params?: { page?: number; type?: string; createdAfter?: string }) {
+  if (params?.page && params.page > 1) return value;
   const body = typeof value === 'string' ? JSON.parse(value) as unknown : value;
   if (!body || typeof body !== 'object' || !('data' in body) || !Array.isArray(body.data)) return value;
   const groupId = path.startsWith('/expenses/group/') ? path.slice('/expenses/group/'.length) : null;
   const pending = state.queue.flatMap(item => {
     const expense = pendingExpense(item);
     if (!expense || (path === '/expenses/personal' && expense.type !== 'personal') ||
+        (params?.type && expense.type !== params.type) ||
+        (params?.createdAfter && expense.createdAt < params.createdAfter) ||
         (groupId !== null && expense.groupId !== groupId)) return [];
     return [expense];
   });
@@ -274,7 +371,6 @@ async function reconcileAccessibleGroups(userId: string, responseBody: unknown, 
       }));
     }
   });
-  updateState({ revision: state.revision + 1 });
 }
 
 export async function startDataSession(token: string, server = '') {
@@ -292,7 +388,7 @@ export async function startDataSession(token: string, server = '') {
   await queryClient.cancelQueries();
   if (session !== generation) return false;
   queryClient.clear();
-  updateState({ ready: false, queue: [], error: null, lastExpenseSyncAt: null });
+  updateState({ ready: false, queue: [], error: null, lastExpenseSyncAt: null, syncing: false });
   // The server still verifies the token; the claim is only a local storage namespace.
   const payload: unknown = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
   if (!payload || typeof payload !== 'object' || !('id' in payload) ||
@@ -377,7 +473,7 @@ export async function endDataSession() {
   await queryClient.cancelQueries();
   if (session === generation) {
     queryClient.clear();
-    updateState({ ready: false, queue: [], error: null, lastExpenseSyncAt: null });
+    updateState({ ready: false, queue: [], error: null, lastExpenseSyncAt: null, syncing: false });
   }
   await persistence;
   // Keep unsynced expenses for the SAME account to inspect after signing in again.
@@ -442,6 +538,10 @@ export async function refreshServerData(notify = true) {
   if (notify) updateState({ revision: state.revision + 1 });
 }
 
+export function resumeDataReads() {
+  updateState({ revision: state.revision + 1 });
+}
+
 export function setDataOnline(online: boolean) {
   const reconnected = online && !state.online;
   updateState({ online });
@@ -501,6 +601,7 @@ export async function replayQueuedExpenses() {
   }
   const userId = account;
   const generation = session;
+  updateState({ syncing: true });
   replay = (async () => {
     if (!state.queue.some(item => item.status === 'pending')) return;
     try {
@@ -557,9 +658,7 @@ export async function replayQueuedExpenses() {
           setDataOnline(false);
           break;
         }
-        const message = axios.isAxiosError(error)
-          ? `Sync rejected (${error.response?.status}). Check group membership and review this expense.`
-          : error instanceof Error ? error.message : 'Sync failed. Review this expense.';
+        const message = expenseFailureMessage(error);
         await saveQueue(userId, state.queue.map(entry => entry.id === item.id
           ? { ...entry, status: 'failed', message } : entry));
         report(error, message);
@@ -567,6 +666,7 @@ export async function replayQueuedExpenses() {
     }
   })().finally(() => {
     replay = null;
+    if (session === generation) updateState({ syncing: false });
     if (session !== generation && account && state.ready && state.online) {
       void replayQueuedExpenses().catch(error => report(error, 'Offline sync could not resume. Please retry.'));
     }
@@ -587,6 +687,25 @@ export async function dismissQueuedExpense(id: string) {
   } finally {
     creating = false;
   }
+}
+
+export async function retryQueuedExpense(id: string) {
+  if (!account || !state.ready) throw new Error('Sign in before retrying an expense.');
+  if (!state.online) throw new Error('Connect to retry this expense.');
+  if (replay || creating) throw new Error('Wait for save or sync to finish before retrying.');
+  const item = state.queue.find(entry => entry.id === id);
+  if (!item || item.status !== 'failed') throw new Error('Only entries needing review can be retried.');
+  const userId = account;
+  const generation = session;
+  creating = true;
+  try {
+    await saveQueue(userId, state.queue.map(entry => entry.id === id
+      ? { ...entry, status: 'pending', message: undefined } : entry));
+  } finally {
+    creating = false;
+  }
+  if (session !== generation) throw new axios.CanceledError('Account changed while preparing retry');
+  await replayQueuedExpenses();
 }
 
 export async function loadExpenseDraft<T>(key: string) {
@@ -663,14 +782,16 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
     if (method === 'get' && userId && state.ready && config.headers.get('Cache-Control') !== 'no-cache' &&
       !path.includes('/auth/') && !path.includes('settlement')) {
       const key = [userId, path, config.params ?? null];
+      const cachePath = axios.getUri({ url: path, params: config.params });
       if (!state.online) {
         if (isExpenseRead(path)) {
           const snapshot = await loadExpenseSnapshot(userId, expenseSnapshotKey(path, config.params));
           if (snapshot) {
+            logCache('HIT', cachePath, 'SQLite expense snapshot');
             updateState({ lastExpenseSyncAt: snapshot.savedAt });
             return {
               ...snapshot,
-              data: overlayPendingExpenses(path, snapshot.data),
+              data: overlayPendingExpenses(path, snapshot.data, config.params),
               headers: new AxiosHeaders(),
               config,
             };
@@ -679,6 +800,7 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
           if (expenseId) {
             const confirmed = await loadConfirmedExpense(userId, expenseId);
             if (confirmed) {
+              logCache('HIT', cachePath, 'SQLite confirmed expense');
               updateState({ lastExpenseSyncAt: confirmed.updatedAt });
               return {
                 status: 200,
@@ -689,19 +811,31 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
               };
             }
           }
+          logCache('MISS', cachePath, 'offline SQLite expense cache');
           throw new AxiosError('Offline: no saved expense snapshot is available. Connect and refresh expenses.', 'OFFLINE', config);
         }
         const cached = queryClient.getQueryState<{ data: unknown; status: number; statusText: string }>(key);
         if (!cached?.data || Date.now() - cached.dataUpdatedAt >= MAX_AGE) {
+          logCache('MISS', cachePath, 'offline query cache');
           throw new AxiosError('Offline: no recent saved data for this screen. Connect and try again.', 'OFFLINE', config);
         }
+        logCache('HIT', cachePath, 'offline query cache');
         return { ...cached.data, headers: new AxiosHeaders(), config };
+      }
+      const cached = queryClient.getQueryState(key);
+      const hasFreshCache = cached?.status === 'success' && !cached.isInvalidated &&
+        Date.now() - cached.dataUpdatedAt < STALE_TIME;
+      if (hasFreshCache) {
+        logCache('HIT', cachePath, 'fresh query cache');
+      } else if (cached?.fetchStatus === 'fetching') {
+        logCache('HIT', cachePath, 'shared in-flight request');
       }
       let result;
       try {
         result = await awaitConsumer(queryClient.fetchQuery({
         queryKey: key,
         queryFn: async ({ signal }) => {
+          logCache('MISS', cachePath, 'network fetch');
           const response = await nativeAdapter({ ...config, signal });
           if (path === '/groups' && response.status >= 200 && response.status < 300) {
             await reconcileAccessibleGroups(userId, response.data, generation);
@@ -730,6 +864,7 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
           setDataOnline(false);
           const cached = queryClient.getQueryState<{ data: unknown; status: number; statusText: string }>(key);
           if (cached?.data && Date.now() - cached.dataUpdatedAt < MAX_AGE) {
+            logCache('HIT', cachePath, 'stale offline fallback');
             return { ...cached.data, headers: new AxiosHeaders(), config };
           }
         }
@@ -738,7 +873,7 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
       if (session !== generation) throw new axios.CanceledError('Account changed', undefined, config);
       return {
         ...result,
-        data: overlayPendingExpenses(path, result.data),
+        data: overlayPendingExpenses(path, result.data, config.params),
         headers: new AxiosHeaders(),
         config,
       };
@@ -757,7 +892,7 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
       if (!state.online) throw new AxiosError('This action requires an internet connection. No change was made.', 'OFFLINE', config);
       const response = await awaitConsumer(nativeAdapter({ ...config, signal: sessionAbort.signal }), config);
       if (session !== generation) throw new axios.CanceledError('Account changed', undefined, config);
-      await refreshServerData();
+      if (path !== '/users/fcm-token') await refreshServerData();
       return response;
     }
 
@@ -795,7 +930,7 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
           throw new AxiosError('Expense updates must be an object.', 'BAD_INPUT', config);
         }
         const createBody = JSON.parse(localCreate.body!) as Record<string, unknown>;
-        const updatedBody = JSON.stringify({ ...createBody, ...payload });
+        const updatedBody = JSON.stringify(resizeLocalExpense(createBody, { ...payload }));
         await saveQueue(userId, state.queue.map(item => item.id === localCreate.id
           ? { ...item, body: updatedBody } : item));
         await refreshServerData();
@@ -839,7 +974,12 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
       (isCreate ? supportedData?.expenseCreateIdempotency === true :
         supportedData?.expenseMutationIdempotency === true);
     if (!capable) {
-      if (!state.online) throw new AxiosError('Offline expense sync requires a backend update. No expense was queued.', 'OFFLINE', config);
+      if (!state.online) {
+        const message = !supported || !capabilityState || Date.now() - capabilityState.dataUpdatedAt >= MAX_AGE
+          ? 'Connect to the server once to prepare offline expenses, then try again. No expense was queued.'
+          : 'The server needs an update before offline expense sync is available. No expense was queued.';
+        throw new AxiosError(message, 'OFFLINE', config);
+      }
       const response = await nativeAdapter({ ...config, signal: sessionAbort.signal });
       if (session !== generation) throw new axios.CanceledError('Account changed', undefined, config);
       await refreshServerData();
@@ -919,7 +1059,7 @@ export function createDataAdapter(nativeAdapter: AxiosAdapter): AxiosAdapter {
         throw queuedError(config, item.id);
       }
       await saveQueue(userId, state.queue.map(entry => entry.id === item.id
-        ? { ...entry, status: 'failed', message: `Server rejected this request${axios.isAxiosError(error) && error.response ? ` (${error.response.status})` : ''}. Review before retrying.` } : entry));
+        ? { ...entry, status: 'failed', message: expenseFailureMessage(error) } : entry));
       throw error;
     }
     } finally {

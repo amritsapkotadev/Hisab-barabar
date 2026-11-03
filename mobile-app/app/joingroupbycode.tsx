@@ -1,13 +1,14 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from 'react-native'
-import React, { useState } from 'react'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Modal } from 'react-native'
+import React, { useRef, useState } from 'react'
 import { router } from 'expo-router';
 import { apiService } from '@/services/api';
 import { subscribeToGroupTopic } from '@/services/notifications';
-import { normalizeInviteCode } from '@/utils/invite';
+import { getGroupIdFromInviteQr, normalizeInviteCode } from '@/utils/invite';
 import { useToast } from '@/components/Toast';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Users, Key, CheckCircle, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Users, Key, CheckCircle, AlertCircle, QrCode } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
@@ -19,6 +20,9 @@ export default function JoinGroup() {
   const [loading, setLoading] = useState(false);
   const [isValidCode, setIsValidCode] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const scanHandled = useRef(false);
 
   const validateCode = (text: string) => {
     const isValid = text.length >= 8 && /^[A-Z0-9]+$/.test(text);
@@ -51,6 +55,36 @@ export default function JoinGroup() {
       setIsValidCode(false);
       setIsFocused(false);
     }
+  };
+
+  const handleOpenScanner = async () => {
+    try {
+      if (!cameraPermission?.granted) {
+        const permission = await requestCameraPermission();
+        if (!permission.granted) {
+          toast.error('Camera access is needed to scan a group QR code.');
+          return;
+        }
+      }
+      scanHandled.current = false;
+      setScannerVisible(true);
+    } catch (error) {
+      console.error('Request camera permission error:', error);
+      toast.error('Could not access the camera. You can still enter a group code.');
+    }
+  };
+
+  const handleQrScanned = ({ data }: { data: string }) => {
+    if (scanHandled.current) return;
+    scanHandled.current = true;
+    setScannerVisible(false);
+
+    const groupId = getGroupIdFromInviteQr(data);
+    if (!groupId) {
+      toast.error('This QR code is not a valid Hisab Barabar group invite.');
+      return;
+    }
+    router.push(`/join/${groupId}`);
   };
 
   return (
@@ -139,6 +173,17 @@ export default function JoinGroup() {
               </View>
 
               <TouchableOpacity
+                style={styles.scanQrButton}
+                onPress={handleOpenScanner}
+                disabled={loading}
+                accessibilityRole="button"
+                accessibilityLabel="Scan group QR code"
+              >
+                <QrCode size={18} color={COLORS.action} />
+                <Text style={styles.scanQrText}>Scan QR Code</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={[
                   styles.joinButton,
                   (!isValidCode || loading) && styles.joinButtonDisabled
@@ -164,6 +209,35 @@ export default function JoinGroup() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        visible={scannerVisible}
+        animationType="slide"
+        onRequestClose={() => setScannerVisible(false)}
+      >
+        <SafeAreaView style={styles.scannerModal}>
+          <View style={styles.scannerHeader}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setScannerVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close QR scanner"
+            >
+              <ArrowLeft size={24} color={COLORS.text} />
+            </TouchableOpacity>
+            <Text style={styles.scannerTitle}>Scan Group QR Code</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+          <Text style={styles.scannerHint}>Place the group invite QR code inside the frame.</Text>
+          <View style={styles.scannerPreview}>
+            <CameraView
+              style={styles.scannerCamera}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={handleQrScanned}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -304,6 +378,22 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     right: 16,
     top: 52,
   },
+  scanQrButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 48,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 16,
+  },
+  scanQrText: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   joinButton: {
     borderRadius: 999,
     backgroundColor: COLORS.action,
@@ -341,5 +431,42 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     color: COLORS.textSecondary,
     fontFamily: 'Inter-Regular',
     lineHeight: 20,
+  },
+  scannerModal: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  scannerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+    fontFamily: 'Inter-Bold',
+  },
+  scannerHint: {
+    color: COLORS.textSecondary,
+    fontSize: 15,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+  },
+  scannerPreview: {
+    flex: 1,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+  },
+  scannerCamera: {
+    flex: 1,
   },
 });

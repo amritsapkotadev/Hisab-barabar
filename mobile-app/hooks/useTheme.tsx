@@ -7,7 +7,7 @@ import { COLORS, DARK_COLORS, resolveTheme, type ThemeColors, type ThemePreferen
 const STORAGE_KEY = 'appearance';
 const ThemeContext = createContext({
   colors: COLORS as ThemeColors,
-  preference: 'system' as ThemePreference,
+  preference: 'light' as ThemePreference,
   isDark: false,
   setPreference: async (_preference: ThemePreference): Promise<boolean> => {
     throw new Error('Appearance settings require ThemeProvider');
@@ -16,7 +16,7 @@ const ThemeContext = createContext({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const system = useColorScheme();
-  const [preference, setStoredPreference] = useState<ThemePreference>('system');
+  const [preference, setStoredPreference] = useState<ThemePreference>('light');
   const [ready, setReady] = useState(false);
   const isDark = resolveTheme(preference, system) === 'dark';
 

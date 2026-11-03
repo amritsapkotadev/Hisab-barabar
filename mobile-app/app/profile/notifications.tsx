@@ -16,6 +16,7 @@ import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
 import { useAccountPreference } from '@/hooks/useAccountPreference';
 import { DEFAULT_NOTIFICATION_SETTINGS, isNotificationSettings, type NotificationSettings } from '@/services/preferences';
+import { setPushNotificationsEnabled } from '@/services/notifications';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ErrorMessage from '@/components/ErrorMessage';
 
@@ -27,7 +28,21 @@ export default function NotificationSettingsScreen() {
   );
 
   const updateSetting = (key: keyof NotificationSettings, value: boolean) => {
-    void save({ ...settings, [key]: value });
+    const next = { ...settings, [key]: value };
+    if (key !== 'pushNotifications') {
+      void save(next);
+      return;
+    }
+    void (async () => {
+      if (!await save(next)) return;
+      try {
+        await setPushNotificationsEnabled(value);
+      } catch (error) {
+        console.error('Failed to update push notification setting:', error);
+        await save(settings);
+        toast.error('Could not update push notifications. Your previous setting was kept.');
+      }
+    })();
   };
 
   const renderSettingItem = (

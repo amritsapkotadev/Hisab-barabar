@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { X, Share2, Copy, Link, Users } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
-import { buildInviteUrl } from '@/utils/invite';
+import QRCode from 'react-native-qrcode-svg';
+import { buildInviteQrUrl, buildInviteUrl } from '@/utils/invite';
 import { useToast } from '@/components/Toast';
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
@@ -33,6 +34,7 @@ export default function ShareGroupModal({ visible, onClose, group }: ShareGroupM
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const toast = useToast();
   const shareUrl = buildInviteUrl(group.id, group.inviteLink);
+  const qrUrl = buildInviteQrUrl(group.id);
   const code = group.inviteCode || '';
   const message = `Join my group "${group.name}" on Hisab Barabar!\n${shareUrl}${code ? `\nUse code: ${code}` : ''}`;
 
@@ -90,6 +92,20 @@ export default function ShareGroupModal({ visible, onClose, group }: ShareGroupM
             {group.memberCount !== undefined && (
               <Text style={styles.memberCount}>{group.memberCount} members</Text>
             )}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Group QR Code</Text>
+            <View style={[styles.card, styles.qrCard]}>
+              <View
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={`Invite QR code for ${group.name}`}
+              >
+                <QRCode value={qrUrl} size={180} color="#000000" backgroundColor="#ffffff" />
+              </View>
+              <Text style={styles.qrHint}>Scan to open this group invite</Text>
+            </View>
           </View>
 
           {/* Link Section */}
@@ -216,6 +232,15 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  qrCard: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  qrHint: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
   },
   linkHeader: {
     flexDirection: 'row',

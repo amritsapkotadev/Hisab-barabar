@@ -12,12 +12,12 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
-  LayoutAnimation,
-  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useServerRefresh } from '@/hooks/useServerRefresh';
+import { useExpensePages } from '@/hooks/useExpensePages';
+import { useNotificationInbox } from '@/hooks/useNotificationInbox';
 import { refreshServerData } from '@/services/dataClient';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { TouchableOpacity as SwipeButton } from 'react-native-gesture-handler';
@@ -25,7 +25,8 @@ import { Plus, Users, FileText, RefreshCw, AlertCircle, Wallet, ChevronRight, Ed
 import * as Haptics from 'expo-haptics';
 import { apiService } from '@/services/api';
 import { useToast } from '@/components/Toast';
-import type { Group, Expense, User } from '@/types';
+import type { Group, Expense } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import BudgetGauge from '@/components/BudgetGauge';
 import AnimatedAmount from '@/components/AnimatedAmount';
@@ -34,15 +35,7 @@ import { useThemedStyles } from '@/hooks/useTheme';
 import { CATEGORY_COLORS, CATEGORY_ICONS, PAYMENT_COLORS, PAYMENT_ICONS } from '@/constants/categories';
 import { Ionicons } from '@expo/vector-icons';
 
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 const PERSONAL_PAGE_SIZE = 7;
-const SHOW_MORE_INCREMENT = 5;
 
 
 const TIME_THEMES = {
@@ -105,12 +98,13 @@ const formatMoney = (n: number) =>
 export default function HomeScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const toast = useToast();
+  const { user } = useAuth();
+  const notifications = useNotificationInbox(user?.id);
+  useEffect(() => {
+    if (notifications.error) toast.error(`Notification count unavailable: ${notifications.error}`);
+  }, [notifications.error, toast]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [perExpenses, setPerExpenses] = useState<Expense[]>([]);
-  const [personalExpenseCount, setPersonalExpenseCount] = useState(0);
-  const [spentThisMonth, setSpentThisMonth] = useState(0);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,32 +112,34 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<'personal' | 'shared'>('personal');
   const toggleAnim = useRef(new Animated.Value(0)).current;
   const [toggleWidth, setToggleWidth] = useState(0);
-  const [personalBudget, setPersonalBudget] = useState<number>(0);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [budgetInput, setBudgetInput] = useState('');
   const inputRef = useRef<TextInput>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
-  const [personalVisibleCount, setPersonalVisibleCount] = useState(PERSONAL_PAGE_SIZE);
-  const [loadingMorePersonal, setLoadingMorePersonal] = useState(false);
+  const fetchPersonalPage = useCallback((page: number) =>
+    apiService.getPersonalExpensePage({ limit: PERSONAL_PAGE_SIZE, page }), []);
+  const personal = useExpensePages(fetchPersonalPage);
+  const perExpenses = personal.expenses;
+  const personalExpenseCount = personal.page?.summary.count ?? 0;
+  const spentThisMonth = personal.page?.summary.monthlySpent ?? 0;
+  const personalBudget = personal.page?.budget ?? 0;
+  const refreshPersonal = personal.refresh;
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [groupsRes, expensesRes, userRes, personalExpensesRes] = await Promise.all([
-        apiService.getGroups(),
-        apiService.getAllExpenses(),
-        apiService.getUserProfile(),
-        apiService.getPersonalExpenses(),
-      ]);
-      setGroups(groupsRes);
-      setExpenses(expensesRes.filter(e => e.groupId)); // personal ones live in the Personal tab
-      setUser(userRes);
-      setPerExpenses(personalExpensesRes.data);
-      setPersonalExpenseCount(personalExpensesRes.summary.count);
-      setSpentThisMonth(personalExpensesRes.summary.monthlySpent);
-      setPersonalBudget(userRes.budget || 0);
+      if (activeTab === 'personal') {
+        await refreshPersonal();
+      } else {
+        const [groupsRes, expensesRes] = await Promise.all([
+          apiService.getGroups(),
+          apiService.getExpensePage({ limit: 5, page: 1, type: 'group' }),
+        ]);
+        setGroups(groupsRes);
+        setExpenses(expensesRes.data);
+      }
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -156,9 +152,9 @@ export default function HomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fadeAnim]);
+  }, [activeTab, fadeAnim, refreshPersonal]);
 
-  useServerRefresh(fetchAll);
+  useServerRefresh(fetchAll, activeTab);
 
   useEffect(() => {
     Animated.timing(toggleAnim, {
@@ -176,13 +172,19 @@ export default function HomeScreen() {
   };
 
   const handleSetBudget = async () => {
-    const res = await apiService.setPersonalBudget(Number(budgetInput));
-    setShowBudgetModal(false);
-    setBudgetInput('');
-    if (res.success) {
-      fetchAll();
-    } else {
-      toast.error(res.message || 'Failed to update budget');
+    const budget = Number(budgetInput);
+    if (!budgetInput.trim() || !Number.isFinite(budget) || budget < 0) {
+      toast.error('Enter a valid budget of zero or more.');
+      return;
+    }
+    try {
+      const res = await apiService.setPersonalBudget(budget);
+      if (!res.success) throw new Error(res.message || 'Failed to update budget');
+      setShowBudgetModal(false);
+      setBudgetInput('');
+      await refreshPersonal();
+    } catch (failure) {
+      toast.error(failure instanceof Error ? failure.message : 'Failed to update budget');
     }
   };
 
@@ -222,12 +224,20 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity
           style={styles.notificationButton}
-          onPress={() => router.push('/profile/notifications')}
+          onPress={() => router.push('/notifications')}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Notifications"
+          accessibilityLabel={notifications.error ? 'Notifications, unread count unavailable'
+            : notifications.unreadCount ? `Notifications, ${notifications.unreadCount} unread` : 'Notifications'}
         >
           <Bell size={20} color={COLORS.text} />
+          {(notifications.error || !!notifications.unreadCount) && (
+            <View style={styles.notificationBadge} pointerEvents="none">
+              <Text style={styles.notificationBadgeText}>
+                {notifications.error ? '?' : (notifications.unreadCount ?? 0) > 99 ? '99+' : notifications.unreadCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -399,40 +409,9 @@ export default function HomeScreen() {
       return { whole: Number(whole).toLocaleString('en-IN'), dec };
     };
 
-    const totalItemCount = days.reduce((sum, day) => sum + day.items.length, 0);
-    let visibleDays = days;
-    let shownCount = totalItemCount;
-    if (totalItemCount > personalVisibleCount) {
-      visibleDays = [];
-      let remaining = personalVisibleCount;
-      for (const day of days) {
-        if (remaining <= 0) break;
-        if (day.items.length <= remaining) {
-          visibleDays.push(day);
-          remaining -= day.items.length;
-        } else {
-          visibleDays.push({ ...day, items: day.items.slice(0, remaining) });
-          remaining = 0;
-        }
-      }
-      shownCount = personalVisibleCount;
-    }
-    const hiddenCount = totalItemCount - shownCount;
-
-    const handleShowMorePersonal = () => {
-      if (loadingMorePersonal) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setLoadingMorePersonal(true);
-      setTimeout(() => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setPersonalVisibleCount((prev) => prev + SHOW_MORE_INCREMENT);
-        setLoadingMorePersonal(false);
-      }, 400);
-    };
-
     return (
       <View style={styles.personalList}>
-        {visibleDays.map((day, dayIndex) => (
+        {days.map((day, dayIndex) => (
           <View key={day.key}>
             <View style={[styles.dayHeader, dayIndex > 0 && styles.dayHeaderSpaced]}>
               <Text style={styles.dayLabel}>{day.label}</Text>
@@ -528,17 +507,19 @@ export default function HomeScreen() {
             </View>
           </View>
         ))}
-        {totalItemCount > PERSONAL_PAGE_SIZE && hiddenCount > 0 && (
+        {personal.page?.pageInfo.hasMore && (
           <TouchableOpacity
             style={styles.showMoreButton}
-            onPress={handleShowMorePersonal}
+            onPress={personal.loadMore}
             activeOpacity={0.8}
-            disabled={loadingMorePersonal}
+            disabled={personal.loadingMore}
+            accessibilityRole="button"
+            accessibilityLabel="Load more personal expenses"
           >
-            {loadingMorePersonal ? (
+            {personal.loadingMore ? (
               <ActivityIndicator size="small" color={COLORS.actionText} />
             ) : (
-              <Text style={styles.showMoreText}>Show More</Text>
+              <Text style={styles.showMoreText}>Load more</Text>
             )}
           </TouchableOpacity>
         )}
@@ -749,6 +730,8 @@ export default function HomeScreen() {
                   <Plus size={16} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
+              {personal.error && <Text style={{ color: COLORS.negative }}>{personal.error}</Text>}
+              {!personal.online && <Text style={{ color: COLORS.textSecondary }}>Showing downloaded expenses. More may require internet.</Text>}
               {perExpenses.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No personal expenses yet</Text>
@@ -775,11 +758,7 @@ export default function HomeScreen() {
                     placeholderTextColor={COLORS.textTertiary}
                     value={budgetInput}
                     onChangeText={setBudgetInput}
-                    onSubmitEditing={() => {
-                      setPersonalBudget(Number(budgetInput) || 0);
-                      setBudgetInput('');
-                      setShowBudgetModal(false);
-                    }}
+                    onSubmitEditing={handleSetBudget}
                   />
                   <View style={{ flexDirection: 'row', marginTop: 16, gap: 12 }}>
                     <TouchableOpacity
@@ -790,11 +769,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.budgetModalBtn, { backgroundColor: COLORS.action }]}
-                      onPress={() => {
-                        setPersonalBudget(Number(budgetInput) || 0);
-                        setShowBudgetModal(false);
-                        handleSetBudget();
-                      }}
+                      onPress={handleSetBudget}
                     >
                       <Text style={styles.budgetModalBtnText}>Save</Text>
                     </TouchableOpacity>
@@ -875,6 +850,12 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  notificationBadge: {
+    position: 'absolute', top: -5, right: -7, minWidth: 20, height: 20,
+    paddingHorizontal: 4, borderRadius: 10, backgroundColor: COLORS.action,
+    borderWidth: 2, borderColor: COLORS.background, alignItems: 'center', justifyContent: 'center',
+  },
+  notificationBadgeText: { fontSize: 10, fontFamily: 'Inter-SemiBold', color: COLORS.actionText },
   greetingHeading: {
     flexShrink: 1,
     fontSize: 28,

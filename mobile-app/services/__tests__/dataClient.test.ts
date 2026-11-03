@@ -4,7 +4,7 @@ import {
   createDataAdapter, startDataSession, endDataSession, setDataOnline, queryClient,
   getDataState, replayQueuedExpenses, dismissQueuedExpense, refreshServerData,
   loadExpenseDraft, saveExpenseDraft, deleteExpenseDraft,
-  setDataUnauthorizedHandler,
+  setDataUnauthorizedHandler, resumeDataReads, retryQueuedExpense,
 } from '../dataClient';
 
 let mockOutbox: Array<Record<string, unknown>> = [];
@@ -13,6 +13,7 @@ let mockConfirmed: Array<Record<string, unknown>> = [];
 let mockLocalIds: Array<Record<string, unknown>> = [];
 let mockDrafts: Array<Record<string, unknown>> = [];
 let mockFailNextSqlWrite = false;
+let mockTransactionActive = false;
 const mockClone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -25,12 +26,17 @@ jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: async () => ({
     execAsync: async () => {},
     withTransactionAsync: async (work: () => Promise<void>) => {
+      if (mockTransactionActive) throw new Error('cannot start a transaction within a transaction');
+      mockTransactionActive = true;
       const before = [mockClone(mockOutbox), mockClone(mockSnapshots), mockClone(mockConfirmed), mockClone(mockLocalIds), mockClone(mockDrafts)];
       try {
+        await new Promise(resolve => setTimeout(resolve, 0));
         await work();
       } catch (error) {
         [mockOutbox, mockSnapshots, mockConfirmed, mockLocalIds, mockDrafts] = before;
         throw error;
+      } finally {
+        mockTransactionActive = false;
       }
     },
     runAsync: async (sql: string, ...args: unknown[]) => {
@@ -72,6 +78,7 @@ jest.mock('expo-sqlite', () => ({
         });
       } else if (sql.includes('INSERT INTO expense_snapshots')) {
         const [scope, key, status, statusText, body, savedAt] = args;
+        if (statusText == null) throw new Error('NOT NULL constraint failed: expense_snapshots.status_text');
         mockSnapshots = mockSnapshots.filter(row => row.scope !== scope || row.cache_key !== key);
         mockSnapshots.push({ scope, cache_key: key, status, status_text: statusText, body, saved_at: savedAt });
       } else if (sql.includes('INSERT INTO confirmed_expenses')) {
@@ -135,6 +142,7 @@ describe('shared account data and offline journal', () => {
     mockLocalIds = [];
     mockDrafts = [];
     mockFailNextSqlWrite = false;
+    mockTransactionActive = false;
     storage.getItem.mockImplementation(async key => disk.get(key) ?? null);
     storage.setItem.mockImplementation(async (key, value) => { disk.set(key, value); });
     storage.removeItem.mockImplementation(async key => { disk.delete(key); });
@@ -159,6 +167,115 @@ describe('shared account data and offline journal', () => {
     await refreshServerData(false);
     await api.get('/groups');
     expect(native).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs one network miss for concurrent reads, then a fresh query-cache hit', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await Promise.all([api.get('/groups'), api.get('/groups')]);
+      expect(log.mock.calls).toEqual([
+        ['[cache] MISS GET /groups (network fetch)'],
+        ['[cache] HIT GET /groups (shared in-flight request)'],
+      ]);
+      expect(native).toHaveBeenCalledTimes(1);
+      await api.get('/groups');
+      expect(log).toHaveBeenLastCalledWith('[cache] HIT GET /groups (fresh query cache)');
+      expect(native).toHaveBeenCalledTimes(1);
+      await refreshServerData(false);
+      await api.get('/groups');
+      expect(log).toHaveBeenLastCalledWith('[cache] MISS GET /groups (network fetch)');
+      expect(native).toHaveBeenCalledTimes(2);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('does not cancel or invalidate dashboard reads when the FCM token is saved', async () => {
+    let finish!: () => void;
+    let signal: AbortSignal | undefined;
+    native.mockImplementation(config => {
+      if (config.method === 'put') return response(config);
+      signal = config.signal;
+      return new Promise(resolve => {
+        finish = () => resolve(response(config));
+      });
+    });
+    const revision = getDataState().revision;
+    const pending = api.get('/groups');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await api.put('/users/fcm-token', { fcmToken: 'test-token' });
+    expect(signal?.aborted).toBe(false);
+    expect(getDataState().revision).toBe(revision);
+    finish();
+    await pending;
+    expect(getDataState().revision).toBe(revision);
+    await api.get('/groups');
+    expect(native.mock.calls.filter(([config]) => config.method === 'get')).toHaveLength(1);
+  });
+
+  it('reuses fresh data on resume and fetches stale data', async () => {
+    await api.get('/users/profile');
+    const revision = getDataState().revision;
+    resumeDataReads();
+    expect(getDataState().revision).toBe(revision + 1);
+    await api.get('/users/profile');
+    expect(native).toHaveBeenCalledTimes(1);
+    queryClient.setQueryData(['user-a', '/users/profile', null],
+      { data: '{}', status: 200, statusText: 'OK' }, { updatedAt: Date.now() - 31_000 });
+    resumeDataReads();
+    await api.get('/users/profile');
+    expect(native).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares an in-flight read across app resume', async () => {
+    let finish!: () => void;
+    let signal: AbortSignal | undefined;
+    native.mockImplementation(config => {
+      signal = config.signal;
+      return new Promise(resolve => {
+        finish = () => resolve(response(config));
+      });
+    });
+    const first = api.get('/groups');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    resumeDataReads();
+    const second = api.get('/groups');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(native).toHaveBeenCalledTimes(1);
+    expect(signal?.aborted).toBe(false);
+    finish();
+    const results = await Promise.all([first, second]);
+    expect(results[0].data).toEqual(results[1].data);
+  });
+
+  it('still invalidates cached data after group writes', async () => {
+    await api.get('/groups');
+    const revision = getDataState().revision;
+    await api.post('/groups', { name: 'New group' });
+    expect(getDataState().revision).toBe(revision + 1);
+    await api.get('/groups');
+    expect(native.mock.calls.filter(([config]) => config.method === 'get')).toHaveLength(2);
+  });
+
+  it.each([undefined, null, ''])('serializes parallel login refresh writes with status text %p', async statusText => {
+    native.mockImplementation(config => ({
+      ...response(config, { success: true, data: [] }),
+      statusText,
+    }));
+    await Promise.all([
+      api.get('/groups'),
+      api.get('/expenses'),
+      api.get('/expenses/personal'),
+      saveExpenseDraft('personal-create', { amount: '10' }),
+    ]);
+    expect(mockSnapshots).toHaveLength(2);
+    expect(mockSnapshots.every(row => row.status_text === '')).toBe(true);
+    await expect(loadExpenseDraft('personal-create')).resolves.toEqual({ amount: '10' });
+    expect(getDataState().error).toBeNull();
+    setDataOnline(false);
+    await expect(api.get('/expenses')).resolves.toMatchObject({
+      status: 200, statusText: '', data: { success: true, data: [] },
+    });
   });
 
   it('uses recent cache offline and explicitly rejects missing or settlement reads', async () => {
@@ -337,13 +454,58 @@ describe('shared account data and offline journal', () => {
     expect(mockConfirmed.map(row => row.expense_id)).toEqual(['expense-39']);
   });
 
-  it('rebuilds cached personal summaries from complete data', async () => {
-    const monthStart = '2026-11-01T00:00:00.000Z';
-    const monthEnd = '2026-12-01T00:00:00.000Z';
+  it('stores numbered pages independently without deleting other confirmed expenses', async () => {
+    const first = { id: 'page-expense-1', amount: 10, type: 'personal' };
+    const second = { id: 'page-expense-2', amount: 20, type: 'personal' };
+    native.mockImplementation(config => response(config, !config.params
+      ? { success: true, data: [first, second] }
+      : {
+        success: true, data: config.params.page === 2 ? [second] : [first],
+        pageInfo: { page: config.params.page, limit: 1, hasMore: config.params.page === 1,
+          nextPage: config.params.page === 1 ? 2 : null },
+        summary: { count: 2, totalAmount: 30 },
+      }));
+    await api.get('/expenses');
+    await api.get('/expenses', { params: { limit: 1, page: 1 } });
+    await api.get('/expenses', { params: { limit: 1, page: 2 } });
+    expect(mockConfirmed.map(row => row.expense_id).sort()).toEqual([first.id, second.id]);
+    setDataOnline(false);
+    await expect(api.get('/expenses', { params: { limit: 1, page: 1 } })).resolves.toMatchObject({
+      data: { data: [{ id: first.id }], summary: { count: 2, totalAmount: 30 } },
+    });
+    await expect(api.get('/expenses', { params: { limit: 1, page: 2 } })).resolves.toMatchObject({
+      data: { data: [{ id: second.id }], pageInfo: { hasMore: false } },
+    });
+    await expect(api.get('/expenses', { params: { limit: 1, page: 3 } }))
+      .rejects.toMatchObject({ code: 'OFFLINE' });
+  });
+
+  it('does not replace bounded pages with a complete expense list during reconciliation', async () => {
+    const rows = [
+      { id: 'bounded-1', amount: 10, type: 'personal' },
+      { id: 'bounded-2', amount: 20, type: 'personal' },
+    ];
+    native.mockImplementation(config => response(config, config.params ? {
+      success: true, data: [rows[0]], budget: 50, summary: { count: 2, monthlySpent: 30 },
+      pageInfo: { page: 1, limit: 1, hasMore: true, nextPage: 2 },
+    } : { success: true, data: rows }));
+    await api.get('/expenses/personal', { params: { limit: 1 } });
+    await api.get('/expenses');
+    setDataOnline(false);
+    await expect(api.get('/expenses/personal', { params: { limit: 1 } }))
+      .rejects.toMatchObject({ code: 'OFFLINE' });
+    expect(mockConfirmed).toHaveLength(2);
+  });
+
+  it.each([
+    ['2026-11-01T00:00:00.000Z', '2026-12-01T00:00:00.000Z'],
+    ['2026-11-01T00:00:00+05:45', '2026-12-01T00:00:00+05:45'],
+    ['2026-11-01T00:00:00-04:00', '2026-12-01T00:00:00-05:00'],
+  ])('rebuilds cached personal summaries from complete data for %s', async (monthStart, monthEnd) => {
     const inMonth = { id: 'expense-36', amount: 36, date: '2026-11-02', type: 'personal' };
     const outOfMonth = { id: 'expense-37', amount: 37, date: '2026-10-02', type: 'personal' };
     native.mockImplementation(config => response(config, config.url === '/expenses/personal'
-      ? { success: true, data: [inMonth, outOfMonth], summary: { count: 2, monthlySpent: 36 } }
+      ? { success: true, data: [inMonth, outOfMonth], budget: 25000, summary: { count: 2, monthlySpent: 36 } }
       : { success: true, data: [inMonth, outOfMonth] }));
     await api.get('/expenses/personal', { params: { monthStart, monthEnd } });
     await refreshServerData(false);
@@ -353,6 +515,7 @@ describe('shared account data and offline journal', () => {
     setDataOnline(false);
     await expect(api.get('/expenses/personal', { params: { monthStart, monthEnd } })).resolves.toMatchObject({
       data: {
+        budget: 25000,
         data: [expect.objectContaining({ id: 'expense-36', amount: 40 }),
           expect.objectContaining({ id: 'expense-37', amount: 37 })],
         summary: { count: 2, monthlySpent: 40 },
@@ -435,6 +598,79 @@ describe('shared account data and offline journal', () => {
       data: { data: [expect.objectContaining({ id: 'expense-41' })] },
     });
   });
+
+    it.each([
+      ['equal', [333, 333, 333]],
+      ['percentage', [111, 222, 666]],
+      ['shares', [111, 222, 666]],
+    ])('recalculates an unattempted offline %s expense when its total changes from 99 to 999', async (splitType, expected) => {
+      await api.get('/offline-capabilities');
+      setDataOnline(false);
+      await expect(api.post('/expenses/unequal', {
+        groupId: 'group-1', type: 'group', description: 'Offline allocation edit',
+        amount: 99, paidBy: 'member-1', participants: ['member-1', 'member-2', 'member-3'],
+        payers: [{ name: 'member-1', amountPaid: 99 }], splitType,
+        splits: [
+          { participant: 'member-1', amount: 11 },
+          { participant: 'member-2', amount: 22 },
+          { participant: 'member-3', amount: 66 },
+        ],
+      })).rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+      const original = getDataState().queue[0];
+      await expect(api.put(`/expenses/local-${original.id}`, { amount: 999 }))
+        .rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+      const updated = getDataState().queue[0];
+      const body = JSON.parse(updated.body!);
+      expect(updated).toMatchObject({ id: original.id, attemptedAt: null, status: 'pending' });
+      expect(body.amount).toBe(999);
+      expect(body.payers).toEqual([{ name: 'member-1', amountPaid: 999 }]);
+      expect(body.splits.map((split: { amount: number }) => split.amount)).toEqual(expected);
+      native.mockImplementation(config => response(config, config.url === '/offline-capabilities'
+        ? capable : { success: true, data: { id: 'resized-expense', revision: 0 } }));
+      setDataOnline(true);
+      await replayQueuedExpenses();
+      const sent = native.mock.calls.find(([config]) => config.method === 'post')![0];
+      expect(JSON.parse(sent.data)).toEqual(body);
+      expect(sent.headers.get('Idempotency-Key')).toBe(original.id);
+      expect(getDataState().queue[0].status).toBe('synced');
+    });
+
+    it('keeps fixed unequal amounts unchanged unless explicitly updated', async () => {
+      await api.get('/offline-capabilities');
+      setDataOnline(false);
+      await expect(api.post('/expenses/unequal', {
+        groupId: 'group-1', type: 'group', amount: 99, paidBy: 'member-1',
+        participants: ['member-1', 'member-2'], splitType: 'unequal',
+        payers: [{ name: 'member-1', amountPaid: 99 }],
+        splits: [{ participant: 'member-1', amount: 40 }, { participant: 'member-2', amount: 59 }],
+      })).rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+      const original = { ...getDataState().queue[0] };
+      await expect(api.put(`/expenses/local-${original.id}`, { amount: 999 }))
+        .rejects.toThrow('Unequal splits use fixed amounts');
+      expect(getDataState().queue[0]).toEqual(original);
+      await expect(api.put(`/expenses/local-${original.id}`, {
+        amount: 999,
+        splits: [{ participant: 'member-1', amount: 400 }, { participant: 'member-2', amount: 599 }],
+      })).rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+      expect(JSON.parse(getDataState().queue[0].body!).payers).toEqual([{ name: 'member-1', amountPaid: 999 }]);
+    });
+
+    it('rounds resized payer and split proportions to cents without losing the total', async () => {
+      await api.get('/offline-capabilities');
+      setDataOnline(false);
+      await expect(api.post('/expenses/unequal', {
+        groupId: 'group-1', type: 'group', amount: 99, paidBy: '',
+        participants: ['a', 'b', 'c'], splitType: 'shares',
+        payers: [{ name: 'a', amountPaid: 33 }, { name: 'b', amountPaid: 66 }],
+        splits: ['a', 'b', 'c'].map(participant => ({ participant, amount: 33 })),
+      })).rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+      const original = getDataState().queue[0];
+      await expect(api.put(`/expenses/local-${original.id}`, { amount: 100 }))
+        .rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+      const body = JSON.parse(getDataState().queue[0].body!);
+      expect(body.payers.map((payer: { amountPaid: number }) => payer.amountPaid)).toEqual([33.33, 66.67]);
+      expect(body.splits.map((split: { amount: number }) => split.amount)).toEqual([33.34, 33.33, 33.33]);
+    });
 
   it('maps replayed local creates before queuing later revision-bound edits', async () => {
     const created = {
@@ -635,8 +871,26 @@ describe('shared account data and offline journal', () => {
 
   it('requires known backend support for offline writes', async () => {
     setDataOnline(false);
-    await expect(api.post('/expenses', { amount: 10 })).rejects.toMatchObject({ code: 'OFFLINE' });
+    await expect(api.post('/expenses', { amount: 10 })).rejects.toMatchObject({
+      code: 'OFFLINE', message: expect.stringContaining('Connect to the server once'),
+    });
     expect(getDataState().queue).toHaveLength(0);
+  });
+
+  it('queues the first offline expense after online capability preparation, including after restart', async () => {
+    await api.get('/offline-capabilities');
+    await new Promise(resolve => setTimeout(resolve, 600));
+    const snapshot = disk.get('server-cache:v1:user-a')!;
+    await endDataSession();
+    disk.set('server-cache:v1:user-a', snapshot);
+    await startDataSession(token('user-a'));
+    setDataOnline(false);
+    const calls = native.mock.calls.length;
+    await expect(api.post('/expenses/personal', { description: 'Offline first', amount: 10 }))
+      .rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+    expect(native).toHaveBeenCalledTimes(calls);
+    expect(getDataState().queue).toHaveLength(1);
+    expect(getDataState().queue[0]).toMatchObject({ status: 'pending', attemptedAt: null });
   });
 
   it('stops replay on unauthorized without dropping pending work', async () => {
@@ -718,6 +972,64 @@ describe('shared account data and offline journal', () => {
     await replayQueuedExpenses();
     expect(native).toHaveBeenCalledTimes(count);
     expect(getDataState().queue[0].status).toBe('failed');
+  });
+
+  it.each([false, true])('preserves the server conflict message (raw JSON: %s)', async raw => {
+    await api.get('/offline-capabilities');
+    setDataOnline(false);
+    await expect(api.post('/expenses/unequal', { amount: 10 })).rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+    const body = { message: 'This expense request is in progress or its outcome is uncertain.' };
+    native.mockImplementation(config => {
+      if (config.method === 'post') throw new AxiosError('Conflict', 'ERR_BAD_REQUEST', config, undefined, {
+        ...response(config), status: 409, data: raw ? JSON.stringify(body) : body,
+      });
+      return response(config, capable);
+    });
+    setDataOnline(true);
+    await replayQueuedExpenses();
+    expect(getDataState().queue[0].message).toBe(`Sync rejected (409). ${body.message}`);
+    expect(getDataState().error).toBe(`Sync rejected (409). ${body.message}`);
+    await expect(dismissQueuedExpense(getDataState().queue[0].id)).rejects.toThrow('cannot be removed');
+  });
+
+  it.each(['post', 'put', 'delete'])('retries a rejected %s only explicitly, with the original key, data and revision', async method => {
+    await api.get('/offline-capabilities');
+    setDataOnline(false);
+    const path = method === 'post' ? '/expenses/unequal' : '/expenses/existing-expense';
+    await expect(api.request({
+      method, url: path, ...(method === 'delete' ? {} : { data: { amount: 10 } }),
+      ...(method === 'post' ? {} : { headers: { 'If-Match': '"3"' } }),
+    })).rejects.toMatchObject({ code: 'OFFLINE_QUEUED' });
+    native.mockImplementation(config => {
+      if (config.url === path) throw new AxiosError('Conflict', 'ERR_BAD_REQUEST', config, undefined, {
+        ...response(config, { message: 'Outcome uncertain. Review required.' }), status: 409,
+      });
+      return response(config, capable);
+    });
+    setDataOnline(true);
+    await replayQueuedExpenses();
+    const original = { ...getDataState().queue[0] };
+    expect(original.status).toBe('failed');
+    await replayQueuedExpenses();
+    expect(native.mock.calls.filter(([config]) => config.url === path)).toHaveLength(1);
+    native.mockImplementation(config => response(config, config.url === '/offline-capabilities'
+      ? capable : { success: true, data: { id: 'confirmed-expense', revision: 4 } }));
+    await retryQueuedExpense(original.id);
+    const writes = native.mock.calls.filter(([config]) => config.url === path).map(([config]) => config);
+    expect(writes).toHaveLength(2);
+    expect(writes[1].data).toBe(writes[0].data);
+    expect(writes[1].headers.get('Idempotency-Key')).toBe(original.id);
+    expect(writes[1].headers.get('If-Match')).toBe(writes[0].headers.get('If-Match'));
+    expect(getDataState().queue[0]).toMatchObject({
+      id: original.id, status: 'synced', attemptedAt: original.attemptedAt,
+    });
+    await expect(retryQueuedExpense(original.id)).rejects.toThrow('Only entries needing review');
+  });
+
+  it('does not retry a rejected entry offline', async () => {
+    setDataOnline(false);
+    await expect(retryQueuedExpense('unknown')).rejects.toThrow('Connect to retry');
+    expect(native).not.toHaveBeenCalled();
   });
 
   it('blocks replay after a server rollback and recovers after support returns', async () => {

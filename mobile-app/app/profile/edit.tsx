@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -18,6 +19,7 @@ import { useThemedStyles } from '@/hooks/useTheme';
 import { ArrowLeft, User, Mail, Save, Camera, Phone } from 'lucide-react-native';
 import { apiService } from '@/services/api';
 import { useToast } from '@/components/Toast';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function EditProfileScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
@@ -29,6 +31,7 @@ export default function EditProfileScreen() {
   const [authProvider, setAuthProvider] = useState<'email' | 'google' | 'both'>('email');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
@@ -77,6 +80,55 @@ export default function EditProfileScreen() {
     }
   };
 
+  const uploadProfilePicture = async (useCamera: boolean) => {
+    setUploadingPicture(true);
+    try {
+      const permission = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        toast.error(useCamera
+          ? 'Camera access is needed to take a profile photo.'
+          : 'Photo library access is needed to choose a profile photo.');
+        return;
+      }
+
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      };
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+      if (result.canceled) return;
+
+      const image = result.assets[0];
+      if (!image) {
+        toast.error('No profile photo was selected.');
+        return;
+      }
+
+      const user = await apiService.uploadUserProfilePicture(image);
+      setPicture(user.picture);
+      toast.success('Profile photo updated successfully.');
+    } catch (error) {
+      console.error('Profile photo selection or upload failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload profile photo.');
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
+  const handleChangePicture = () => {
+    Alert.alert('Change profile photo', 'Choose how to add your profile photo.', [
+      { text: 'Take Photo', onPress: () => { void uploadProfilePicture(true); } },
+      { text: 'Choose from Library', onPress: () => { void uploadProfilePicture(false); } },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -103,9 +155,9 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
           <Text style={styles.title} numberOfLines={1}>Edit Profile</Text>
           <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            style={[styles.saveButton, (saving || uploadingPicture) && styles.saveButtonDisabled]}
             onPress={handleSave}
-            disabled={saving}
+            disabled={saving || uploadingPicture}
           >
             {saving ? (
               <ActivityIndicator size="small" color={COLORS.actionText} />
@@ -128,12 +180,24 @@ export default function EditProfileScreen() {
                   <User size={40} color={COLORS.textTertiary} />
                 )}
               </View>
-              <TouchableOpacity style={styles.cameraButton} accessibilityRole="button" accessibilityLabel="Change profile photo">
-                <Camera size={16} color={COLORS.actionText} />
+              <TouchableOpacity
+                style={styles.cameraButton}
+                onPress={handleChangePicture}
+                disabled={uploadingPicture || saving}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+              >
+                {uploadingPicture
+                  ? <ActivityIndicator size="small" color={COLORS.actionText} />
+                  : <Camera size={16} color={COLORS.actionText} />}
               </TouchableOpacity>
             </View>
             <Text style={styles.avatarText}>
-              {authProvider === 'google' ? 'Google Profile Photo' : 'Tap to change photo'}
+              {uploadingPicture
+                ? 'Uploading photo...'
+                : authProvider === 'google'
+                  ? 'Tap to set a custom photo'
+                  : 'Tap to change photo'}
             </Text>
           </View>
 

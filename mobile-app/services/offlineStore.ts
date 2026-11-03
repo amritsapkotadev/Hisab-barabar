@@ -63,6 +63,14 @@ interface ConfirmedExpenseRecord extends ConfirmedExpenseRow {
 }
 
 let database: Promise<SQLite.SQLiteDatabase> | null = null;
+let databaseWork: Promise<unknown> = Promise.resolve();
+
+function withDatabase<T>(work: (db: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
+  const result = databaseWork.then(async () => work(await openDatabase()));
+  // Keep the queue usable after a failure; the caller still receives the rejection.
+  databaseWork = result.then(() => undefined, () => undefined);
+  return result;
+}
 
 async function openDatabase() {
   if (!database) {
@@ -151,20 +159,20 @@ function immutablePayloadMatches(
 }
 
 export async function loadExpenseOperations(scope: string) {
-  const db = await openDatabase();
-  const rows = await db.getAllAsync<OperationRow>(
-    'SELECT * FROM expense_outbox WHERE scope = ? ORDER BY created_at, rowid',
-    scope,
-  );
-  return rows.map(fromRow);
+  return withDatabase(async db => {
+    const rows = await db.getAllAsync<OperationRow>(
+      'SELECT * FROM expense_outbox WHERE scope = ? ORDER BY created_at, rowid',
+      scope,
+    );
+    return rows.map(fromRow);
+  });
 }
 
 export async function replaceExpenseOperations(
   scope: string,
   operations: OfflineExpenseOperation[],
 ) {
-  const db = await openDatabase();
-  await db.withTransactionAsync(async () => {
+  return withDatabase(db => db.withTransactionAsync(async () => {
     const rows = await db.getAllAsync<OperationRow>(
       'SELECT * FROM expense_outbox WHERE scope = ?',
       scope,
@@ -192,7 +200,7 @@ export async function replaceExpenseOperations(
         operation.message ?? null, operation.expenseId ?? null, operation.revision ?? null,
       );
     }
-  });
+  }));
 }
 
 export async function importLegacyExpenseOperations(
@@ -206,8 +214,7 @@ export async function importLegacyExpenseOperations(
     message?: string;
   }>,
 ) {
-  const db = await openDatabase();
-  await db.withTransactionAsync(async () => {
+  return withDatabase(db => db.withTransactionAsync(async () => {
     for (const operation of operations) {
       const payload: unknown = JSON.parse(operation.body);
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -223,18 +230,17 @@ export async function importLegacyExpenseOperations(
         operation.status, operation.message ?? null,
       );
     }
-  });
+  }));
 }
 
 export async function saveExpenseSnapshot(
   scope: string,
   cacheKey: string,
   status: number,
-  statusText: string,
+  statusText: string | null | undefined,
   responseBody: unknown,
   completeExpenseList = false,
 ) {
-  const db = await openDatabase();
   const normalizedBody = typeof responseBody === 'string' ? JSON.parse(responseBody) as unknown : responseBody;
   const body = JSON.stringify(normalizedBody);
   if (body === undefined) throw new Error('Expense snapshot is not serializable.');
@@ -246,7 +252,7 @@ export async function saveExpenseSnapshot(
   if (completeExpenseList && !reconcile) {
     throw new Error('Complete expense response is invalid; saved expense data was not reconciled.');
   }
-  await db.withTransactionAsync(async () => {
+  return withDatabase(db => db.withTransactionAsync(async () => {
     if (reconcile && expenses) {
       await db.runAsync('DELETE FROM confirmed_expenses WHERE scope = ?', scope);
       const snapshots = await db.getAllAsync<SnapshotRow>(
@@ -280,6 +286,13 @@ export async function saveExpenseSnapshot(
         const path = key[0];
         let nextData: unknown;
         if (path === '/expenses' && key[1] == null) continue;
+        if ('pageInfo' in cached) {
+          await db.runAsync(
+            'DELETE FROM expense_snapshots WHERE scope = ? AND cache_key = ?',
+            scope, snapshot.cache_key,
+          );
+          continue;
+        }
         if (path === '/expenses/personal') {
           const personal = expenses.filter(expense => expense.type === 'personal');
           const params = key[1] && typeof key[1] === 'object'
@@ -327,7 +340,7 @@ export async function saveExpenseSnapshot(
        ON CONFLICT(scope, cache_key) DO UPDATE SET
          status = excluded.status, status_text = excluded.status_text,
          body = excluded.body, saved_at = excluded.saved_at`,
-      scope, cacheKey, status, statusText, body, Date.now(),
+      scope, cacheKey, status, statusText ?? '', body, Date.now(),
     );
     for (const expense of expenses ?? []) {
       if (!expense || typeof expense !== 'object' || !('id' in expense) ||
@@ -340,14 +353,13 @@ export async function saveExpenseSnapshot(
         scope, expense.id, JSON.stringify(expense), Date.now(),
       );
     }
-  });
+  }));
 }
 
 export async function saveLocalExpenseId(scope: string, localId: string, serverId: string, expense: unknown) {
-  const db = await openDatabase();
   const payload = JSON.stringify(expense);
   if (payload === undefined) throw new Error('Confirmed expense is not serializable.');
-  await db.withTransactionAsync(async () => {
+  return withDatabase(db => db.withTransactionAsync(async () => {
     await db.runAsync(
       `INSERT INTO local_expense_ids(scope, local_id, server_id) VALUES (?, ?, ?)
        ON CONFLICT(scope, local_id) DO UPDATE SET server_id = excluded.server_id`,
@@ -359,13 +371,12 @@ export async function saveLocalExpenseId(scope: string, localId: string, serverI
        ON CONFLICT(scope, expense_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`,
       scope, serverId, payload, Date.now(),
     );
-  });
+  }));
 }
 
 export async function reconcileExpenseGroupAccess(scope: string, groupIds: string[]) {
-  const db = await openDatabase();
   const allowedGroups = new Set(groupIds);
-  await db.withTransactionAsync(async () => {
+  return withDatabase(db => db.withTransactionAsync(async () => {
     const confirmed = await db.getAllAsync<ConfirmedExpenseRecord>(
       'SELECT expense_id, payload FROM confirmed_expenses WHERE scope = ?',
       scope,
@@ -430,67 +441,73 @@ export async function reconcileExpenseGroupAccess(scope: string, groupIds: strin
         );
       }
     }
-  });
+  }));
 }
 
 export async function loadLocalExpenseId(scope: string, localId: string) {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<LocalExpenseIdRow>(
-    'SELECT local_id, server_id FROM local_expense_ids WHERE scope = ? AND local_id = ?',
-    scope, localId,
-  );
-  return row?.server_id ?? null;
+  return withDatabase(async db => {
+    const row = await db.getFirstAsync<LocalExpenseIdRow>(
+      'SELECT local_id, server_id FROM local_expense_ids WHERE scope = ? AND local_id = ?',
+      scope, localId,
+    );
+    return row?.server_id ?? null;
+  });
 }
 
 export async function loadExpenseSnapshot(scope: string, cacheKey: string) {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<SnapshotRow>(
-    'SELECT status, status_text, body, saved_at FROM expense_snapshots WHERE scope = ? AND cache_key = ?',
-    scope, cacheKey,
-  );
-  return row ? {
-    status: row.status,
-    statusText: row.status_text,
-    data: JSON.parse(row.body) as unknown,
-    savedAt: row.saved_at,
-  } : null;
+  return withDatabase(async db => {
+    const row = await db.getFirstAsync<SnapshotRow>(
+      'SELECT status, status_text, body, saved_at FROM expense_snapshots WHERE scope = ? AND cache_key = ?',
+      scope, cacheKey,
+    );
+    return row ? {
+      status: row.status,
+      statusText: row.status_text,
+      data: JSON.parse(row.body) as unknown,
+      savedAt: row.saved_at,
+    } : null;
+  });
 }
 
 export async function loadConfirmedExpense(scope: string, expenseId: string) {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<ConfirmedExpenseRow & { updated_at: number }>(
-    'SELECT payload, updated_at FROM confirmed_expenses WHERE scope = ? AND expense_id = ?',
-    scope, expenseId,
-  );
-  return row ? { value: JSON.parse(row.payload) as unknown, updatedAt: row.updated_at } : null;
+  return withDatabase(async db => {
+    const row = await db.getFirstAsync<ConfirmedExpenseRow & { updated_at: number }>(
+      'SELECT payload, updated_at FROM confirmed_expenses WHERE scope = ? AND expense_id = ?',
+      scope, expenseId,
+    );
+    return row ? { value: JSON.parse(row.payload) as unknown, updatedAt: row.updated_at } : null;
+  });
 }
 
 export async function loadExpenseDraft<T>(scope: string, key: string) {
-  const db = await openDatabase();
-  const row = await db.getFirstAsync<DraftRow>(
-    'SELECT payload, updated_at FROM expense_drafts WHERE scope = ? AND draft_key = ?',
-    scope, key,
-  );
-  return row ? { value: JSON.parse(row.payload) as T, updatedAt: row.updated_at } : null;
+  return withDatabase(async db => {
+    const row = await db.getFirstAsync<DraftRow>(
+      'SELECT payload, updated_at FROM expense_drafts WHERE scope = ? AND draft_key = ?',
+      scope, key,
+    );
+    return row ? { value: JSON.parse(row.payload) as T, updatedAt: row.updated_at } : null;
+  });
 }
 
 export async function saveExpenseDraft(scope: string, key: string, value: unknown) {
-  const db = await openDatabase();
   const payload = JSON.stringify(value);
   if (payload === undefined) throw new Error('Expense draft is not serializable.');
-  await db.runAsync(
-    `INSERT INTO expense_drafts(scope, draft_key, payload, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(scope, draft_key) DO UPDATE SET
-       payload = excluded.payload, updated_at = excluded.updated_at`,
-    scope, key, payload, Date.now(),
-  );
+  return withDatabase(async db => {
+    await db.runAsync(
+      `INSERT INTO expense_drafts(scope, draft_key, payload, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(scope, draft_key) DO UPDATE SET
+         payload = excluded.payload, updated_at = excluded.updated_at`,
+      scope, key, payload, Date.now(),
+    );
+  });
 }
 
 export async function deleteExpenseDraft(scope: string, key: string) {
-  const db = await openDatabase();
-  await db.runAsync(
-    'DELETE FROM expense_drafts WHERE scope = ? AND draft_key = ?',
-    scope, key,
-  );
+  return withDatabase(async db => {
+    await db.runAsync(
+      'DELETE FROM expense_drafts WHERE scope = ? AND draft_key = ?',
+      scope, key,
+    );
+  });
 }

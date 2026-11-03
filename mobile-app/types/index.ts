@@ -64,11 +64,28 @@ export interface User {
 export interface PersonalExpensesResponse {
   success: boolean;
   data: Expense[];
+  budget: number;
   summary: {
     count: number;
     monthlySpent: number;
   };
 }
+
+export interface ExpensePageOptions {
+  limit: number;
+  page?: number;
+  type?: 'group' | 'personal';
+  createdAfter?: string;
+}
+
+export interface ExpensePage {
+  success: boolean;
+  data: Expense[];
+  pageInfo: { page: number; limit: number; hasMore: boolean; nextPage: number | null };
+  summary: { count: number; totalAmount?: number };
+}
+
+export type PersonalExpensePage = PersonalExpensesResponse & ExpensePage;
 
 export interface BudgetResponse {
   success: boolean;

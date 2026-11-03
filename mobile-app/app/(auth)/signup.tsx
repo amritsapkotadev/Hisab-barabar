@@ -148,7 +148,7 @@ export default function SignupScreen() {
             <View style={styles.headerContent}>
               <View style={styles.logo}>
                 <Image
-                  source={require('../../assets/images/logo.jpeg')}
+                  source={require('../../assets/images/new_logo.png')}
                   style={styles.logoImage}
                   resizeMode="cover"
                   accessible

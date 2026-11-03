@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useServerRefresh } from '@/hooks/useServerRefresh';
+import { useExpensePages } from '@/hooks/useExpensePages';
+import { useAuth } from '@/contexts/AuthContext';
 import { refreshServerData } from '@/services/dataClient';
 import {
   View,
@@ -10,9 +12,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   StatusBar,
-  LayoutAnimation,
-  Platform,
-  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -37,51 +36,35 @@ import * as Haptics from 'expo-haptics';
 import { type ThemeColors } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
 
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-const PAGE_SIZE = 7;
-const SHOW_MORE_INCREMENT = 5;
+const PAGE_SIZE = 20;
 
 export default function TransactionsScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const toast = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
-  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'week' | 'month'>('all');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const { user } = useAuth();
+  const createdAfter = useMemo(() => selectedFilter === 'all' ? undefined :
+    new Date(Date.now() - (selectedFilter === 'week' ? 7 : 30) * 86400000).toISOString(), [selectedFilter]);
+  const fetchPage = useCallback((page: number) =>
+    apiService.getExpensePage({
+      limit: PAGE_SIZE, page, type: 'group', ...(createdAfter && { createdAfter }),
+    }), [createdAfter]);
+  const list = useExpensePages(fetchPage);
 
   const fetchData = async () => {
     try {
-      const [groupsData, userData] = await Promise.all([
+      const [groupsData] = await Promise.all([
         apiService.getGroups(),
-        apiService.getUserProfile()
+        list.refresh(),
       ]);
       setGroups(groupsData);
-      setUser(userData);
-      
-      const allExpensesData = (await apiService.getAllExpenses()).filter(expense => expense.groupId);
-      
-      // Sort by date (newest first)
-      const sortedExpenses = allExpensesData.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      setAllExpenses(sortedExpenses);
-      setFilteredExpenses(sortedExpenses);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error(error instanceof Error ? error.message : 'Could not load transactions.');
@@ -97,27 +80,7 @@ export default function TransactionsScreen() {
     setRefreshing(false);
   };
 
-  useServerRefresh(fetchData);
-
-  useEffect(() => {
-    filterExpenses();
-    setVisibleCount(PAGE_SIZE);
-  }, [selectedFilter, allExpenses]);
-
-  const filterExpenses = () => {
-    const now = new Date();
-    let filtered = [...allExpenses];
-
-    if (selectedFilter === 'week') {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filtered = allExpenses.filter(expense => new Date(expense.createdAt) >= weekAgo);
-    } else if (selectedFilter === 'month') {
-      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      filtered = allExpenses.filter(expense => new Date(expense.createdAt) >= monthAgo);
-    }
-
-    setFilteredExpenses(filtered);
-  };
+  useServerRefresh(fetchData, selectedFilter);
 
   const handleDeleteExpense = (expense: Expense) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -130,8 +93,7 @@ export default function TransactionsScreen() {
     setDeleting(true);
     try {
       await apiService.deleteExpense(selectedExpense.id, selectedExpense.revision);
-      setAllExpenses(prev => prev.filter(e => e.id !== selectedExpense.id));
-      setFilteredExpenses(prev => prev.filter(e => e.id !== selectedExpense.id));
+      await list.refresh();
       setSelectedExpense(null);
       setDeleteModalVisible(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -185,26 +147,13 @@ export default function TransactionsScreen() {
   };
 
   const getTotalAmount = () => {
-    return filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    return list.page?.summary.totalAmount ?? 0;
   };
 
   const getAverageAmount = () => {
-    return filteredExpenses.length > 0 ? getTotalAmount() / filteredExpenses.length : 0;
+    const count = list.page?.summary.count ?? 0;
+    return count > 0 ? getTotalAmount() / count : 0;
   };
-
-  const handleShowMore = () => {
-    if (loadingMore) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setLoadingMore(true);
-    setTimeout(() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setVisibleCount(prev => prev + SHOW_MORE_INCREMENT);
-      setLoadingMore(false);
-    }, 400);
-  };
-
-  const displayedExpenses = filteredExpenses.slice(0, visibleCount);
-  const hiddenCount = filteredExpenses.length - displayedExpenses.length;
 
   const renderExpenseCard = ({ item }: { item: Expense }) => {
     const isPaidByUser = isPaidByMe(item);
@@ -333,7 +282,7 @@ export default function TransactionsScreen() {
         <View style={styles.statsSide}>
           <View style={styles.statsItem}>
             <Text style={styles.statsLabel}>Transactions</Text>
-            <AnimatedAmount value={String(filteredExpenses.length)} style={styles.statsValue} />
+            <AnimatedAmount value={String(list.page?.summary.count ?? 0)} style={styles.statsValue} />
           </View>
           <View style={styles.statsItem}>
             <Text style={styles.statsLabel}>Average</Text>
@@ -401,7 +350,7 @@ export default function TransactionsScreen() {
 
       {/* Transactions List */}
       <FlatList
-        data={displayedExpenses}
+        data={list.expenses}
         renderItem={renderExpenseCard}
         keyExtractor={(item) => item.id}
         style={styles.transactionsList}
@@ -441,22 +390,26 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           </View>
         )}
-        ListFooterComponent={
-          hiddenCount > 0 ? (
+        ListFooterComponent={<>
+          {list.error && <Text style={{ color: COLORS.negative }}>{list.error}</Text>}
+          {!list.online && <Text style={{ color: COLORS.textSecondary }}>Showing downloaded expenses. More may require internet.</Text>}
+          {list.page?.pageInfo.hasMore ? (
             <TouchableOpacity
               style={styles.showMoreButton}
-              onPress={handleShowMore}
+              onPress={list.loadMore}
               activeOpacity={0.8}
-              disabled={loadingMore}
+              disabled={list.loadingMore}
+              accessibilityRole="button"
+              accessibilityLabel="Load more transactions"
             >
-              {loadingMore ? (
+              {list.loadingMore ? (
                 <ActivityIndicator size="small" color={COLORS.actionText} />
               ) : (
-                <Text style={styles.showMoreText}>Show More</Text>
+                <Text style={styles.showMoreText}>Load more</Text>
               )}
             </TouchableOpacity>
-          ) : null
-        }
+          ) : null}
+          </>}
       />
 
       {/* Floating Action Button */}

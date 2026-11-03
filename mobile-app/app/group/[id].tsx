@@ -212,10 +212,10 @@ const GroupScreen = () => {
       setError(null);
       const [groupData, expenseData] = await Promise.all([
         apiService.getGroup(id),
-        apiService.getGroupExpenses(id),
+        apiService.getExpensePage({ limit: 5, page: 1 }, id),
       ]);
       setGroup(groupData);
-      setExpenses(expenseData);
+      setExpenses(expenseData.data);
 
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -501,7 +501,7 @@ const GroupScreen = () => {
           <View style={styles.tabSummary}>
             <Text style={styles.tabSummaryText}>
               {activeTab === 'expenses'
-                ? `${expenses.length} ${expenses.length === 1 ? 'expense' : 'expenses'}`
+                ? `Recent expenses`
                 : `${group.members.length} ${group.members.length === 1 ? 'member' : 'members'}`}
             </Text>
             {activeTab === 'expenses' && (
@@ -533,6 +533,12 @@ const GroupScreen = () => {
                 keyExtractor={item => item.id}
                 scrollEnabled={false}
                 ItemSeparatorComponent={() => <View style={styles.separator} />}
+                ListFooterComponent={
+                  <TouchableOpacity onPress={() => router.push(`/group/${id}/expenses`)}
+                    accessibilityRole="button" accessibilityLabel="See all group expenses">
+                    <Text style={{ color: COLORS.action, paddingVertical: 16 }}>See all expenses</Text>
+                  </TouchableOpacity>
+                }
               />
             ) : (
               <View style={styles.emptyState}>

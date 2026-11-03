@@ -15,6 +15,10 @@ import { setLanguage } from '@/i18n';
 import { router } from 'expo-router';
 import { type ThemeColors, type ThemePreference } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
+import { useAccountPreference } from '@/hooks/useAccountPreference';
+import { DEFAULT_NOTIFICATION_SETTINGS, isNotificationSettings, type NotificationSettings } from '@/services/preferences';
+import { setPushNotificationsEnabled } from '@/services/notifications';
+import ErrorMessage from '@/components/ErrorMessage';
 import { 
   ArrowLeft, 
   DollarSign, 
@@ -33,18 +37,38 @@ export default function SettingsScreen() {
   const { preference, setPreference } = useTheme();
   const toast = useToast();
   const { t } = useTranslation();
+  const {
+    value: notificationSettings,
+    save: saveNotificationSettings,
+    loading: notificationSettingsLoading,
+    saving: notificationSettingsSaving,
+    error: notificationSettingsError,
+    retry: retryNotificationSettings,
+  } = useAccountPreference('notifications', DEFAULT_NOTIFICATION_SETTINGS, isNotificationSettings);
   const [settings, setSettings] = useState({
     currency: 'NPR (रु)',
     dateFormat: 'MM/DD/YYYY',
     language: 'en' as 'en' | 'ne',
-    autoBackup: true,
-    offlineMode: false,
-    smartNotifications: true,
-    weeklyDigest: true,
   });
 
   const updateSetting = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const updatePushNotifications = async (enabled: boolean) => {
+    const next = { ...notificationSettings, pushNotifications: enabled };
+    if (!await saveNotificationSettings(next)) return;
+    try {
+      await setPushNotificationsEnabled(enabled);
+    } catch (error) {
+      console.error('Failed to update push notification setting:', error);
+      await saveNotificationSettings(notificationSettings);
+      toast.error(t('settings.pushNotificationsFailed'));
+    }
+  };
+
+  const updateWeeklyDigest = (enabled: boolean) => {
+    void saveNotificationSettings({ ...notificationSettings, weeklyDigest: enabled });
   };
 
   const handleCurrencyChange = () => {
@@ -130,14 +154,24 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             if (!await setPreference('system')) return;
+            const resetNotificationSettings: NotificationSettings = {
+              ...notificationSettings,
+              pushNotifications: true,
+              weeklyDigest: DEFAULT_NOTIFICATION_SETTINGS.weeklyDigest,
+            };
+            if (!await saveNotificationSettings(resetNotificationSettings)) return;
+            try {
+              await setPushNotificationsEnabled(true);
+            } catch (error) {
+              console.error('Failed to reset push notification setting:', error);
+              await saveNotificationSettings(notificationSettings);
+              toast.error(t('settings.pushNotificationsFailed'));
+              return;
+            }
             setSettings({
               currency: 'NPR (रु)',
               dateFormat: 'YYYY-MM-DD',
               language: 'en',
-              autoBackup: true,
-              offlineMode: false,
-              smartNotifications: true,
-              weeklyDigest: true,
             });
             void setLanguage('en');
             toast.success(t('settings.resetSuccess'));
@@ -170,7 +204,8 @@ export default function SettingsScreen() {
     icon: React.ReactNode,
     title: string,
     subtitle: string,
-    settingKey: string
+    value: boolean,
+    onValueChange: (value: boolean) => void
   ) => (
     <View style={styles.settingItem}>
       <View style={styles.settingIcon}>
@@ -181,8 +216,9 @@ export default function SettingsScreen() {
         <Text style={styles.settingSubtitle}>{subtitle}</Text>
       </View>
       <Switch
-        value={settings[settingKey as keyof typeof settings] as boolean}
-        onValueChange={(value) => updateSetting(settingKey, value)}
+        value={value}
+        onValueChange={onValueChange}
+        disabled={notificationSettingsLoading || notificationSettingsSaving}
         trackColor={{ false: COLORS.switchTrackOff, true: COLORS.switchTrackOn }}
         thumbColor={COLORS.switchThumb}
         ios_backgroundColor={COLORS.switchTrackOff}
@@ -200,7 +236,7 @@ export default function SettingsScreen() {
           <ArrowLeft size={20} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{t('settings.title')}</Text>
-        <View style={styles.backButton} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -263,32 +299,24 @@ export default function SettingsScreen() {
         {/* App Behavior */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.appBehavior')}</Text>
-          <View style={styles.settingsGroup}>
-            {renderSwitchItem(
-              <Download size={20} color={COLORS.textTertiary} />,
-              t('settings.autoBackup'),
-              t('settings.autoBackupSubtitle'),
-              'autoBackup'
-            )}
-            {renderSwitchItem(
-              <Globe size={20} color={COLORS.textTertiary} />,
-              t('settings.offlineMode'),
-              t('settings.offlineModeSubtitle'),
-              'offlineMode'
-            )}
+          {notificationSettingsError ? (
+            <ErrorMessage message={notificationSettingsError} onRetry={retryNotificationSettings} />
+          ) : <View style={styles.settingsGroup}>
             {renderSwitchItem(
               <Bell size={20} color={COLORS.textTertiary} />,
-              t('settings.smartNotifications'),
-              t('settings.smartNotificationsSubtitle'),
-              'smartNotifications'
+              t('settings.pushNotifications'),
+              t('settings.pushNotificationsSubtitle'),
+              notificationSettings.pushNotifications,
+              updatePushNotifications
             )}
             {renderSwitchItem(
               <Calendar size={20} color={COLORS.textTertiary} />,
               t('settings.weeklyDigest'),
               t('settings.weeklyDigestSubtitle'),
-              'weeklyDigest'
+              notificationSettings.weeklyDigest,
+              updateWeeklyDigest
             )}
-          </View>
+          </View>}
         </View>
 
         {/* Data Management */}

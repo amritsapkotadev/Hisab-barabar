@@ -3,9 +3,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import { apiService } from './api';
-import { getStoredAuthToken } from './tokenStorage';
+import { saveReceivedNotification } from './notificationInbox';
 
 const NOTIFICATION_CHANNEL_ID = 'high_alerts';
+const PUSH_NOTIFICATIONS_ENABLED_KEY = 'pushNotificationsEnabled';
+let pushNotificationsEnabled = true;
+let foregroundListenersInitialized = false;
 
 const requestNotificationPermission = async () => {
   if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -43,14 +46,9 @@ const registerFCMToken = async () => {
   await AsyncStorage.setItem('fcmToken', token);
   console.log('FCM Token:', token);
 
-  const authToken = await getStoredAuthToken();
-  if (authToken) {
-    try {
-      await apiService.updateFCMToken(token);
-      console.log('FCM token updated on server');
-    } catch (error) {
-      console.error('Failed to update FCM token on server:', error);
-    }
+  if (apiService.isAuthenticated()) {
+    await apiService.updateFCMToken(token);
+    console.log('FCM token updated on server');
   }
 };
 
@@ -67,28 +65,44 @@ const createNotificationChannel = async () => {
   });
 };
 
-const setupForegroundListeners = () => {
+export const registerNotificationHandlers = () => {
+  if (foregroundListenersInitialized) return;
+  foregroundListenersInitialized = true;
+  messaging().setBackgroundMessageHandler(async remoteMessage => {
+    try {
+      await saveReceivedNotification(remoteMessage);
+    } catch (error) {
+      console.error('Failed to save background notification:', error);
+      throw error;
+    }
+  });
   messaging()
     .getInitialNotification()
-    .then(remoteMessage => {
-      console.log('App opened from quit state:', remoteMessage?.notification?.title);
-    });
+    .then(remoteMessage => remoteMessage && saveReceivedNotification(remoteMessage))
+    .catch(error => console.error('Failed to save launch notification:', error));
 
   messaging().onNotificationOpenedApp(remoteMessage => {
-    console.log('App opened from background:', remoteMessage?.notification?.title);
+    void saveReceivedNotification(remoteMessage).catch(error =>
+      console.error('Failed to save opened notification:', error));
   });
 
   messaging().onMessage(async remoteMessage => {
-    console.log('Foreground notification received:', remoteMessage);
+    try {
+      await saveReceivedNotification(remoteMessage);
+    } catch (error) {
+      console.error('Failed to save received notification:', error);
+    }
+    if (!pushNotificationsEnabled ||
+      await AsyncStorage.getItem(PUSH_NOTIFICATIONS_ENABLED_KEY) === 'false') return;
 
-    const title =
-      remoteMessage?.notification?.title || remoteMessage?.data?.title || 'Notification';
-    const body = remoteMessage?.notification?.body || remoteMessage?.data?.body || '';
+    const title = remoteMessage.notification?.title ?? remoteMessage.data?.title;
+    const body = remoteMessage.notification?.body ?? remoteMessage.data?.body;
 
-    if (title && body) {
+    if (typeof title === 'string' || typeof body === 'string') {
+      await createNotificationChannel();
       await notifee.displayNotification({
-        title: String(title),
-        body: String(body),
+        title: typeof title === 'string' ? title : 'Notification',
+        body: typeof body === 'string' ? body : '',
         android: {
           channelId: NOTIFICATION_CHANNEL_ID,
           importance: AndroidImportance.HIGH,
@@ -100,10 +114,31 @@ const setupForegroundListeners = () => {
   });
 };
 
-export const initializeNotifications = async () => {
-  await requestNotificationPermission();
+export const initializeNotifications = async (enabled?: boolean) => {
+  const isEnabled = enabled ?? (await AsyncStorage.getItem(PUSH_NOTIFICATIONS_ENABLED_KEY)) !== 'false';
+  pushNotificationsEnabled = isEnabled;
+  if (isEnabled) {
+    await requestNotificationPermission();
+    await AsyncStorage.setItem(PUSH_NOTIFICATIONS_ENABLED_KEY, 'true');
+  } else if (await AsyncStorage.getItem(PUSH_NOTIFICATIONS_ENABLED_KEY) !== 'false') {
+    await setPushNotificationsEnabled(false);
+  }
   await createNotificationChannel();
-  setupForegroundListeners();
+  registerNotificationHandlers();
+};
+
+export const setPushNotificationsEnabled = async (enabled: boolean) => {
+  if (enabled) {
+    await requestNotificationPermission();
+    await AsyncStorage.setItem(PUSH_NOTIFICATIONS_ENABLED_KEY, 'true');
+    pushNotificationsEnabled = true;
+    return;
+  }
+
+  await apiService.clearFCMToken();
+  pushNotificationsEnabled = false;
+  await AsyncStorage.multiRemove(['fcmToken']);
+  await AsyncStorage.setItem(PUSH_NOTIFICATIONS_ENABLED_KEY, 'false');
 };
 
 export const subscribeToGroupTopic = async (groupId: string) => {

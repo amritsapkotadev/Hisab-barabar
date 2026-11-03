@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useServerRefresh } from '@/hooks/useServerRefresh';
+import { useExpensePages } from '@/hooks/useExpensePages';
 import { refreshServerData } from '@/services/dataClient';
 import {
   View,
@@ -9,27 +10,16 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  LayoutAnimation,
-  Platform,
-  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ArrowLeft, Plus, Calendar, User } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import { Expense, GroupMember } from '@/types';
+import { GroupMember } from '@/types';
 import { apiService } from '@/services/api';
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
 
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 20;
 
 const getInitials = (name: string) => {
   return name
@@ -42,12 +32,12 @@ const getInitials = (name: string) => {
 export default function GroupExpensesScreen() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const fetchPage = useCallback((page: number) =>
+    apiService.getExpensePage({ limit: PAGE_SIZE, page }, id), [id]);
+  const list = useExpensePages(fetchPage);
   const [membersById, setMembersById] = useState<Record<string, GroupMember>>({});
 
   const getMemberName = (memberId: string): string => {
@@ -58,17 +48,15 @@ export default function GroupExpensesScreen() {
     if (!id) return;
     try {
       setError(null);
-      const [expenseData, group] = await Promise.all([
-        apiService.getGroupExpenses(id),
+      const [, group] = await Promise.all([
+        list.refresh(),
         apiService.getGroup(id),
       ]);
-      setExpenses(expenseData);
       const map: Record<string, GroupMember> = {};
       group?.members.forEach((member) => {
         map[member.id] = member;
       });
       setMembersById(map);
-      setVisibleCount(PAGE_SIZE);
     } catch (err) {
       setError('Failed to load expenses. Please try again.');
       console.error('Error fetching expenses:', err);
@@ -94,20 +82,6 @@ export default function GroupExpensesScreen() {
       year: 'numeric',
     });
   };
-
-  const handleShowMore = () => {
-    if (loadingMore) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setLoadingMore(true);
-    setTimeout(() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setVisibleCount((prev) => prev + PAGE_SIZE);
-      setLoadingMore(false);
-    }, 400);
-  };
-
-  const displayedExpenses = expenses.slice(0, visibleCount);
-  const hiddenCount = expenses.length - displayedExpenses.length;
 
   if (loading) {
     return (
@@ -163,7 +137,7 @@ export default function GroupExpensesScreen() {
         </TouchableOpacity>
       </View>
       <FlatList
-        data={displayedExpenses}
+        data={list.expenses}
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => router.push(`/group/${id}/expense/${item.id}`)}
@@ -230,22 +204,26 @@ export default function GroupExpensesScreen() {
             </TouchableOpacity>
           </View>
         )}
-        ListFooterComponent={
-          hiddenCount > 0 ? (
+        ListFooterComponent={<>
+          {list.error && <Text style={{ color: COLORS.negative }}>{list.error}</Text>}
+          {!list.online && <Text style={{ color: COLORS.textSecondary }}>Showing downloaded expenses. More may require internet.</Text>}
+          {list.page?.pageInfo.hasMore ? (
             <TouchableOpacity
               style={styles.showMoreButton}
-              onPress={handleShowMore}
+              onPress={list.loadMore}
               activeOpacity={0.8}
-              disabled={loadingMore}
+              disabled={list.loadingMore}
+              accessibilityRole="button"
+              accessibilityLabel="Load more group expenses"
             >
-              {loadingMore ? (
+              {list.loadingMore ? (
                 <ActivityIndicator size="small" color={COLORS.actionText} />
               ) : (
-                <Text style={styles.showMoreText}>Show More</Text>
+                <Text style={styles.showMoreText}>Load more</Text>
               )}
             </TouchableOpacity>
-          ) : null
-        }
+          ) : null}
+        </>}
       />
     </SafeAreaView>
   );

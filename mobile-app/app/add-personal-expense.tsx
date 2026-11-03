@@ -24,6 +24,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 import { type ThemeColors } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/hooks/useTheme';
@@ -33,6 +34,7 @@ const AddExpenseScreen = () => {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
   const { isDark } = useTheme();
   const toast = useToast();
+  const { user, refreshUser } = useAuth();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [category, setCategory] = useState('');
@@ -42,7 +44,6 @@ const AddExpenseScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [animation] = useState(new Animated.Value(0));
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<{ id: string; name: string } | null>(null);
   const [draftReady, setDraftReady] = useState(false);
 
   const params = useLocalSearchParams();
@@ -159,7 +160,7 @@ const AddExpenseScreen = () => {
   };
 
   const handleAddExpense = async () => {
-    if (!amount || isNaN(Number(amount)) || !category || !note || !user) {
+    if (!amount || isNaN(Number(amount)) || !category || !note) {
       triggerAnimation();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.error('Please fill all fields.');
@@ -168,6 +169,7 @@ const AddExpenseScreen = () => {
 
     setLoading(true);
     try {
+      const expenseUser = user ?? await refreshUser();
       if (isEditMode) {
         await apiService.updatePersonalExpense(
           params.expenseId as string,
@@ -176,8 +178,8 @@ const AddExpenseScreen = () => {
             amount: Number(amount),
             date: date.toISOString(),
             type: 'personal',
-            paidBy: user.name,
-            participants: [user.name],
+            paidBy: expenseUser.name,
+            participants: [expenseUser.name],
             paymentMethod,
             category,
           },
@@ -193,11 +195,11 @@ const AddExpenseScreen = () => {
           amount: Number(amount),
           date: date.toISOString(),
           type: 'personal',
-          paidBy: user.name,
-          participants: [user.name],
+          paidBy: expenseUser.name,
+          participants: [expenseUser.name],
           paymentMethod,
           category,
-          createdBy: user.id,
+          createdBy: expenseUser.id,
         });
         void deleteExpenseDraft(draftKey).catch(error =>
           console.error('Unable to clear saved personal expense draft:', error));
@@ -235,10 +237,6 @@ const AddExpenseScreen = () => {
       },
     ],
   };
-
-  useEffect(() => {
-    apiService.getUserProfile().then(setUser);
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>

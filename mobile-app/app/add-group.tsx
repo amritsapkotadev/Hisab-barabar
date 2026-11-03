@@ -25,13 +25,14 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import * as Clipboard from 'expo-clipboard';
 import { apiService } from '@/services/api';
 import { subscribeToGroupTopic } from '@/services/notifications';
-import { buildInviteUrl } from '@/utils/invite';
+import { buildInviteQrUrl, buildInviteUrl } from '@/utils/invite';
 import { useToast } from '@/components/Toast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type ThemeColors } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/useTheme';
 import { createLocalId } from '@/utils/id';
 import { GroupMember } from '@/types';
+import QRCode from 'react-native-qrcode-svg';
 
 const EMOJIS = [
   '🎉', '👫', '✈️', '🏖️', '🍽️', '🏠', '🎂', '🛒', '🧑‍🤝‍🧑', 
@@ -229,6 +230,18 @@ export default function AddGroupScreen() {
                 </View>
               )}
               
+              {shareableLink && (
+                <View style={styles.successQrContainer}>
+                  <View
+                    accessible
+                    accessibilityRole="image"
+                    accessibilityLabel={`Invite QR code for ${createdGroup.name}`}
+                  >
+                    <QRCode value={buildInviteQrUrl(createdGroup.id)} size={180} color="#000000" backgroundColor="#ffffff" />
+                  </View>
+                  <Text style={styles.successQrCaption}>Scan to open this group invite</Text>
+                </View>
+              )}
               <Text style={styles.successSubtitle}>Share invite link with friends:</Text>
               <View style={styles.successLinkBox}>
                 <Text style={styles.successLinkText} numberOfLines={1}>{shareableLink}</Text>
@@ -794,6 +807,16 @@ const createStyles = (COLORS: ThemeColors) => StyleSheet.create({
     color: COLORS.textTertiary,
     textAlign: 'center',
     marginBottom: 16,
+  },
+  successQrContainer: {
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 24,
+  },
+  successQrCaption: {
+    color: COLORS.textTertiary,
+    fontSize: 14,
+    textAlign: 'center',
   },
   successLinkBox: {
     flexDirection: 'row',
