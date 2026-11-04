@@ -47,7 +47,7 @@ describe('startup notification ordering', () => {
     await act(async () => renderer.update(<IndexScreen />));
     expect(initializeNotifications).toHaveBeenCalledTimes(1);
     expect(router.replace).toHaveBeenCalledWith(
-      __DEV__ ? '/(tabs)/logo-preview' : status === 'authenticated' ? '/(tabs)' : '/welcome'
+      status === 'authenticated' ? '/(tabs)' : '/welcome'
     );
   });
 

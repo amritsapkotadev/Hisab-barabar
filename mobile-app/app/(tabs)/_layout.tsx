@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Home, Users, Receipt, User, Plus, Scale } from 'lucide-react-native';
+import { Home, Users, Receipt, User, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
@@ -13,10 +13,6 @@ import AddActionsModal from '@/components/AddActionsModal';
 const ICON_SIZE = 22;
 const ICON_STROKE = 2;
 const TAB_PADDING = 8;
-
-export const unstable_settings = {
-  initialRouteName: __DEV__ ? 'logo-preview' : 'index',
-};
 
 export default function TabLayout() {
   const { colors: COLORS, styles } = useThemedStyles(createStyles);
@@ -56,16 +52,6 @@ export default function TabLayout() {
           marginBottom: 0,
         },
       }}>
-      <Tabs.Screen
-        name="logo-preview"
-        options={{
-          title: 'Logo',
-          href: __DEV__ ? undefined : null,
-          tabBarIcon: ({ color }) => (
-            <Scale size={ICON_SIZE} strokeWidth={ICON_STROKE} color={color} />
-          ),
-        }}
-      />
       <Tabs.Screen
         name="index"
         options={{

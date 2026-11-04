@@ -33,9 +33,7 @@ export default function IndexScreen() {
 
   useEffect(() => {
     if (status === 'loading') return;
-    if (__DEV__) {
-      router.replace('/(tabs)/logo-preview');
-    } else if (status === 'authenticated') {
+    if (status === 'authenticated') {
       router.replace('/(tabs)');
     } else if (status === 'unauthenticated') {
       router.replace('/welcome');

@@ -128,7 +128,7 @@ export default function AnimatedSplash({
       pointerEvents={replayOnTap || !finished.current ? "auto" : "none"}
       onLayout={hideNativeSplash}
     >
-      <StatusBar hidden />
+      <StatusBar style="light" backgroundColor="#000000" />
       <Pressable style={StyleSheet.absoluteFill} onPress={replay}>
         <VideoView
           player={player}

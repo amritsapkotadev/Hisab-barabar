@@ -8,8 +8,8 @@
     "scheme": "hisabbarabar",
     "userInterfaceStyle": "automatic",
     "androidStatusBar": {
-      "barStyle": "dark-content",
-      "backgroundColor": "#FFFFFF",
+      "barStyle": "light-content",
+      "backgroundColor": "#000000",
       "translucent": false
     },
     "newArchEnabled": true,
@@ -102,7 +102,7 @@
           "image": "./assets/images/new_logo.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF"
+          "backgroundColor": "#000000"
         }
       ],
       [
