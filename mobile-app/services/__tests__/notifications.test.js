@@ -46,6 +46,7 @@ describe('push notification preference', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     storage.setItem.mockResolvedValue(undefined);
+    storage.getItem.mockResolvedValue(null);
     storage.multiRemove.mockResolvedValue(undefined);
     mockMessaging.requestPermission.mockResolvedValue(1);
     mockMessaging.registerDeviceForRemoteMessages.mockResolvedValue(undefined);
@@ -85,7 +86,7 @@ describe('push notification preference', () => {
     await setPushNotificationsEnabled(false);
 
     expect(apiService.clearFCMToken).toHaveBeenCalledTimes(1);
-    expect(storage.multiRemove).toHaveBeenCalledWith(['fcmToken']);
+    expect(storage.multiRemove).toHaveBeenCalledWith(['fcmToken', 'fcmTokenLastUploaded']);
     expect(storage.setItem).toHaveBeenCalledWith('pushNotificationsEnabled', 'false');
   });
 
@@ -96,6 +97,43 @@ describe('push notification preference', () => {
     expect(storage.setItem).toHaveBeenCalledWith('fcmToken', 'device-token');
     expect(apiService.updateFCMToken).toHaveBeenCalledWith('device-token');
     expect(storage.setItem).toHaveBeenCalledWith('pushNotificationsEnabled', 'true');
+  });
+
+  it('skips the server request when the current token was already uploaded', async () => {
+    storage.getItem.mockImplementation(async key =>
+      key === 'fcmToken' || key === 'fcmTokenLastUploaded' ? 'device-token' : null
+    );
+
+    await setPushNotificationsEnabled(true);
+
+    expect(apiService.updateFCMToken).not.toHaveBeenCalled();
+  });
+
+  it('retries an upload when the saved token has not been confirmed on the server', async () => {
+    storage.getItem.mockImplementation(async key =>
+      key === 'fcmToken' ? 'device-token' : null
+    );
+    apiService.updateFCMToken.mockRejectedValue(new Error('Network unavailable'));
+
+    await expect(setPushNotificationsEnabled(true)).rejects.toThrow('Network unavailable');
+
+    expect(storage.setItem).not.toHaveBeenCalledWith('fcmTokenLastUploaded', 'device-token');
+  });
+
+  it('shares an in-flight token registration request', async () => {
+    let resolveToken;
+    mockMessaging.getToken.mockReturnValueOnce(new Promise(resolve => {
+      resolveToken = resolve;
+    }));
+
+    const first = setPushNotificationsEnabled(true);
+    const second = setPushNotificationsEnabled(true);
+    await Promise.resolve();
+    resolveToken('device-token');
+    await Promise.all([first, second]);
+
+    expect(mockMessaging.getToken).toHaveBeenCalledTimes(1);
+    expect(apiService.updateFCMToken).toHaveBeenCalledTimes(1);
   });
 
   it('does not save the disabled state if server unregistration fails', async () => {

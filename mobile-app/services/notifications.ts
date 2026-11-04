@@ -9,6 +9,7 @@ const NOTIFICATION_CHANNEL_ID = 'high_alerts';
 const PUSH_NOTIFICATIONS_ENABLED_KEY = 'pushNotificationsEnabled';
 let pushNotificationsEnabled = true;
 let foregroundListenersInitialized = false;
+let tokenRegistration: Promise<void> | null = null;
 
 const requestNotificationPermission = async () => {
   if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -35,7 +36,7 @@ const requestNotificationPermission = async () => {
   await registerFCMToken();
 };
 
-const registerFCMToken = async () => {
+const syncFCMToken = async () => {
   await messaging().registerDeviceForRemoteMessages();
   const token = await messaging().getToken();
 
@@ -43,12 +44,31 @@ const registerFCMToken = async () => {
     return;
   }
 
-  await AsyncStorage.setItem('fcmToken', token);
-  console.log('FCM Token:', token);
+  const savedToken = await AsyncStorage.getItem('fcmToken');
+  if (savedToken !== token) {
+    await AsyncStorage.setItem('fcmToken', token);
+  }
 
   if (apiService.isAuthenticated()) {
-    await apiService.updateFCMToken(token);
-    console.log('FCM token updated on server');
+    const uploadedToken = await AsyncStorage.getItem('fcmTokenLastUploaded');
+    if (uploadedToken !== token) {
+      await apiService.updateFCMToken(token);
+      await AsyncStorage.setItem('fcmTokenLastUploaded', token);
+      console.log('FCM token updated on server');
+    }
+  }
+};
+
+const registerFCMToken = async () => {
+  if (tokenRegistration) {
+    return tokenRegistration;
+  }
+
+  tokenRegistration = syncFCMToken();
+  try {
+    await tokenRegistration;
+  } finally {
+    tokenRegistration = null;
   }
 };
 
@@ -137,7 +157,7 @@ export const setPushNotificationsEnabled = async (enabled: boolean) => {
 
   await apiService.clearFCMToken();
   pushNotificationsEnabled = false;
-  await AsyncStorage.multiRemove(['fcmToken']);
+  await AsyncStorage.multiRemove(['fcmToken', 'fcmTokenLastUploaded']);
   await AsyncStorage.setItem(PUSH_NOTIFICATIONS_ENABLED_KEY, 'false');
 };
 
