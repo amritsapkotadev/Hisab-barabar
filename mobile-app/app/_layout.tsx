@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -28,8 +28,11 @@ import { loadStoredLanguage } from '@/i18n';
 import { type ThemeColors } from '@/constants/theme';
 import { ThemeProvider, useTheme, useThemedStyles } from '@/hooks/useTheme';
 import { ThemeProvider as NavigationThemeProvider, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import AnimatedSplashLoader from '@/components/AnimatedSplashLoader';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(error => {
+  console.error('Failed to keep native splash screen visible:', error);
+});
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const { styles } = useThemedStyles(createStyles);
@@ -85,15 +88,14 @@ export default function RootLayout() {
 
 function ThemedRoot() {
   const { colors: COLORS, isDark } = useTheme();
+  const [splashVisible, setSplashVisible] = useState(true);
   const navigationTheme = isDark ? DarkTheme : DefaultTheme;
+  const finishSplash = useCallback(() => setSplashVisible(false), []);
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(COLORS.background).catch(error => {
       console.error('Failed to set app background:', error);
     });
   }, [COLORS.background]);
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
   return (
     <NavigationThemeProvider value={{
       ...navigationTheme,
@@ -134,6 +136,7 @@ function ThemedRoot() {
           </AuthProvider>
           </QueryClientProvider>
         </ToastProvider>
+        {splashVisible && <AnimatedSplashLoader onFinish={finishSplash} manageNativeSplash />}
     </NavigationThemeProvider>
   );
 }

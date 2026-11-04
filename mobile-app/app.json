@@ -125,7 +125,8 @@
       ],
       "expo-secure-store",
       "expo-localization",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
