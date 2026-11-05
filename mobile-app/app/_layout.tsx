@@ -90,7 +90,12 @@ function ThemedRoot() {
   const { colors: COLORS, isDark } = useTheme();
   const [splashVisible, setSplashVisible] = useState(true);
   const navigationTheme = isDark ? DarkTheme : DefaultTheme;
-  const finishSplash = useCallback(() => setSplashVisible(false), []);
+  const finishSplash = useCallback(() => {
+    SplashScreen.hideAsync().catch(error => {
+      console.error('Failed to hide native splash screen:', error);
+    });
+    setSplashVisible(false);
+  }, []);
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(COLORS.background).catch(error => {
       console.error('Failed to set app background:', error);

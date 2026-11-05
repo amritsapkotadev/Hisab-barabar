@@ -126,7 +126,6 @@ export default function AnimatedSplash({
     <Animated.View
       style={[styles.root, { opacity }]}
       pointerEvents={replayOnTap || !finished.current ? "auto" : "none"}
-      onLayout={hideNativeSplash}
     >
       <StatusBar style="light" backgroundColor="#000000" />
       <Pressable style={StyleSheet.absoluteFill} onPress={replay}>
@@ -136,6 +135,7 @@ export default function AnimatedSplash({
           contentFit="cover"
           nativeControls={false}
           allowsPictureInPicture={false}
+          onFirstFrameRender={hideNativeSplash}
         />
       </Pressable>
     </Animated.View>

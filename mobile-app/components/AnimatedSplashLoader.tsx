@@ -1,4 +1,6 @@
 import React, { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 const AnimatedSplash = lazy(() => import('./AnimatedSplash'));
 
@@ -27,7 +29,13 @@ export default class AnimatedSplashLoader extends Component<Props, State> {
     if (this.state.failed) return this.props.fallback ?? null;
 
     return (
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          <View style={styles.loading}>
+            <StatusBar style="light" backgroundColor="#000000" />
+          </View>
+        }
+      >
         <AnimatedSplash
           onFinish={this.props.onFinish}
           replayOnTap={this.props.replayOnTap}
@@ -37,3 +45,11 @@ export default class AnimatedSplashLoader extends Component<Props, State> {
     );
   }
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 999,
+  },
+});
