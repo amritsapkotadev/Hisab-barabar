@@ -1,6 +1,6 @@
 workflows:
   expo-android:
-    name: Expo Android APK
+    name: Expo Android APKs
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
@@ -15,7 +15,8 @@ workflows:
         script: cd "$CM_BUILD_DIR/$APP_DIR" && npx expo prebuild --platform android --no-install
       - name: Set SDK path
         script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/$APP_DIR/android/local.properties"
-      - name: Build APK
-        script: cd "$CM_BUILD_DIR/$APP_DIR/android" && ./gradlew assembleRelease
+      - name: Build development and standalone testing APKs
+        script: cd "$CM_BUILD_DIR/$APP_DIR/android" && ./gradlew assembleDebug assembleRelease
     artifacts:
-      - mobile-app/android/app/build/outputs/**/*.apk
+      - mobile-app/android/app/build/outputs/apk/debug/app-debug.apk
+      - mobile-app/android/app/build/outputs/apk/release/app-release.apk
